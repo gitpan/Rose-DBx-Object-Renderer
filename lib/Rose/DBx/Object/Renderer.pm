@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.01;
-# build: 35.6
+our $VERSION = 0.02;
+# build: 36.7
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -1185,7 +1185,7 @@ sub render_as_menu
 			$options->{no_head} = 1;
 			$content = "$item\::Manager"->render_as_table(%{$options})->{output};
 			
-			$menu_title = $args{title} || _to_label(stringify_package_name($table));
+			$menu_title = $args{title} || $items->{$item}->{label};
 		}
 	}
 	
@@ -2041,7 +2041,7 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
   # Render a form with using the default template with custom fields
   $e->render_as_form(
     template => 1,
-    fields => {'hobby' => {required => 1, options => ['Coding', 'Reading', 'Cooking']}}, # make the hobby field mandatory and provide some default options
+    fields => {'hobby' => {required => 1, options => ['Coding', 'Reading', 'Cooking']}},
   );
 
 
@@ -2361,7 +2361,7 @@ Another parameter within the C<controllers> hashref is C<hide_form>, which infor
 
 =item C<cancel> 
 
-C<render_as_form> has a built-in controller called 'Cancel'. C<cancel> is a string for renaming the default cancel controller in case it clashes with custom C<controllers>. 
+C<render_as_form> has a built-in controller called 'Cancel'. C<cancel> is a string for renaming the default 'Cancel' controller in case it clashes with custom C<controllers>. 
 
 =item C<form> 
 
