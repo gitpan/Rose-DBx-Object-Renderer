@@ -1,0 +1,55 @@
+[% html_head %]
+[% form.jshead %]
+<div style="position:relative;width=100%;padding:6px 10px;">
+<h2>[% title %]</h2>
+<p>[% description %]</p>
+</div>
+[% form.start %]
+[% FOREACH field = form.fields %]
+	[% IF field.type == 'hidden' %]
+		[% field.field %]
+	[% END %]
+[% END %]
+<table>
+	[% FOREACH field = field_order %]
+		[% IF form.field.$field and form.field.$field.type != 'hidden' %]
+			<tr>
+				<td>
+					<label for="[% form.field.$field.name %]_field">[% form.field.$field.label %]</label>
+					[% IF form.field.$field.required && form.field.$field.type != 'static' %]<font style = "color:red">*</font>[% END %]
+				</td>
+				<td>
+					[% IF form.field.$field.class == 'display_html' %]
+						[% form.field.$field.value %]
+					[% ELSE %]
+						[% form.field.$field.field %]
+					[% END %]
+					[% IF form.field.$field.invalid %]
+							<font style = "color:red">Missing or invalid entry, please try again.</font><br/>
+					[% END %]
+				</td>
+				<td>
+					[% form.field.$field.comment %]
+				</td>
+			</tr>
+		[% END %]
+	[% END %]
+	<tr>
+		<td></td>
+		<td colspan="2">
+			<div id="[% form_id %]_submits">
+			[% form.submit %]<input id="[% form_id %]_submit_cancel" name="_submit" onclick="this.form.onsubmit=function(){1;};" type="submit" value="[% cancel %]"/>
+			</div>
+		</td>
+	</tr>
+</table>
+[% form.end %]
+<script type="text/javascript">
+
+	function notify_error(form, invalid, alertstr, invalid_fields) {
+	    alert(alertstr);
+	    return false;
+	}
+
+	[% javascript_code %]
+</script>

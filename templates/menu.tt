@@ -1,0 +1,14 @@
+[% html_head %]
+[% UNLESS hide %]
+<div class = "light_menu_container">
+<div class ="light_menu">
+	<ul>
+		[% FOREACH item = item_order %]
+		<li><a [% IF items.$item.table == current %]class = "light_menu_current" [% END %]href="[% items.$item.link %]"><span>[% items.$item.label %]</span></a></li>
+		[% END %]
+	</ul>
+</div>
+</div>
+<p>[% description %]</p>
+[% END %]
+[% content %]
