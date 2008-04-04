@@ -4,3 +4,5 @@ Revision history for Rose-DBx-Object-Renderer
         First version, released on an unsuspecting world.
 0.02    01/04/2008
         Minor change to render_as_menu's HTML title. Updated POD.
+0.03	04/04/2008
+		Updated POD.

@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.02;
-# build: 36.7
+our $VERSION = 0.03;
+# build: 36.8
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -2140,7 +2140,7 @@ Renderer also needs a directory with write access to upload files. The default u
 
 =head2 Default Settings for Rendering Methods
 
-We may wish to modify the default settings of the rendering methods, for example:
+We can modify the default settings of the rendering methods, for example:
 
   # Change the default form template
   $Rose::DBx::Object::Renderer::CONFIG->{form}->{template} = 'custom_form.tt';
@@ -2164,7 +2164,7 @@ Renderer encapsulates web-oriented behaviours by injecting the coderefs defined 
   # Prints the localised DateTime object in 'DD/MM/YYYY' format
   print $object->date_for_view;
 
-  # Prints the image in formatted HTML
+  # Prints the image column in formatted HTML
   print $object->image_for_view;
 
   # Prints the url of the image
@@ -2175,20 +2175,44 @@ Renderer encapsulates web-oriented behaviours by injecting the coderefs defined 
 
 These injected object objects are used by rendering methods. The C<for_edit> and C<for_update> methods are used by C<render_as_form>. The C<for_edit> methods are triggered to format column values during form rendering, while the C<for_update> methods are triggered to update column values during form submission. Similarly, the C<for_view>, and C<for_search> methods are used by C<render_as_table>. The C<for_view> methods are used to format column values during table rendering, while the C<for_search> methods are triggered during column filtering and searches. 
 
-  # Create a link to search the 'first_name' in CPAN
-  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub{
-    my ($self, $column) = @_; 
-    my $value = $self->$column; 
-    return qq(<a href="http://search.cpan.org/search?query=$value&mode=all">$value</a>) if $value;
-  };
+We can customise existing formatting methods or define new ones easily. Let's say we would like to use the L<HTML::Strip> module to strip out HTML for the 'description' column:
+
+  use HTML::Strip;
   ...
+  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{description}->{format}->{for_update} = sub{
+    my ($self, $column, $value) = @_;
+    return unless $value;
+    my $hs = HTML::Strip->new(emit_spaces => 0);
+    my $clean_text = $hs->parse($value);
+    return $self->$column($clean_text);  
+  };
+
+We can always use the modified method directly:
+
   load_namespace('company');
+  my $p = Company::Product->new(id => 1);
+  $p->load;
+  
+  $p->description_for_update('<html>The Lightweight UI Generator.</html>');
+  print $p->description;
+  # which prints 'The Lightweight UI Generator.'
+  
+  $p->save();
 
-  my $e = Company::Employee->new(id => 1);
-  $e->load;
-  print $e->first_name_in_cpan;
+We can create a custom method for the 'first_name' column so that users can click on a link to search the first name in CPAN:
 
-  # use it directly inside templates: [% e.first_name_in_cpan %]
+$Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub{
+  my ($self, $column) = @_; 
+  my $value = $self->$column; 
+  return qq(<a href="http://search.cpan.org/search?query=$value&mode=all">$value</a>) if $value;
+};
+...
+load_namespace('company');
+my $e = Company::Employee->new(id => 1);
+$e->load;
+print $e->first_name_in_cpan;
+
+# or use it directly inside a template: [% e.first_name_in_cpan %]
 
 =item C<unsortable>
 
@@ -2282,14 +2306,15 @@ C<render_as_form> by default sorts all fields based on the column order of the u
 
 =item C<fields>
 
-Accepts a hashref to overwrite the L<CGI::FormBuilder> field definitions auto-initialised by C<render_as_form>. This can be used to add custom fields, such as a 'confirm_password' field. Any custom fields must be included to the C<order> arrayref in order to be shown. 
+Accepts a hashref to overwrite the L<CGI::FormBuilder> field definitions auto-initialised by C<render_as_form>. Any custom fields must be included to the C<order> arrayref in order to be shown. 
 
   Company::Employee->render_as_form(
     order => ['username', 'password', 'confirm_password', 'favourite_cuisine'],
     fields => {
-    password => {required => 1}, # make the password field mandatory
-    confirm_password => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}}, # create a custom field to confirm the password
+    password => {required => 1, class=> 'password_css'},
   });
+
+Please note that 'confirm_password' is also a built-in column inside Renderer. The default validation Javascript will work automatically, unless the password field is not called 'password' or when a prefix is used, in which case, the validation code should be updated accordingly.  
 
 =item C<queries>
 
@@ -2554,11 +2579,11 @@ This can be either 'pie', 'bar', or 'line'.
 
 =item C<column> and C<values>
 
-These two parameters are only applicable to 'Pie' chart. C<column> defines the column of the table in which the values are compared. The C<values> parameter is a list of values to be compared in that column, i.e. the slices.
+These two parameters are only applicable to pie charts. C<column> defines the column of the table in which the values are compared. The C<values> parameter is a list of values to be compared in that column, i.e. the slices.
 
 =item C<columns> and C<objects>
 
-These two parameters are only applicable to 'Bar' and 'Line' charts. C<columns> defines the columns of the object to be compared. The C<objects> parameter is a list of object IDs representing the objects to be compared.
+These two parameters are only applicable to bar and line charts. C<columns> defines the columns of the object to be compared. The C<objects> parameter is a list of object IDs representing the objects to be compared.
 
 =item C<dataset>
 
@@ -2574,7 +2599,7 @@ Apart from the formatting methods injected by C<load_namespace>, there are sever
 
 =head2 C<delete_with_file>
 
-This is a wrapper of the object's C<delete> method to removed any associated uploaded file:
+This is a wrapper of the object's C<delete> method to remove any uploaded files associated:
 
   $object->delete_with_file();
 
@@ -2595,11 +2620,13 @@ This method is used internally to stringify foreign objects as form field values
 
 =head2 C<stringify_package_name>
 
-This is a less useful method that stringifies the package name:
+This method stringifies the package name:
 
   print Company::Employee->stringify_package_name(); # Prints 'company_employee'
 
 =head1 OTHER CONFIGURATIONS
+
+=head2 Javascript
 
 We can also specify the path to contents such as javascript libraries or images used within templates: 
   
@@ -2620,9 +2647,19 @@ Such that, in the actual TT template, we can do
 
 The C<address_for_view> and C<media_for_view> object methods are also designed to work seamlessly with Lightview (L<http://www.nickstakenburg.com/projects/lightview/>), a Prototype based lightbox effect library. Simply include the appropriate Javascript libraries into your custom templates to enable the lightbox effect.
 
-The default CSS class for the 'address' column is 'disable_editor'. This allows us to exclude TinyMCE using this setup: C<editor_deselector : "disable_editor">. 
+The default CSS class for the 'address' column is 'disable_editor'. This is for excluding the TinyMCE editor with this setup: C<editor_deselector : "disable_editor">. 
 
-By default, the 'date', 'phone', and 'mobile' columns are localised for Australia. Their validation and formats can be customised within C<$CONFIG>. Other miscellaneous configurations are defined in C<$CONFIG-E<gt>{misc}>.
+=head2 Miscellaneous
+
+Other miscellaneous configurations are defined in:
+  
+  $Rose::DBx::Object::Renderer::CONFIG->{misc}
+
+By default, the 'date', 'phone', and 'mobile' columns are localised for Australia.
+
+=head2 Sample Templates
+
+There are four sample templates: form.tt, table.tt, menu.tt, and chart.tt in the 'templates' folder inside the TAR archive of the module.
 
 =head1 SEE ALSO
 
