@@ -19,11 +19,7 @@
 					[% IF form.field.$field.required && form.field.$field.type != 'static' %]<font style = "color:red">*</font>[% END %]
 				</td>
 				<td>
-					[% IF form.field.$field.class == 'display_html' %]
-						[% form.field.$field.value %]
-					[% ELSE %]
-						[% form.field.$field.field %]
-					[% END %]
+					[% form.field.$field.field %]
 					[% IF form.field.$field.invalid %]
 							<font style = "color:red">Missing or invalid entry, please try again.</font><br/>
 					[% END %]

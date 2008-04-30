@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.03;
-# build: 36.8
+our $VERSION = 0.04;
+# build: 42.10
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -84,6 +84,7 @@ $CONFIG =
 	chart => {template => 'chart.tt', js => {plotr=>1}},
 	misc => {
 				stringify_delimiter => ', ',
+				join_delimiter => ', ',
 				title_background_color => '#ABB6C4', #e.g. 91508E C292B8 1FBFDF CAF73A 
 				content_background_color => '#ffffff',
 				currency_symbol => {'AUD' => '$', 'JPY' => '&yen;', 'EUR' => '&#8364;', 'GBP' => '&#163;'},
@@ -111,8 +112,8 @@ $CONFIG =
 				'varchar' => {sortopts => 'LABELNAME', maxlength => 255},
 				'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
 				'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
-				'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime';return $self->$column->dmy('/') if $self->$column;}}},
-				'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime';return $self->$column->dmy('/').' '.$self->$column->hour.':'.$self->$column->minute if $self->$column;}, for_edit => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime';return $self->$column->dmy('/').' '.$self->$column->hms if $self->$column;}, for_update => sub {}, for_search => sub{_search_timestamp(@_);}}},
+				'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime'; $self->$column->set_time_zone('Australia/Sydney'); return $self->$column->dmy('/') if $self->$column;}}},
+				'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_edit => sub {_view_timestamp(@_);}, for_update => sub {}, for_search => sub{_search_timestamp(@_);}}},
 				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
 				'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';return join ':', ($h, $m, $s);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
 				'length' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_length};}}},
@@ -268,6 +269,7 @@ sub render_as_form
 	$form_def->{name} ||= $form_id;
 	$form_def->{enctype} ||= 'multipart/form-data';
 	$form_def->{method} ||= 'post';
+	$form_def->{params} ||= $args{cgi} if exists $args{cgi};
 	
 	if($args{template})
 	{
@@ -557,7 +559,7 @@ sub render_as_table
 	my $class = ref $self || $self;
 	$class =~ s/::Manager$//;
 	
-	my $query = CGI->new;
+	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
 
 	my $table_id = $args{prefix};
@@ -715,7 +717,7 @@ sub render_as_table
 			
 			$args{create}->{prefix} ||= $table_id.'_form';
 			my $form = $class->render_as_form(%{$args{create}});
-			$output->{form}->{controller} = $form->{controller};
+			$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
 			$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
 		}
 		else
@@ -753,7 +755,7 @@ sub render_as_table
 								$args{edit}->{prefix} ||= $table_id.'_form';
 
 								my $form = $object->render_as_form(%{$args{edit}});
-								$output->{form}->{controller} = $form->{controller};
+								$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
 								$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
 							}
 							elsif(exists $args{controllers} and exists $args{controllers}->{$query->param($param_list->{action})})
@@ -841,8 +843,13 @@ sub render_as_table
 			$html_head =~ s/\[%title%\]/$table_title/;
 		}
 		
-		$table->{create} = {value => 'Create', link => qq($url?$query_string->{complete}$param_list->{action}=create)} if $args{create};
-		
+		if ($args{create})
+		{
+			my $create_value = 'Create';
+			$create_value = $args{create}->{title} if ref $args{create} eq 'HASH' and exists $args{create}->{title};
+			$table->{create} = {value => $create_value, link => qq($url?$query_string->{complete}$param_list->{action}=create)} if $args{create};
+		}
+				
 		$table->{actions} = $args{actions} if $args{actions};
 		
 		$table->{total_columns} = scalar @{$column_order} + scalar @controllers;
@@ -886,7 +893,15 @@ sub render_as_table
 		
 		foreach my $controller (@controllers)
 		{
-			my $label = _to_label($controller);
+			my $label;
+			if (ref $args{controllers}->{$controller} eq 'HASH' and exists $args{controllers}->{$controller}->{label}) 
+			{
+				$label = $args{controllers}->{$controller}->{label};
+			}
+			else
+			{
+				$label = _to_label($controller);
+			}
 			push @{$table->{head}}, {name => $controller, value => $label};
 		}
 		
@@ -904,7 +919,7 @@ sub render_as_table
 				}
 				elsif (exists $relationships->{$column})
 				{
-					$value = join ', ', map {$_->stringify_me} $object->$column;
+					$value = join $CONFIG->{misc}->{join_delimiter}, map {$_->stringify_me} $object->$column;
 				}
 				else
 				{
@@ -920,7 +935,7 @@ sub render_as_table
 					
 					if (ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
 					{
-						$value = join $CONFIG->{misc}->{stringify_delimiter}, $object->$view_method;
+						$value = join $CONFIG->{misc}->{join_delimiter}, $object->$view_method;
 					}
 					else
 					{
@@ -933,7 +948,15 @@ sub render_as_table
 			
 			foreach my $controller (@controllers)
 			{
-				my $label = _to_label($controller);
+				my $label;
+				if (ref $args{controllers}->{$controller} eq 'HASH' and exists $args{controllers}->{$controller}->{label}) 
+				{
+					$label = $args{controllers}->{$controller}->{label};
+				}
+				else
+				{
+					$label = _to_label($controller);
+				}
 				my $controller_query_string;
 				if (ref $args{controllers}->{$controller} eq 'HASH' and exists $args{controllers}->{$controller}->{queries})
 				{
@@ -1124,7 +1147,7 @@ sub render_as_menu
 		$current_param = 'current';
 	}
 	
-	my $query = CGI->new;
+	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
 	
 	my $query_string = join ('&', map {"$_=$args{queries}->{$_}"} keys %{$args{queries}});
@@ -1183,8 +1206,7 @@ sub render_as_menu
 			$options->{edit} = $args{edit} unless defined $options->{edit};
 			$options->{delete} = $args{delete} unless defined $options->{delete};
 			$options->{no_head} = 1;
-			$content = "$item\::Manager"->render_as_table(%{$options})->{output};
-			
+			$output->{table} = "$item\::Manager"->render_as_table(%{$options});
 			$menu_title = $args{title} || $items->{$item}->{label};
 		}
 	}
@@ -1195,7 +1217,6 @@ sub render_as_menu
 	
 	unless($args{no_head})
 	{
-		
 		$html_head = $CONFIG->{misc}->{html_head};
 		$html_head =~ s/\[%title%\]/$menu_title/;
 	}
@@ -1217,7 +1238,7 @@ sub render_as_menu
 				title => $menu_title,
 				description => $args{'description'},
 				extra => $args{extra},
-				content => $content,
+				content => $output->{table}->{output},
 				hide => $hide_menu,
 				});
 	}
@@ -1235,7 +1256,7 @@ sub render_as_menu
 			}
 			$menu .= '</ul></div></div><p>'.$args{'description'}.'</p>';
 		}
-		$menu .= $content;
+		$menu .= $output->{table}->{output};
 	}
 		
 	$args{output}?$output->{output} = $menu:print $menu;
@@ -1269,7 +1290,7 @@ sub render_as_chart
 	{
 		$hide_chart='hide_chart';
 	}
-	my $query = CGI->new;
+	my $query = $args{cgi} || CGI->new;
 	return if $query->param($hide_chart);
 	
 	$args{'chart_title'} ||= _to_label(stringify_package_name($class->meta->table));
@@ -1858,25 +1879,41 @@ sub _update_file
 	my ($self, $column, $value) = @_;
 	return unless $value and $value ne '' and ref $self;
 	my $upload_path = join '/', ($CONFIG->{upload}->{path}, $self->stringify_package_name, $self->id, $column);	
+	mkpath($upload_path) unless -d $upload_path;
 	
 	my $file_name = "$value";
 	$file_name =~ s/.*[\/\\](.*)/$1/;
 	
-	my $directory = join '/', ($CONFIG->{upload}->{path}, $self->stringify_package_name, $self->id, $column);
-	mkpath($directory) unless -d $directory;
+	my ($actual_name, $extension) = ($file_name =~ /(.*)\.(.*)$/);
+	$actual_name ||= $file_name;
+	
 	my $current_file = $self->$column;
 	
-	rename ($upload_path.'/'.$current_file, $upload_path.'/'.$current_file.'.old') if $current_file and -e $upload_path.'/'.$current_file;
+	my $old_file;
+	$old_file = $upload_path.'/'.$current_file if $current_file;
+	my $new_file = $upload_path.'/'.$file_name;
 	
+	if ($old_file eq $new_file and -e $old_file) # same file name
+	{
+		my $counter = 1;
+		my $backup_file = $upload_path.'/'.$actual_name.'-'.$counter.'.'.$extension;
+		while (-e $backup_file)
+		{			
+			$counter++;
+			$backup_file = $upload_path.'/'.$actual_name.'-'.$counter.'.'.$extension;
+		}
+		rename ($old_file, $backup_file);
+		$old_file = $backup_file;
+	}
+		
 	if (_upload_file($upload_path,$file_name, $value))
 	{
-		my $current_file = $self->$column;
-		unlink($upload_path.'/'.$current_file.'.old') unless $CONFIG->{form}->{keep_old_file} or not $current_file;
+		unlink($old_file) unless not $old_file or $CONFIG->{form}->{keep_old_file};
 		return $self->$column($file_name);
 	}
 	else
 	{
-		rename ($upload_path.'/'.$current_file.'.old', $upload_path.'/'.$current_file) if $current_file and -e $upload_path.'/'.$current_file.'.old';
+		rename ($old_file, $upload_path.'/'.$current_file) if $old_file;
 		return;
 	}	
 }
@@ -1923,6 +1960,15 @@ sub _search_timestamp
 	my ($time) = ($value =~ /(\d{2}:\d{2})/);
 	
 	return $date.$time;
+}
+
+sub _view_timestamp
+{
+	my ($self, $column, $value) = @_;
+	return unless $self->$column and ref $self->$column eq 'DateTime';
+	$self->$column->set_time_zone('Australia/Sydney');
+	my $t = $self->$column->hms; $t =~ s/:\d{2}$//;
+	return $self->$column->dmy('/').' '.$t;
 }
 
 #misc util
@@ -2150,6 +2196,9 @@ We can modify the default settings of the rendering methods, for example:
 
   # Use 'ilike' to perform case-insensitive searches in PostgreSQL
   $Rose::DBx::Object::Renderer::CONFIG->{table}->{search_operator} = 'ilike'; # defaulted to 'like'
+
+  # Keep old upload files
+  $Rose::DBx::Object::Renderer::CONFIG->{form}->{keep_old_file} = 1;
 
 =head2 Column Definitions
 
@@ -2424,14 +2473,14 @@ C<render_as_table> allows columns to be filtered via URL. For example: http://ww
 
 =item C<columns>
 
-The C<columns> parameter is for owerwriting the column headings and values.
+The C<columns> parameter can be used to define custom columns which do not physically exist in the database table
 
   Company::Employee::Manager->render_as_table(
-    columns => {'last_name' => 
-      label => 'Surname', #change the column heading
+    columns => {'custom_column' => 
+      label => 'Total',
       value => {
-        2 => 'Liang', # set the last_name to 'Liang' where object ID is 2
-        8 => 'Lee' 
+        1 => '100', # the 'Total' is 100 for object ID 1
+        2 => '50'
       }
   });
 
@@ -2465,9 +2514,11 @@ C<get> accepts a hashref to construct database queries. C<get> is directly passe
 The C<controllers> parameter works very similar to C<render_as_form>. C<controller_order> defines the order of the controllers.
 
   Company::Employee::Manager->render_as_table(
+	controller_order => ['edit', 'Review', 'approve'],
     controllers => {
       'Review' => sub{my $self = shift; do_something_with($self);}
-      'Approve' => {
+      'approve' => {
+	    label => 'Approve',
         hide_table => 1,
         queries => {approve => '1'}, 
         callback => sub {my $self = shift; do_something_else_with($self);

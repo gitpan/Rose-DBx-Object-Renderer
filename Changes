@@ -6,3 +6,14 @@ Revision history for Rose-DBx-Object-Renderer
         Minor change to render_as_menu's HTML title. Updated POD.
 0.03	04/04/2008
 		Updated POD.
+0.04	01/05/2008
+		Updated the timestamp definition to properly display minutes. 
+		Refined the file upload method for preserving old files.
+		Simplified the sample form template (form.tt).
+		Fixed chained output in render_as_menu.
+		Fixed date column's 'for_update' method.
+		Allow CGI object to be passed to the rendering methods (Stewart Heckenberg).
+		Fixed a bug in render_as_form when inserting empty values using custom 'for_update' methods.
+		Added the 'join_delimiter' parameter in $CONFIG for joining multiple values, such as foreign objects.
+		Minor Enhancements.
+		Updated POD.
