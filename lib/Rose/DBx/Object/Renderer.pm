@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.04;
-# build: 42.10
+our $VERSION = 0.05;
+# build: 44.10
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -708,6 +708,8 @@ sub render_as_table
 			$args{create}->{no_head} ||= 1 if $args{no_head};
 			$args{create}->{order} ||= $args{order} if $args{order};
 			
+			$args{create}->{template} ||= 1 if $args{template} and not exists $args{create}->{template};
+			
 			@{$args{create}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};			
 			
 			$args{create}->{queries}->{$param_list->{action}} = 'create';
@@ -743,6 +745,8 @@ sub render_as_table
 								$args{edit}->{output} = 1;
 								$args{edit}->{no_head} ||= 1 if $args{no_head};								
 								$args{edit}->{order} ||= $args{order} if $args{order};
+								
+								$args{edit}->{template} ||= 1 if $args{template} and not exists $args{edit}->{template};
 																
 								@{$args{edit}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};				
 								$args{edit}->{queries}->{$param_list->{action}} = 'edit';
@@ -876,7 +880,7 @@ sub render_as_table
 				$head->{value} = _to_label($column);
 			}
 		
-			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}))
+			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$column} and exists $args{columns}->{$column}->{unsortable} and $args{columns}->{$column}->{unsortable}))
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -1194,7 +1198,8 @@ sub render_as_menu
 			$options->{queries}->{$current_param} = $table;	
 			$options->{prefix} ||= $menu_id.'_table';
 			$options->{url} ||= $url;
-			$options->{template} ||= 1 if $args{template};
+			
+			$options->{template} = 1 if $args{template} and not exists $options->{template};
 			
 			if ($args{ajax})
 			{
@@ -1202,9 +1207,10 @@ sub render_as_menu
 				$options->{ajax} = $args{ajax} unless defined $options->{ajax};
 			}
 			
-			$options->{create} = $args{create} unless defined $options->{create};
-			$options->{edit} = $args{edit} unless defined $options->{edit};
-			$options->{delete} = $args{delete} unless defined $options->{delete};
+			$options->{create} = 1 if $args{create} eq 1 and not exists $options->{create};
+			$options->{edit} ||= 1 if $args{edit} eq 1 and not exists $options->{edit};
+			$options->{delete} ||= 1 if $args{delete} eq 1 and not exists $options->{delete};
+			
 			$options->{no_head} = 1;
 			$output->{table} = "$item\::Manager"->render_as_table(%{$options});
 			$menu_title = $args{title} || $items->{$item}->{label};
@@ -2481,7 +2487,8 @@ The C<columns> parameter can be used to define custom columns which do not physi
       value => {
         1 => '100', # the 'Total' is 100 for object ID 1
         2 => '50'
-      }
+      },
+	 unsortable => 1,
   });
 
 =item C<order>

@@ -34,7 +34,7 @@
 		<td></td>
 		<td colspan="2">
 			<div id="[% form_id %]_submits">
-			[% form.submit %]<input id="[% form_id %]_submit_cancel" name="_submit" onclick="this.form.onsubmit=function(){1;};" type="submit" value="[% cancel %]"/>
+			[% form.submit %]
 			</div>
 		</td>
 	</tr>
