@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.05;
-# build: 44.10
+our $VERSION = 0.06;
+# build: 45.10
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -71,6 +71,7 @@ $CONFIG =
 				js => {niftycube => 1, lightview => 1},
 				search_operator => 'like', #e.g. use 'ilike' for case-insensitive search in Postgresql 
 				or_filter => 0,
+				no_pagination => 0,
 			},
 	form => {
 				template => 'form.tt',
@@ -1027,6 +1028,7 @@ sub render_as_table
 				wait_message => $CONFIG->{table}->{wait_message},
 				html_head => $html_head,
 				no_head => $args{no_head},
+				no_pagination => $args{no_pagination} || $CONFIG->{table}->{no_pagination},
 				title_background_color => $CONFIG->{misc}->{title_background_color},
 				content_background_color => $CONFIG->{misc}->{content_background_color},
 				extra => $args{extra}
@@ -1090,31 +1092,36 @@ sub render_as_table
 				$html_table .= qq(<tr><td colspan="$table->{total_columns}"><p>$CONFIG->{table}->{empty_message}</p></td></tr>);
 			}
 			
-			$html_table .= '</table><div style="padding:0px 10px;">';
+			$html_table .= '</table>';
 			
-			if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value})
+			unless ($args{no_pagination} || $CONFIG->{table}->{no_pagination})
 			{
-				$html_table .= qq( <<  < );
-			}
-			else
-			{
-				$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}"> << </a>);
-				$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}"> < </a>);
+				$html_table .= '<div style="padding:0px 10px;">';
+				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value})
+				{
+					$html_table .= qq( <<  < );
+				}
+				else
+				{
+					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}"> << </a>);
+					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}"> < </a>);
+				}
+			
+				$html_table .= qq( Page $table->{pager}->{current_page}->{value} of $table->{pager}->{last_page}->{value} );
+			
+				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value})
+				{
+					$html_table .= qq( >  >> );
+				}
+				else
+				{
+					$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}"> > </a>);
+					$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}"> >> </a>);
+				}
+				$html_table .= '</div>';
 			}
 			
-			$html_table .= qq( Page $table->{pager}->{current_page}->{value} of $table->{pager}->{last_page}->{value} );
-			
-			if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value})
-			{
-				$html_table .= qq( >  >> );
-			}
-			else
-			{
-				$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}"> > </a>);
-				$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}"> >> </a>);
-			}
-
-			$html_table .=qq(</div></div><script type="text/javascript">$args{javascript_code}</script>);
+			$html_table .=qq(</div><script type="text/javascript">$args{javascript_code}</script>);
 		}
 		
 		$args{output}?$output->{output} = $html_table:print $html_table;
@@ -2160,7 +2167,7 @@ Renderer integrates L<CGI::FormBuilder> to generate forms and Plotr to render ch
 
 =head1 CONFIGURATION
 
-C<$Rose::DBx::Object::Renderer::CONFIG> is an exported variable which defines many settings in Renderer. 
+C<$Rose::DBx::Object::Renderer::CONFIG> is an exported hash which defines many settings in Renderer. 
 
 =head2 Database Connection
 
@@ -2208,7 +2215,7 @@ We can modify the default settings of the rendering methods, for example:
 
 =head2 Column Definitions
 
-Renderer embraces a built-in list of commonly-used column types in web applications, such as email, address, photo, document, and media. This list is defined in C<$CONFIG-E<gt>{columns}>. For those who are familiar with L<CGI::FormBuilder>, it is obvious that most of the values inside C<$CONFIG-E<gt>{columns}-E<gt>{column_name}> are in fact L<CGI::FormBuilder> field definitions, except for C<format>, C<unsortable>, and C<stringify>. We can create new column definitions simply by extending C<$CONFIG-E<gt>{columns}>.
+Renderer embraces a built-in list of commonly-used column types in web applications, such as email, address, photo, document, and media. This list is defined in C<$Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}>. For those who are familiar with L<CGI::FormBuilder>, it is obvious that most of the values inside C<$Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}-E<gt>{column_name}> are in fact L<CGI::FormBuilder> field definitions, except for C<format>, C<unsortable>, and C<stringify>. We can create new column definitions simply by extending C<$CONFIG-E<gt>{columns}>.
 
 =over
 
@@ -2256,7 +2263,7 @@ We can always use the modified method directly:
 
 We can create a custom method for the 'first_name' column so that users can click on a link to search the first name in CPAN:
 
-$Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub{
+  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub{
   my ($self, $column) = @_; 
   my $value = $self->$column; 
   return qq(<a href="http://search.cpan.org/search?query=$value&mode=all">$value</a>) if $value;

@@ -19,6 +19,9 @@ Revision history for Rose-DBx-Object-Renderer
 		Updated POD.
 0.05	02/05/2008
 		Added the 'unsortable' parameter to custom column definition in render_as_table. 
-		Fixed the sample form.tt (Stewart Heckenberg)
+		Fixed buttons in the sample form.tt (Stewart Heckenberg)
 		Enhanced template settings in rendering methods.
 		Updated POD.
+0.06	06/05/2008
+		Added the 'no_pagination' parameter to render_as_table, updated the sample table template.
+		Fixed POD.

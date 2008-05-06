@@ -42,21 +42,23 @@
 			<tr><td colspan="[% table.total_columns %]"><p>No record found.</p></td></tr>
 		[% END %]
 	</table>
-	<div style="padding:0px 10px;">
-	[% IF table.pager.current_page.value == table.pager.first_page.value %]
-		<<  <
-	[% ELSE %]
-		<a href="[% table.pager.first_page.link %]"><< </a>
-		<a href="[% table.pager.previous_page.link %]"><</a>
+	[% UNLESS no_pagination %]
+		<div style="padding:0px 10px;">
+		[% IF table.pager.current_page.value == table.pager.first_page.value %]
+			<<  <
+		[% ELSE %]
+			<a href="[% table.pager.first_page.link %]"><< </a>
+			<a href="[% table.pager.previous_page.link %]"><</a>
+		[% END %]
+		Page [% table.pager.current_page.value %] of [% table.pager.last_page.value %]
+		[% IF table.pager.current_page.value == table.pager.last_page.value %]
+			> >>
+		[% ELSE %]
+			<a href="[% table.pager.next_page.link %]">> </a>
+			<a href="[% table.pager.last_page.link %]">>></a>
+		[% END %]
+		</div>
 	[% END %]
-	Page [% table.pager.current_page.value %] of [% table.pager.last_page.value %]
-	[% IF table.pager.current_page.value == table.pager.last_page.value %]
-		> >>
-	[% ELSE %]
-		<a href="[% table.pager.next_page.link %]">> </a>
-		<a href="[% table.pager.last_page.link %]">>></a>
-	[% END %]
-	</div>
 </div>
 <script type="text/javascript">						
 [% javascript_code %]
