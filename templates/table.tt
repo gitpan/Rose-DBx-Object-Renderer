@@ -1,27 +1,27 @@
 [% html_head %]
-<div style-"width=100%">
+<div class="light_container">
 	[% IF searchable %]	
-	<div style="position:relative;height:20px;width=100%;padding:6px 0px;"><div style="position:absolute;right:6px;">
+	<div class="light_table_searchable_container"><div class="light_table_searchable">
 		<form action="[% url %]" method="get" id="[% table_id %]_search_form"><label for="[% table_id %]_search">
-			<span style="padding-right:3px;">Search</span><input type="search" name="[% param_list.q %]" id="[% table_id %]\_search" accesskey="s" class="search_box" size = "15"></label>[% query_hidden_fields %]
+			<span class="light_table_searchable_span">Search</span><input type="search" name="[% param_list.q %]" id="[% table_id %]\_search" accesskey="s"></label>[% query_hidden_fields %]
 		</form>
 	</div></div>
 	[% END %]
-	<div style="position:relative;width=100%;padding:6px 10px 0 10px;">
+	<div class="light_title_container">
 	<h2>[% title %]</h2>
 	<p>[% description %]</p>
 	</div>
 	
-	<div style="position:relative;height:20px;"><div style="position:absolute;bottom:0px;right:10px;font-size:110%;">
+	<div class="light_table_actions_container"><div class="light_table_actions">
 		[% IF table.exists('create') %]<a href="[% table.create.link %]">[% table.create.value %]</a>[% END %]
 		[% IF table.exists('actions') %][% table.actions %][% END %]
 	</div>
 	
 	</div>
-	<table cellspacing="0" cellpadding="0" id="[% table_id %]" class="light_table">
+	<table id="[% table_id %]" class="light_table">
 		<tr>
 		[% FOREACH head = table.head %]
-			<th scope="col">[% IF head.exists('link') %]<a href = "[% head.link %]">[% head.value %]</a>[% ELSE %][% head.value %][% END %]</th>
+			<th scope="col">[% IF head.exists('link') %]<a href="[% head.link %]">[% head.value %]</a>[% ELSE %][% head.value %][% END %]</th>
 		[% END %]
 		</tr>
 		[% IF table.rows %]
@@ -43,7 +43,7 @@
 		[% END %]
 	</table>
 	[% UNLESS no_pagination %]
-		<div style="padding:0px 10px;">
+		<div class="light_container">
 		[% IF table.pager.current_page.value == table.pager.first_page.value %]
 			<<  <
 		[% ELSE %]

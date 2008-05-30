@@ -25,3 +25,8 @@ Revision history for Rose-DBx-Object-Renderer
 0.06	06/05/2008
 		Added the 'no_pagination' parameter to render_as_table, updated the sample table template.
 		Fixed POD.
+0.07	27/05/2008
+		Deprecate the 'unsortable' parameter in custom column definition for render_as_table (introduced in 0.05). Custom columns are always unsortable.
+		Disable 'file' field type for foreign object and foreign key fields in render_as_form (Stewart Heckenberg)
+		Simplified CSS.
+		Updated POD.

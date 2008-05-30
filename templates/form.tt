@@ -1,6 +1,7 @@
 [% html_head %]
 [% form.jshead %]
-<div style="position:relative;width=100%;padding:6px 10px;">
+<div class="light_container">
+<div class="light_title_container">
 <h2>[% title %]</h2>
 <p>[% description %]</p>
 </div>
@@ -40,6 +41,7 @@
 	</tr>
 </table>
 [% form.end %]
+</div>
 <script type="text/javascript">
 
 	function notify_error(form, invalid, alertstr, invalid_fields) {

@@ -5,7 +5,6 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME                => 'Rose::DBx::Object::Renderer',
     AUTHOR              => 'Xufeng (Danny) Liang <danny.glue@gmail.com>',
-    LICENSE				=> 'perl',
 	VERSION_FROM        => 'lib/Rose/DBx/Object/Renderer.pm',
     ($^O =~ /darwin/i ?
        (dist => { DIST_CP => 'cp' }) : ()), # Avoid Mac OS X ._* files

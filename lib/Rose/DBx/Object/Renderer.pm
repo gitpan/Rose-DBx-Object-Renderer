@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.06;
-# build: 45.10
+our $VERSION = 0.07;
+# build: 50.11
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -92,8 +92,7 @@ $CONFIG =
 				unit_of_length => 'cm',
 				unit_of_weight => 'kg',
 				unit_of_volume => 'cm<sup>3</sup>',
-				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size: small;color:#666666;}* html body{font-size: x-small;f\ont-size: small;}.light_table{width: 100%; border: 0px;padding:5px 10px;}.light_table th, .light_table td{text-align: center;padding: 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:5px;}a{color:#ea440a;text-decoration: none;}a:hover{color:#F7710C;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;padding: 2px 2px;margin-right: 4px;}h2{font-size:290%;color:#aaa;font-weight:normal;}img{border:0px;}.light_menu_container{position:relative;height:27px;color:#fff;background:#fff;width:100%;padding-top:10px;padding-bottom:10px;}.light_menu{position:relative;height:27px;color:#fff;background:#ddd;border-bottom:1px solid #dbdbdb;padding:10px 20px 0px 20px;margin:0px 10px;}.light_menu ul{margin:0;padding:0;list-style-type:none;width:auto;float:left;}.light_menu ul li{display:block;float:left;margin:0 4px;background:ccc;}.light_menu ul li a{display:block;float:left;color:#666;text-decoration:none;padding:0px 10px;height:27px;}.light_menu ul li a span{padding:6px 10px 0px 10px;height:21px;float:left;}.light_menu ul li a:hover{background-color:#eee;color:#ea440a}.light_menu ul li a:hover span{display:block;width:auto;cursor:pointer;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{display:block;float:left;text-decoration:none;padding:0px 10px;height:28px;background-color:#fff;}</style></head>'
+				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size: small;color:#666666;}* html body{font-size: x-small;f\ont-size: small;}a{color:#ea440a;text-decoration: none;}a:hover{color:#F7710C;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}h2{font-size:290%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{width=100%;padding:30px 10px 0px 10px;}.light_table_searchable_container{height:20px;width=100%;padding:6px 0px;}.light_table_searchable{position:absolute;right:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{position:absolute;bottom:3px;right:10px;font-size:110%;}.light_table{width: 100%; border: 0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align: center;padding: 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:5px;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#F7710C;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
 			},
 	validation => 
 			{
@@ -298,6 +297,9 @@ sub render_as_form
 
 		if (exists $relationships->{$column}) #one to many or many to many relationships
 		{
+			delete $field_def->{type} if exists $field_def->{type} and $field_def->{type} eq 'file'; #relationships should not have a 'file' field type, in case $column_types thinks it's an image, etc.
+			$field_def->{validate} = 'INT';
+			
 			if (ref $self)
 			{
 				my $foreign_object_value;
@@ -325,8 +327,8 @@ sub render_as_form
 			}
 			else
 			{
-				$field_def->{type} ||= 'select';
-				$field_def->{disabled} ||= 1;
+				$field_def->{type} = 'select';
+				$field_def->{disabled} = 1;
 			}
 			
 		}
@@ -344,7 +346,7 @@ sub render_as_form
 			}
 												
 			if (exists $foreign_keys->{$column}) #create or edit
-			{
+			{				
 				my $options;
 				my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
 								
@@ -538,12 +540,16 @@ sub render_as_form
 	$args{hide_form} = 1 if $form->cgi_param($hide_form);
 	unless ($args{hide_form})
 	{
-		unless ($args{template})
+		if ($args{template})
+		{
+			$html_form .= $form->render;
+		}
+		else
 		{
 			$html_form = $html_head unless $args{no_head};
-			$html_form .= qq(<div style="position:relative;width=100%;padding:6px 10px;"><h2>$form_title</h2><p>$args{description}</p></div>);
+			$html_form .= qq(<div class="light_container"><div class="light_title_container"><h2>$form_title</h2><p>$args{description}</p></div>) . $form->render . '</div>';			
 		}
-		$html_form .= $form->render;
+
 		$html_form .= qq(<script type="text/javascript">$args{javascript_code}</script>) unless $args{template};
 		
 		$args{output}?$output->{output} = $html_form:print $html_form;
@@ -596,7 +602,7 @@ sub render_as_table
 	$sort_by =~ s/ desc//;
 	
 	#ignore nonexisting columns, relationship columns, and unsortable columns
-	unless (not exists $column_order_hash->{$sort_by} or exists $relationships->{$sort_by} or (exists $column_types->{$sort_by} and exists $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable}))
+	unless (not exists $column_order_hash->{$sort_by} or exists $relationships->{$sort_by} or (exists $column_types->{$sort_by} and exists $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$sort_by}))
 	{
 		$args{get}->{sort_by} = $query->param($param_list->{'sort_by'});
 	}	
@@ -881,7 +887,8 @@ sub render_as_table
 				$head->{value} = _to_label($column);
 			}
 		
-			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$column} and exists $args{columns}->{$column}->{unsortable} and $args{columns}->{$column}->{unsortable}))
+			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$column}))
+			
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -918,9 +925,9 @@ sub render_as_table
 			foreach my $column (@{$column_order})
 			{
 				my $value;
-				if(exists $args{columns} and exists $args{columns}->{$column} and exists $args{columns}->{$column}->{value}) #custom column value
+				if(exists $args{columns} and exists $args{columns}->{$column}) #custom column value
 				{
-					$value = $args{columns}->{$column}->{value}->{$object->id} if exists $args{columns}->{$column}->{value}->{$object->id};
+					$value = $args{columns}->{$column}->{value}->{$object->id} if exists $args{columns}->{$column}->{value} and exists $args{columns}->{$column}->{value}->{$object->id};
 				}
 				elsif (exists $relationships->{$column})
 				{
@@ -1038,20 +1045,17 @@ sub render_as_table
 		else
 		{			
 			$html_table = $html_head;
-			$html_table .= '<div style-"width=100%">';
+			$html_table .= '<div class="light_container">';
 			
-			$html_table .= qq(<div style="position:relative;height:20px;width=100%;padding:6px 0px;"><div style="position:absolute;right:6px;"><form action="$url" method="get" id="$table_id\_search_form"><label for="$table_id\_search"><span style="padding-right:3px;">Search</span><input type="search" name="$param_list->{q}" id="$table_id\_search" accesskey="s" class="search_box" size = "15"></label>$query_hidden_fields</form></div></div>) if $args{searchable};			
+			$html_table .= qq(<div class="light_table_searchable_container"><div class="light_table_searchable"><form action="$url" method="get" id="$table_id\_search_form"><label for="$table_id\_search"><span class="light_table_searchable_span">Search</span><input type="search" name="$param_list->{q}" id="$table_id\_search" accesskey="s"></label>$query_hidden_fields</form></div></div>) if $args{searchable};			
 						
-			$html_table .= qq(<div style="position:relative;width=100%;padding:6px 10px 0 10px;"><h2>$table_title</h2><p>$args{description}</p></div>);
-			$html_table .= qq(<div style="position:relative;height:20px;"><div style="position:absolute;bottom:0px;right:10px;font-size:110%;">);
-			
+			$html_table .= qq(<div class="light_title_container"><h2>$table_title</h2><p>$args{description}</p></div>);
+			$html_table .= qq(<div class="light_table_actions_container"><div class="light_table_actions">);
 			$html_table .= qq(<a href="$table->{create}->{link}">$table->{create}->{value}</a>) if exists $table->{create};
 			$html_table .= qq($table->{actions}) if exists $table->{actions};
-			
 			$html_table .= '</div></div>';			
 			
-			
-			$html_table .= '<table cellspacing="0" cellpadding="0" id="'.$table_id.'" class="light_table">';
+			$html_table .= '<table id="'.$table_id.'" class="light_table">';
 
 			$html_table .= '<tr>';
 			foreach my $head (@{$table->{head}})
@@ -1096,7 +1100,7 @@ sub render_as_table
 			
 			unless ($args{no_pagination} || $CONFIG->{table}->{no_pagination})
 			{
-				$html_table .= '<div style="padding:0px 10px;">';
+				$html_table .= '<div class="light_container">';
 				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value})
 				{
 					$html_table .= qq( <<  < );
@@ -1259,13 +1263,12 @@ sub render_as_menu
 	{	
 		unless ($hide_menu)
 		{
-			$menu = $html_head.'<div class = "light_menu_container"><div class ="light_menu"><ul>';
-		
+			$menu = $html_head.'<div class="light_container"><div class="light_menu"><ul>';
 			foreach my $item (@{$item_order})
 			{
 				$menu .= '<li><a ';
 				$menu .= 'class="light_menu_current" ' if $items->{$item}->{table} eq $current;
-				$menu .= 'href="'.$items->{$item}->{link}.'"<span>'.$items->{$item}->{label}.'</span></a></li>';
+				$menu .= 'href="'.$items->{$item}->{link}.'">'.$items->{$item}->{label}.'</a></li>';
 			}
 			$menu .= '</ul></div></div><p>'.$args{'description'}.'</p>';
 		}
@@ -1465,7 +1468,7 @@ sub _render_chart
 	}
 	else
 	{
-		$chart = $html_head.qq(<body><div style="padding:0px 10px;"><h2>$args{title}</h2><p>$args{description}</p></div><div><canvas id="$args{chart_id}_canvas" height="$args{height}" width="$args{width}"></canvas></div><script type="text/javascript">var $args{chart_id}_dataset = $args{dataset};var $args{chart_id}_options = $args{options};var $args{chart_id} = new Plotr.$args{type}Chart('$args{chart_id}_canvas',$args{chart_id}_options);$args{chart_id}.addDataset($args{chart_id}_dataset);$args{chart_id}.render();</script></body>);
+		$chart = $html_head.qq(<body><div class="light_container"><div class="light_title_container"><h2>$args{title}</h2><p>$args{description}</p></div><div><canvas id="$args{chart_id}_canvas" height="$args{height}" width="$args{width}"></canvas></div></div><script type="text/javascript">var $args{chart_id}_dataset = $args{dataset};var $args{chart_id}_options = $args{options};var $args{chart_id} = new Plotr.$args{type}Chart('$args{chart_id}_canvas',$args{chart_id}_options);$args{chart_id}.addDataset($args{chart_id}_dataset);$args{chart_id}.render();</script></body>);
 	}
 
 	$args{output}?$output->{output} = $chart:print $chart;
@@ -2282,6 +2285,8 @@ This parameter defines whether a column is a sortable column in tables. For exam
 
   $Rose::DBx::Object::Renderer::CONFIG->{columns}->{password}->{unsortable} = 1;
 
+Custom columns are always unsortable.
+
 =item C<stringify>
 
 This parameter specifies which columns are stringified. This is used by the exported C<stringify_me> object method.
@@ -2495,7 +2500,6 @@ The C<columns> parameter can be used to define custom columns which do not physi
         1 => '100', # the 'Total' is 100 for object ID 1
         2 => '50'
       },
-	 unsortable => 1,
   });
 
 =item C<order>
