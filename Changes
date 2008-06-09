@@ -30,3 +30,5 @@ Revision history for Rose-DBx-Object-Renderer
 		Disable 'file' field type for foreign object and foreign key fields in render_as_form (Stewart Heckenberg)
 		Simplified CSS.
 		Updated POD.
+0.08    10/06/2008
+		Fixed an issue when updating foreign objects.

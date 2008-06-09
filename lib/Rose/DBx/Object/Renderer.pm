@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.07;
-# build: 50.11
+our $VERSION = 0.08;
+# build: 51.11
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -1575,7 +1575,6 @@ sub _update_object
 			}
 
 			my $foreign_manager = $foreign_class.'::Manager';
-			my $update_method = 'update_'.$column;
 			my $default = undef;
 			$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
 			
@@ -1596,8 +1595,8 @@ sub _update_object
 										
 				if ($relationships->{$column}->{type} eq 'one to many')
 				{					
-					$foreign_manager->$update_method(set => { $foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
-					$foreign_manager->$update_method(set => { $foreign_key => $self->id}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
+					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
+					$foreign_manager->update_objects(set => { $foreign_key => $self->id}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
 				}
 				else #many to many
 				{
@@ -1608,7 +1607,7 @@ sub _update_object
 			{
 				if ($relationships->{$column}->{type} eq 'one to many')
 				{
-					$foreign_manager->$update_method(set => { $foreign_key => $default}, where => [$foreign_key => $self->id]); # $self->$column([]) cascade deletes foreign objects
+					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [$foreign_key => $self->id]); # $self->$column([]) cascade deletes foreign objects
 				}
 				else #many to many
 				{
