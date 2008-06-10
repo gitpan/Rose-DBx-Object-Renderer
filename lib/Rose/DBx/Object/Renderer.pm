@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.08;
-# build: 51.11
+our $VERSION = 0.09;
+# build: 52.12
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -233,7 +233,8 @@ sub render_as_form
 	
 	if (ref $self)
     {
-		$object_id = $self->id;		
+		my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+		$object_id = $self->$primary_key;		
 		$form_action = 'update';
     }
     else
@@ -300,13 +301,16 @@ sub render_as_form
 			delete $field_def->{type} if exists $field_def->{type} and $field_def->{type} eq 'file'; #relationships should not have a 'file' field type, in case $column_types thinks it's an image, etc.
 			$field_def->{validate} = 'INT';
 			
+			my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+			
 			if (ref $self)
 			{
 				my $foreign_object_value;
+				
 			 	foreach my $foreign_object ($self->$column)
 				{
-					$foreign_object_value->{$foreign_object->id} = $foreign_object->stringify_me;
-					$relationship_object->{$column}->{$foreign_object->id} = undef; #keep it for update
+					$foreign_object_value->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
+					$relationship_object->{$column}->{$foreign_object->$foreign_primary_key} = undef; #keep it for update
 				}
 				$field_def->{value} = clone ($foreign_object_value);
 			}
@@ -316,7 +320,7 @@ sub render_as_form
 			my $objects = $foreign_package->get_objects;
 			foreach my $object (@{$objects})
 			{
-				$object_options->{$object->id} = $object->stringify_me;
+				$object_options->{$object->$foreign_primary_key} = $object->stringify_me;
 			}
 			
 			if ($object_options)
@@ -349,13 +353,15 @@ sub render_as_form
 			{				
 				my $options;
 				my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
-								
+						
+				my $foreign_primary_key = $foreign_keys->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+					
 				$field_def->{label} ||= _to_label($foreign_keys->{$column}->{name});
 				$field_def->{required} ||= 1; #by default
 				
 				foreach my $foreign_object (@{$foreign_manager->get_objects})
 				{
-					$options->{$foreign_object->id} = $foreign_object->stringify_me;
+					$options->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
 				}
 				 
 				if ($options)
@@ -586,7 +592,7 @@ sub render_as_table
 	my $foreign_keys = _get_foreign_keys($class);
 	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 	
-	
+	my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0];
 	
 	my $param_list = {'sort_by' => 'sort_by', 'per_page' => 'per_page', 'page' => 'page', 'q' => 'q', 'ajax' => 'ajax', 'action' => 'action', 'object' => 'object', 'hide_table'};
 	
@@ -739,7 +745,7 @@ sub render_as_table
 				{
 					foreach my $action_object (@action_object)
 					{
-						if ($object->id eq $action_object)
+						if ($object->$primary_key eq $action_object)
 						{
 							if ($query->param($param_list->{action}) eq 'delete' and $args{delete})
 							{
@@ -921,13 +927,13 @@ sub render_as_table
 		{
 			my $row;
 			$row->{object} = $object;
-			my $object_id = $object->id;
+			my $object_id = $object->$primary_key;
 			foreach my $column (@{$column_order})
 			{
 				my $value;
 				if(exists $args{columns} and exists $args{columns}->{$column}) #custom column value
 				{
-					$value = $args{columns}->{$column}->{value}->{$object->id} if exists $args{columns}->{$column}->{value} and exists $args{columns}->{$column}->{value}->{$object->id};
+					$value = $args{columns}->{$column}->{value}->{$object_id} if exists $args{columns}->{$column}->{value} and exists $args{columns}->{$column}->{value}->{$object_id};
 				}
 				elsif (exists $relationships->{$column})
 				{
@@ -1351,7 +1357,8 @@ sub render_as_chart
 				if (exists $foreign_keys->{$args{column}})
 				{
 					my $foreign_class = $foreign_keys->{$args{column}}->{class};
-					my $foreign_object = $foreign_class->new(id => $value);
+					my $foreign_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0]; 					
+					my $foreign_object = $foreign_class->new($foreign_primary_key => $value);
 			
 					if($foreign_object->load(speculative => 1))
 					{
@@ -1368,12 +1375,14 @@ sub render_as_chart
 		else
 		{
 			my $column_counter = 0;
+			my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0]; 
+			
 			foreach my $column (@{$args{'columns'}})
 			{
 				my $object_counter = 0;
 				foreach my $object_id (@{$args{'objects'}})
 				{
-					my $object = $class->new(id => $object_id);
+					my $object = $class->new($primary_key => $object_id);
 					if($object->load(speculative => $object_id))
 					{
 						my $value = $object->$column;
@@ -1546,6 +1555,8 @@ sub _update_object
 {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
 	
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	
 	foreach my $field (@{$field_order})
 	{
 		my $column = $field;
@@ -1571,7 +1582,11 @@ sub _update_object
 			
 			foreach my $fk (keys %{$foreign_class_foreign_keys})
 			{
-				$foreign_key = $fk if $foreign_class_foreign_keys->{$fk}->{class} eq $class;
+				if ($foreign_class_foreign_keys->{$fk}->{class} eq $class)
+				{
+					$foreign_key = $fk;
+					last;
+				}
 			}
 
 			my $foreign_manager = $foreign_class.'::Manager';
@@ -1581,22 +1596,25 @@ sub _update_object
 			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
 			{ 
 				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
+				
+				my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+				
 				foreach my $id (@values)
 				{
-					push @{$new_foreign_object_id}, id => $id;
+					push @{$new_foreign_object_id}, $foreign_primary_key => $id;
 					$value_hash->{$id} = undef;
-					push @{$new_foreign_object_id_hash}, {id => $id};
+					push @{$new_foreign_object_id_hash}, {$foreign_primary_key => $id};
 				}
 			
 				foreach my $id (keys %{$relationship_object->{$column}})
 				{
-					push @{$old_foreign_object_id}, id => $id unless exists $value_hash->{$id};
+					push @{$old_foreign_object_id}, $foreign_primary_key => $id unless exists $value_hash->{$id};
 				}
 										
 				if ($relationships->{$column}->{type} eq 'one to many')
 				{					
 					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
-					$foreign_manager->update_objects(set => { $foreign_key => $self->id}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
+					$foreign_manager->update_objects(set => { $foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
 				}
 				else #many to many
 				{
@@ -1607,7 +1625,7 @@ sub _update_object
 			{
 				if ($relationships->{$column}->{type} eq 'one to many')
 				{
-					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [$foreign_key => $self->id]); # $self->$column([]) cascade deletes foreign objects
+					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [$foreign_key => $self->$primary_key]); # $self->$column([]) cascade deletes foreign objects
 				}
 				else #many to many
 				{
@@ -1664,9 +1682,11 @@ sub _create_object
 			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
 			{ 
 				my $new_foreign_object_id_hash;
+				my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+				
 				foreach my $id (@values)
 				{
-					push @{$new_foreign_object_id_hash}, {id => $id};
+					push @{$new_foreign_object_id_hash}, {$foreign_primary_key => $id};
 				}
 			
 				$self->$column(@{$new_foreign_object_id_hash});
@@ -1783,7 +1803,8 @@ sub delete_with_file
 {
 	my $self = shift;
 	return unless ref $self;
-	my $directory = join '/', ($CONFIG->{upload}->{url}, $self->stringify_package_name, $self->id);
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $directory = join '/', ($CONFIG->{upload}->{url}, $self->stringify_package_name, $self->$primary_key);
 	rmtree($directory) || die ("Could not remove $directory") if -d $directory;
 	return $self->delete();
 }
@@ -1791,6 +1812,7 @@ sub delete_with_file
 sub stringify_me
 {
 	my $self = shift;
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
 	my $foreign_keys = _get_foreign_keys(ref $self);
 	my $relationships = _get_relationships(ref $self);	
 	my $column_order = _get_column_order(ref $self, $relationships);	
@@ -1802,7 +1824,7 @@ sub stringify_me
 	}
 	
 	my $string = join $CONFIG->{misc}->{stringify_delimiter}, @value;
-	return $self->id unless $string;
+	return $self->$primary_key unless $string;
 	return $string;
 }
 
@@ -1837,7 +1859,8 @@ sub _get_file_path
 	my ($self, $column, $value) = @_;
 	$value ||= $self->$column;
 	return unless $value;
-	return join '/', ($CONFIG->{upload}->{path}, $self->stringify_package_name, $self->id, $column, $value);
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	return join '/', ($CONFIG->{upload}->{path}, $self->stringify_package_name, $self->$primary_key, $column, $value);
 }
 
 sub _get_file_url
@@ -1845,7 +1868,8 @@ sub _get_file_url
 	my ($self, $column, $value) = @_;
 	$value ||= $self->$column;
 	return unless $value;
-	return join '/', ($CONFIG->{upload}->{url}, $self->stringify_package_name, $self->id, $column, $value);
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	return join '/', ($CONFIG->{upload}->{url}, $self->stringify_package_name, $self->$primary_key, $column, $value);
 }
 
 sub _view_file
@@ -1884,7 +1908,8 @@ sub _view_address
 	$value = $self->$column;
 	my $a = $value; 
 	$a =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
-	my $id = $self->stringify_package_name.$self->id.'modal';
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $id = $self->stringify_package_name . $self->$primary_key .'modal';
 	#add output=js for inline map
 	return qq(<a id="$id" href="http://gmodules.com/ig/ifr?url=http://ralph.feedback.googlepages.com/googlemap.xml&amp;up_locname=%20&amp;up_loc=$a\&amp;up_zoom=Street&amp;up_view=Map&amp;synd=open&amp;w=600&amp;h=340&amp;title=+&amp;border=%23ffffff%7C3px%2C1px+solid+%23999999&amp;" rel='iframe' title='$value :: Google Map :: width: 600, height: 340' class='lightview'>$value</a>);
 }
@@ -1893,7 +1918,8 @@ sub _update_file
 {
 	my ($self, $column, $value) = @_;
 	return unless $value and $value ne '' and ref $self;
-	my $upload_path = join '/', ($CONFIG->{upload}->{path}, $self->stringify_package_name, $self->id, $column);	
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0]; 
+	my $upload_path = join '/', ($CONFIG->{upload}->{path}, $self->stringify_package_name, $self->$primary_key, $column);	
 	mkpath($upload_path) unless -d $upload_path;
 	
 	my $file_name = "$value";
@@ -2157,13 +2183,13 @@ Rose::DBx::Object::Renderer generates web UIs for Rose::DB::Object. It encapsula
 
 Renderer integrates L<CGI::FormBuilder> to generate forms and Plotr to render charts. L<Template::Toolkit> is used for template processing, however, Renderer can generate a default set of UIs without any templates. Moreover, UIs are generated dynamically, in other words, no physical files are created.
 
-=head1 PREREQUISITE
+=head1 RESTRICTIONS
 
 =over 4
 
-=item * The database table definition must follow the conventions in C<Rose::DB::Object>.
+=item * The database table must follow the conventions in C<Rose::DB::Object>.
 
-=item * The database table must have a primary key named 'id'.
+=item * Support for tables with multiple primary keys is limited.
 
 =back
 
