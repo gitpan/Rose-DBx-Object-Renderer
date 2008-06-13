@@ -36,4 +36,6 @@ Revision history for Rose-DBx-Object-Renderer
 		Removed the constraint for all primary key must be named 'id'.
 		Updated POD.
 0.10	11/06/2008
-		Fixed search box css in 'render_as_table'.
+		Fixed search box CSS in 'render_as_table'.
+0.11	13/06/2008
+		Minor CSS Updates.
