@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.11;
-# build: 54.12
+our $VERSION = 0.12;
+# build: 55.13
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -169,17 +169,8 @@ $CONFIG->{columns}->{'margin'} = clone($CONFIG->{columns}->{'percentage'});
 sub load_database
 {
 	my ($db_name, $args, $args_for_make_classes) = (@_);
-	return unless $db_name or $args->{db_dsn};
-	
-	my $host;
- 	$host = 'host='.$CONFIG->{db}->{host} if $CONFIG->{db}->{host};
-	$host .= ';port='.$CONFIG->{db}->{port} if $CONFIG->{db}->{port};
-			
-	$args->{db_dsn} ||=  qq(dbi:$CONFIG->{db}->{type}:dbname=$db_name;$host);
-	$args->{db_options} ||= { AutoCommit => 1, ChopBlanks => 1};
-	$args->{db_username} ||= $CONFIG->{db}->{username} if $CONFIG->{db}->{username};
-	$args->{db_password} ||= $CONFIG->{db}->{password} if $CONFIG->{db}->{password};
-	
+	return unless $db_name;
+
 	unless ($args->{class_prefix})
 	{
 		$args->{class_prefix} = $db_name;
@@ -187,15 +178,26 @@ sub load_database
 		$args->{class_prefix} =~ s/[^\w:]/_/g;
 		$args->{class_prefix} =~ s/\b(\w)/\u$1/g;		
 	}
-		
+
+	return if "$args->{class_prefix}::DB::Object::AutoBase1"->isa('Rose::DB::Object');
+	
+	my $host;
+ 	$host = 'host='.$CONFIG->{db}->{host} if $CONFIG->{db}->{host};
+	$host .= ';port='.$CONFIG->{db}->{port} if $CONFIG->{db}->{port};
+	$args->{db_dsn} ||=  qq(dbi:$CONFIG->{db}->{type}:dbname=$db_name;$host);
+	$args->{db_options} ||= { AutoCommit => 1, ChopBlanks => 1};
+	$args->{db_username} ||= $CONFIG->{db}->{username} if $CONFIG->{db}->{username};
+	$args->{db_password} ||= $CONFIG->{db}->{password} if $CONFIG->{db}->{password};
+
 	my $loader = Rose::DB::Object::Loader->new(%{$args});
 	$loader->convention_manager->tables_are_singular(1) if $CONFIG->{db}->{tables_are_singular};
+	# $loader->base_class;
 	
 	my @loaded;
 	foreach my $class ($loader->make_classes(%{$args_for_make_classes}))
 	{
 		my $package = qq(package $class;use Rose::DBx::Object::Renderer;use Rose::DB::Object::Util qw(:columns););
-				
+			
 		if (($class)->isa('Rose::DB::Object'))
 		{	
 			my $relationships = _get_relationships($class);	
@@ -209,12 +211,12 @@ sub load_database
 					$package .= 'sub '.$column.'_'.$custom_method_key.'{my ($self, $value) = @_;return $Rose::DBx::Object::Renderer::CONFIG->{columns}->{'.$column_types->{$column}.'}->{format}->{'.$custom_method_key.'}->($self, \''.$column.'\', $value);'.'}';
 				}
 			}
-			
+		
 			$package .= '__PACKAGE__->meta->initialize;';
 		}
 		else
 		{
-			
+		
 		}
 		$package .= '1;';
 		eval $package;
@@ -2327,7 +2329,7 @@ This parameter specifies which columns are stringified. This is used by the expo
 
 C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader>. In order to eliminate the need for manually mapping column definitions to database table columns, C<load_database> also tries to automatically assign a column definition to each column of the loaded classes by matching the column definition name with the database table column name. 
 
-C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to the C<make_classes> method. C<load_database> returns an array of the classes that has been loaded.
+C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to the C<make_classes> method. C<load_database> always use the title case of the database name as the C<class_prefix> unless it is specified. C<load_database> returns an array of the loaded classes via the C<make_classes> method in L<Rose::DB::Object::Loader>. However, if the L<Rose::DB::Object> C<base_class> for the database already exists, which most than likely happens in a persistent environment, C<load_database> will simply skip the loading process and return nothing.
 
   load_database(
     'company',
@@ -2512,7 +2514,11 @@ C<render_as_table> renders tables for CRUD operations.
 
 =item C<or_filter>
 
-C<render_as_table> allows columns to be filtered via URL. For example: http://www.yoursite.com/yourscript.pl?first_name=Danny&last_name=Liang returns the object where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
+C<render_as_table> allows columns to be filtered via URL. For example:
+
+  http://www.yoursite.com/yourscript.pl?first_name=Danny&last_name=Liang
+
+returns the object where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
 
 =item C<columns>
 

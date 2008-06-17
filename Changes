@@ -1,9 +1,9 @@
 Revision history for Rose-DBx-Object-Renderer
 
 0.01    17/03/2008
-        First version, released on an unsuspecting world.
+		First version, released on an unsuspecting world.
 0.02    01/04/2008
-        Minor change to render_as_menu's HTML title. Updated POD.
+		Minor change to render_as_menu's HTML title. Updated POD.
 0.03	04/04/2008
 		Updated POD.
 0.04	01/05/2008
@@ -19,7 +19,7 @@ Revision history for Rose-DBx-Object-Renderer
 		Updated POD.
 0.05	02/05/2008
 		Added the 'unsortable' parameter to custom column definition in render_as_table. 
-		Fixed buttons in the sample form.tt (Stewart Heckenberg)
+		Fixed buttons in the sample form.tt (Stewart Heckenberg).
 		Enhanced template settings in rendering methods.
 		Updated POD.
 0.06	06/05/2008
@@ -39,3 +39,5 @@ Revision history for Rose-DBx-Object-Renderer
 		Fixed search box CSS in 'render_as_table'.
 0.11	13/06/2008
 		Minor CSS Updates.
+0.12	17/06/2008
+		Optimise load_database for persistent environments (Cees Hek).
