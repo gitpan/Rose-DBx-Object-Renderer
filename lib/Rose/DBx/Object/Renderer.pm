@@ -34,8 +34,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.12;
-# build: 55.13
+our $VERSION = 0.13;
+# build: 56.13
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -570,7 +570,7 @@ sub render_as_table
 {
 	my ($self, %args) = (@_);
 	return unless ($self)->isa('Rose::DB::Object::Manager');
-	my ($table, @controllers, $output, $previous_page, $next_page, $last_page, $total);
+	my ($table, @controllers, $output, $previous_page, $next_page, $last_page, $total, $query_hidden_fields);
 	my $class = ref $self || $self;
 	$class =~ s/::Manager$//;
 	
@@ -624,16 +624,20 @@ sub render_as_table
 			if (defined &{"$class\::$searchable_column\_for_search"})
 			{
 				my $search_method = $searchable_column.'_for_search';
-			 	$search_value = '%'. $class->$search_method($query->param($param_list->{'q'})) .'%';
+				my $search_result = $class->$search_method($query->param($param_list->{'q'}));
+			 	$search_value = $search_result if $search_result;
 			}
 			else
 			{
 				$search_value = '%'.$query->param($param_list->{'q'}).'%';
 			}			
-			push @{$or}, $searchable_column => { $CONFIG->{table}->{search_operator} => $search_value};
+			push @{$or}, $searchable_column => { $CONFIG->{table}->{search_operator} => $search_value} if $search_value;
 		}
 		
+		# return {output => Dumper $or};
 		push @{$args{get}->{query}}, 'or' => $or;
+		
+		$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries} (next line), which get serialised later as query stings
 		
 		$args{queries}->{$param_list->{q}} = $query->param($param_list->{'q'});
 		
@@ -817,7 +821,7 @@ sub render_as_table
 	$args{hide_table} = 1 if $query->param($param_list->{'hide_table'});
 	unless ($args{hide_table})
 	{
-		my ($html_table, $query_string, $query_hidden_fields);
+		my ($html_table, $query_string);
 		if ($args{controller_order})
 		{
 		 	@controllers = @{$args{controller_order}};
@@ -830,8 +834,6 @@ sub render_as_table
 		}
 	
 		$args{queries}->{$param_list->{ajax}} = 1 if $args{ajax} and $args{template};
-				
-		$query_hidden_fields = _create_hidden_field($args{queries});
 		
 		if(exists $args{queries})
 		{			
