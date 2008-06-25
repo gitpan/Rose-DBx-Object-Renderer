@@ -43,3 +43,5 @@ Revision history for Rose-DBx-Object-Renderer
 		Optimise load_database for persistent environments (Cees Hek).
 0.13	25/06/2008
 		Fixed an issue when using the 'searchable' option with date or timestamp columns in render_as_table.
+0.14	26/06/2008
+		Minor updates to the default CSS.
