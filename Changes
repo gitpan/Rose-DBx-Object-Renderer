@@ -45,3 +45,7 @@ Revision history for Rose-DBx-Object-Renderer
 		Fixed an issue when using the 'searchable' option with date or timestamp columns in render_as_table.
 0.14	26/06/2008
 		Minor updates to the default CSS.
+0.15	03/07/2008
+	        Added the 'for_filter' option for column filtering in render_as_table and the 'for_create' option for formatting default values in render_as_form.
+                Minor enhancements to the column definitions and the default table template.
+                Updated POD.

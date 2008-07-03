@@ -34,13 +34,13 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.14;
-# build: 57.13
+our $VERSION = 0.15;
+# build: 58.14
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
-$CGI::FormBuilder::Field::VALIDATE{AUPHONE} = '/^(\+\d{2})?\ ?(\d{1}|\d{2})?\ ?\d{4}\ ?\d{4}$/';
-$CGI::FormBuilder::Field::VALIDATE{MOBILE} = '/^(\+\d{2})?\ ?(\d{3}|\d{4})\ ?\d{3}\ ?\d{3}\ ?$/';
+$CGI::FormBuilder::Field::VALIDATE{AUPHONE} = '/^((\()?(\+)?\d{2,3}(\))?)?\ ?\d{4}\ ?\d{4}$/';
+$CGI::FormBuilder::Field::VALIDATE{MOBILE} = '/^((\()?(\+)?\d{2}(\))?)? ?(\d{3}|\d{4})\ ?\d{3}\ ?\d{3}\ ?$/';
 $CGI::FormBuilder::Field::VALIDATE{EUDATE} = '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/?(0?[1-9]|1[0-2])\/?[0-9]{4}$/';
 $CGI::FormBuilder::Field::VALIDATE{URL} = '/^(\w+)://([^/:]+)(:\d+)?/?(.*)$/';
 
@@ -92,7 +92,7 @@ $CONFIG =
 				unit_of_length => 'cm',
 				unit_of_weight => 'kg',
 				unit_of_volume => 'cm<sup>3</sup>',
-				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size: small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#F7710C;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:3px 7px;}form input[type="text"]{padding-top:4px;}h2{font-size:290%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width: 100%; border: 0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align: center;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:6px;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#F7710C;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
+				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#F7710C;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:300%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width: 100%; border: 0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align: center;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:6px;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#F7710C;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
 			},
 	validation => 
 			{
@@ -112,14 +112,14 @@ $CONFIG =
 				'varchar' => {sortopts => 'LABELNAME', maxlength => 255},
 				'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
 				'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
-				'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime'; $self->$column->set_time_zone('Australia/Sydney'); return $self->$column->dmy('/') if $self->$column;}}},
-				'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_edit => sub {_view_timestamp(@_);}, for_update => sub {}, for_search => sub{_search_timestamp(@_);}}},
+				'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime'; $self->$column->set_time_zone('Australia/Sydney'); return $self->$column->dmy('/') if $self->$column;}}},
+				'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_view_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
 				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
-				'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';return join ':', ($h, $m, $s);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
+				'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
 				'length' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_length};}}},
 				'weight' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_weight};}}},
 				'volume' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_volume};}}},
-				'gender' => {options => ['male', 'female']},
+				'gender' => {options => ['Male', 'Female']},
 				'title' => {sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
 				'name' => {sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
 				'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
@@ -127,13 +127,13 @@ $CONFIG =
 				'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com', maxlength => 255},
 				'url' => {required => 0, validate => 'URL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="$value" target = "_blank">$value</a>);}}, comment => 'e.g. http://www.google.com/', maxlength => 255},
 				'mobile' => {validate => 'MOBILE', sortopts => 'NUM', maxlength => 15, comment => 'e.g. 0433 123 456'},
-				'phone' => {validate => 'AUPHONE', sortopts => 'NUM', comment => 'e.g. 02 9988 1288', maxlength => 15},
+				'phone' => {validate => 'AUPHONE', sortopts => 'NUM', comment => 'e.g. 02 9988 1288', maxlength => 16},
 				'username' => {validate => '/^[a-zA-Z0-9]{4,20}$/', sortopts => 'LABELNAME', required => 1, maxlength => 20},
 				'password' => {validate => 'PASSWORD', sortopts => 'NUM', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
 				'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}, maxlength => 12},
 				'abn' => {label => 'ABN', validate => '/^(\d{2} \d{3} \d{3} \d{3})$/', sortopts => 'NUM', maxlength => 14, comment => 'e.g.: 12 234 456 678'},
 				'money' => {validate => 'MONEY', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne '';my $rf = _round_float($value);return $CONFIG->{misc}->{currency_symbol}->{AUD}.$rf;}}, maxlength => 14},
-				'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column, $value) = @_;return unless $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {my ($self, $column, $value) = @_;return $value/100 if $value;}}},
+				'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
 				'foreign_key' => {validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;return unless $self->$column;my $fk = _get_foreign_keys(ref $self || $self);my $fk_name = $fk->{$column}->{name};return $self->$fk_name->stringify_me;}}},
 				'document' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
 				'image' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
@@ -343,7 +343,6 @@ sub render_as_form
 			$field_def->{required} = 1 if $self->meta->{columns}->{$column}->{not_null};
 			$field_def->{validate} = $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}} if exists $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}};
 			$field_def->{maxlength} ||= $self->meta->{columns}->{$column}->{length} if $self->meta->{columns}->{$column}->{length};
-			$field_def->{value} ||= $self->meta->{columns}->{$column}->{default} if defined $self->meta->{columns}->{$column}->{default} and not ref $self;
 			if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Text')
 			{
 				$field_def->{type} ||= 'textarea';
@@ -412,7 +411,23 @@ sub render_as_form
 					my $file_location = _get_file_url($self, $column, $value);
 					$field_def->{comment} .= '<a href="'.$file_location.'" target = "_blank">'.$CONFIG->{form}->{download_message}.'</a>' if $file_location;
 				}
-			}				
+			}
+			else
+			{
+				if (defined $self->meta->{columns}->{$column}->{default})
+				{
+					if (defined &{"$class\::$column\_for_create"})
+					{
+						my $create_method = $column.'_for_create';
+						my $create_result = $self->$create_method($self->meta->{columns}->{$column}->{default});
+						$field_def->{value} ||= $create_result if $create_result;
+					}
+					else
+					{
+						$field_def->{value} ||= $self->meta->{columns}->{$column}->{default};
+					}
+				}
+			}							
 		}
 		
 		if (exists $args{fields} and exists $args{fields}->{$column})
@@ -659,13 +674,14 @@ sub render_as_table
 				{
 					my @cgi_column_values = $query->param($cgi_column);
 					
-					if (defined &{"$class\::$column\_for_search"})
+					if (defined &{"$class\::$column\_for_filter"})
 					{
-						my $search_method = $column.'_for_search';
+						my $filter_method = $column.'_for_filter';
 						my $formatted_values;
 						foreach my $cgi_column_value (@cgi_column_values)
 						{
-							push @{$formatted_values}, $class->$search_method($cgi_column_value);
+							my $filter_result = $class->$filter_method($cgi_column_value);
+							push @{$formatted_values}, $filter_result if $filter_result;
 						}
 						
 						push @{$or_filter}, $column => $formatted_values;
@@ -2000,11 +2016,35 @@ sub _search_date
 sub _search_timestamp
 {
 	my ($self, $column, $value) = @_;
-	my $date = _search_date(@_);
-	$date = $date.' ' if $date;
-	my ($time) = ($value =~ /(\d{2}:\d{2})/);
-	
-	return $date.$time;
+	my $date = _search_date($self, $column, $value);
+	my $time = _search_time($self, $column, $value);
+	return unless $date and $time;
+	return $date.' '.$time;
+}
+
+sub _search_time
+{
+	my ($self, $column, $value) = @_;
+	my ($time) = ($value =~ /(\d{2}:\d{2}(:\d{2})?)/);
+	my ($h, $m, $s) = split ':', $time;
+	$s ||= '00';
+	return join ':', ($h, $m, $s);
+}
+
+sub _search_percentage
+{
+	my ($self, $column, $value) = @_;
+	return unless $value;
+	return $value/100;
+}
+
+sub _create_timestamp
+{
+	my ($self, $column, $value) = @_;
+	my $dt = DateTime->now->set_time_zone( 'Australia/Sydney');
+	my $t = $dt->hms; 
+	$t =~ s/:\d{2}$//;
+	return $dt->dmy('/').' '.$t;
 }
 
 sub _view_timestamp
@@ -2012,7 +2052,8 @@ sub _view_timestamp
 	my ($self, $column, $value) = @_;
 	return unless $self->$column and ref $self->$column eq 'DateTime';
 	$self->$column->set_time_zone('Australia/Sydney');
-	my $t = $self->$column->hms; $t =~ s/:\d{2}$//;
+	my $t = $self->$column->hms; 
+	# $t =~ s/:\d{2}$//;
 	return $self->$column->dmy('/').' '.$t;
 }
 
@@ -2183,7 +2224,7 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
 	
 =head1 DESCRIPTION
 
-Rose::DBx::Object::Renderer generates web UIs for Rose::DB::Object. It encapsulates conventional web behaviours in the generated UIs as defaults. For example, email addresses are by default rendered as C<mailto> links in tables and appropiate validation is enforced automatically in forms. These behaviours are highly configurable and extensible. 
+Rose::DBx::Object::Renderer generates web UIs for Rose::DB::Object. It encapsulates many web conventions in the generated UIs as default behaviours. For example, email addresses are by default rendered as C<mailto> links in tables and appropiate validation is enforced automatically in forms. These behaviours are highly configurable and extensible. 
 
 Renderer integrates L<CGI::FormBuilder> to generate forms and Plotr to render charts. L<Template::Toolkit> is used for template processing, however, Renderer can generate a default set of UIs without any templates. Moreover, UIs are generated dynamically, in other words, no physical files are created.
 
@@ -2267,7 +2308,7 @@ Renderer encapsulates web-oriented behaviours by injecting the coderefs defined 
   # Prints the file path of the image
   print $object->image_path;
 
-These injected object objects are used by rendering methods. The C<for_edit> and C<for_update> methods are used by C<render_as_form>. The C<for_edit> methods are triggered to format column values during form rendering, while the C<for_update> methods are triggered to update column values during form submission. Similarly, the C<for_view>, and C<for_search> methods are used by C<render_as_table>. The C<for_view> methods are used to format column values during table rendering, while the C<for_search> methods are triggered during column filtering and searches. 
+In order to generate web-ready UIs, these extended object methods take preference over the the default object methods. The C<for_edit> and C<for_update> methods are used by C<render_as_form>. The C<for_edit> methods are triggered to format column values during form rendering, while the C<for_update> methods are triggered to update column values during form submission. Similarly, the C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are used to format column values during table rendering, while the C<for_filter> and C<for_search> methods are respectively triggered for column filtering and keyword searches. 
 
 We can customise existing formatting methods or define new ones easily. Let's say we would like to use the L<HTML::Strip> module to strip out HTML for the 'description' column:
 
