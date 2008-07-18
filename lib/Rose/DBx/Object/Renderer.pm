@@ -19,8 +19,6 @@ use Digest::MD5 qw(md5_hex);
 use Math::Round qw(nearest);
 use File::Copy::Recursive;
 use Image::ExifTool qw(:Public);
-use JSON::XS;
-use Tie::Hash::Indexed;
 
 eval
 {
@@ -34,24 +32,21 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.15;
-# build: 58.14
+our $VERSION = 0.16;
+# build: 64.15
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
-$CGI::FormBuilder::Field::VALIDATE{AUPHONE} = '/^((\()?(\+)?\d{2,3}(\))?)?\ ?\d{4}\ ?\d{4}$/';
-$CGI::FormBuilder::Field::VALIDATE{MOBILE} = '/^((\()?(\+)?\d{2}(\))?)? ?(\d{3}|\d{4})\ ?\d{3}\ ?\d{3}\ ?$/';
+$CGI::FormBuilder::Field::VALIDATE{AUPHONE} = '/^((\()?(\+)?\d{2,3}(\))?)?[-\ ]?\d{4}[-\ ]?\d{4}$/';
+$CGI::FormBuilder::Field::VALIDATE{MOBILE} = '/^((\()?(\+)?\d{2}(\))?)?[-\ ]?(\d{3}|\d{4})[-\ ]?\d{3}[-\ ]?\d{3}$/';
 $CGI::FormBuilder::Field::VALIDATE{EUDATE} = '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/?(0?[1-9]|1[0-2])\/?[0-9]{4}$/';
 $CGI::FormBuilder::Field::VALIDATE{URL} = '/^(\w+)://([^/:]+)(:\d+)?/?(.*)$/';
-
 $CGI::FormBuilder::Field::VALIDATE{MONEY} = '/^\-?\d{0,11}(?:\.\d{2})?$/';
 $CGI::FormBuilder::Field::VALIDATE{JPY} = '/^\-?\d{0,11}(?:\.\d{2})?$/'; 
 $CGI::FormBuilder::Field::VALIDATE{EUR} = '/^\-?\d{0,11}(?:\.\d{2})?$/'; 
-
 $CGI::FormBuilder::Field::VALIDATE{FILENAME} = '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,200}$/';
 
-$CONFIG = 
-{
+$CONFIG = {
 	db => {
 			type => 'mysql', 
 			host => '127.0.0.1',
@@ -68,7 +63,6 @@ $CONFIG =
 				wait_message => 'Processing...',
 				empty_message => 'No Record Found.',
 				per_page => 15,
-				js => {niftycube => 1, lightview => 1},
 				search_operator => 'like', #e.g. use 'ilike' for case-insensitive search in Postgresql 
 				or_filter => 0,
 				no_pagination => 0,
@@ -78,21 +72,18 @@ $CONFIG =
 				wait_message => 'Processing...',
 				download_message => 'Download File',
 				keep_old_file => 0,
-				js => {tooltip => 1, niftycube => 1, lightview => 1, tiny_mce => 1, datepicker => 1},
 				cancel => 'Cancel'
 			},
-	menu => {template => 'menu.tt', js => {tooltip => 1, niftycube => 1, lightview => 1, tiny_mce => 1, datepicker => 1, plotr=>1}},
-	chart => {template => 'chart.tt', js => {plotr=>1}},
+	menu => {template => 'menu.tt'},
+	chart => {template => 'chart.tt'},
 	misc => {
 				stringify_delimiter => ', ',
 				join_delimiter => ', ',
-				title_background_color => '#ABB6C4', #e.g. 91508E C292B8 1FBFDF CAF73A 
-				content_background_color => '#ffffff',
 				currency_symbol => {'AUD' => '$', 'JPY' => '&yen;', 'EUR' => '&#8364;', 'GBP' => '&#163;'},
 				unit_of_length => 'cm',
 				unit_of_weight => 'kg',
 				unit_of_volume => 'cm<sup>3</sup>',
-				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#F7710C;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:300%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width: 100%; border: 0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align: center;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:6px;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#F7710C;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
+				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#ff6600;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:300%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width: 100%; border: 0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align: center;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:6px;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#ff6600;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
 			},
 	validation => 
 			{
@@ -126,7 +117,7 @@ $CONFIG =
 				'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255},
 				'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com', maxlength => 255},
 				'url' => {required => 0, validate => 'URL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="$value" target = "_blank">$value</a>);}}, comment => 'e.g. http://www.google.com/', maxlength => 255},
-				'mobile' => {validate => 'MOBILE', sortopts => 'NUM', maxlength => 15, comment => 'e.g. 0433 123 456'},
+				'mobile' => {validate => 'MOBILE', sortopts => 'NUM', maxlength => 17, comment => 'e.g. 0433 123 456'},
 				'phone' => {validate => 'AUPHONE', sortopts => 'NUM', comment => 'e.g. 02 9988 1288', maxlength => 16},
 				'username' => {validate => '/^[a-zA-Z0-9]{4,20}$/', sortopts => 'LABELNAME', required => 1, maxlength => 20},
 				'password' => {validate => 'PASSWORD', sortopts => 'NUM', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
@@ -137,7 +128,8 @@ $CONFIG =
 				'foreign_key' => {validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;return unless $self->$column;my $fk = _get_foreign_keys(ref $self || $self);my $fk_name = $fk->{$column}->{name};return $self->$fk_name->stringify_me;}}},
 				'document' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
 				'image' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'media' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'}
+				'media' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+				'ipv4' => {validate => 'IPV4', format => {for_search => sub {my ($self, $column, $value) = @_;return unless $value and $value =~ /^([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])$/;return $value;}}},
 	}
 };
 
@@ -158,6 +150,7 @@ $CONFIG->{columns}->{'balance'} = clone($CONFIG->{columns}->{'money'});
 $CONFIG->{columns}->{'file'} = clone($CONFIG->{columns}->{'document'});
 $CONFIG->{columns}->{'report'} = clone($CONFIG->{columns}->{'document'});
 $CONFIG->{columns}->{'photo'} = clone($CONFIG->{columns}->{'image'});
+$CONFIG->{columns}->{'logo'} = clone($CONFIG->{columns}->{'image'});
 $CONFIG->{columns}->{'sound'} = clone($CONFIG->{columns}->{'media'});
 $CONFIG->{columns}->{'voice'} = clone($CONFIG->{columns}->{'media'});
 $CONFIG->{columns}->{'video'} = clone($CONFIG->{columns}->{'media'});
@@ -191,7 +184,6 @@ sub load_database
 
 	my $loader = Rose::DB::Object::Loader->new(%{$args});
 	$loader->convention_manager->tables_are_singular(1) if $CONFIG->{db}->{tables_are_singular};
-	# $loader->base_class;
 	
 	my @loaded;
 	foreach my $class ($loader->make_classes(%{$args_for_make_classes}))
@@ -249,14 +241,8 @@ sub render_as_form
 
 	my $database = $self->meta->db->database;
 	my $table = $self->meta->table;
-	my $form_id = $args{prefix};
-	unless ($form_id and $form_id ne 1)
-	{
-		$form_id = lc $class;
-		$form_id =~ s/::/_/g;
-		$form_id .= '_form';
-	}
 	
+	my $form_id = _create_id($class, $args{prefix}, (caller(0))[3]);
 	my $form_template;
 	
 	if ($args{template} eq 1)
@@ -296,19 +282,30 @@ sub render_as_form
 	foreach my $column (@{$column_order})
 	{		
 		my $field_def;
-		$field_def = _clean_column_info(clone($column_types->{$column})) if exists $column_types->{$column};
-
+		$field_def = clone($args{fields}->{$column}) if exists $args{fields} and exists $args{fields}->{$column};
+		
+		if (exists $column_types->{$column})
+		{
+			my $clean_column_info = _clean_column_info(clone($column_types->{$column}));
+			foreach my $property (keys %{$clean_column_info})
+			{
+				$field_def->{$property} = $clean_column_info->{$property} unless exists $field_def->{$property};				
+			}
+		}
+		
 		if (exists $relationships->{$column}) #one to many or many to many relationships
 		{
 			delete $field_def->{type} if exists $field_def->{type} and $field_def->{type} eq 'file'; #relationships should not have a 'file' field type, in case $column_types thinks it's an image, etc.
-			$field_def->{validate} = 'INT';
+			$field_def->{validate} ||= 'INT';
+			$field_def->{sortopts} ||= 'LABELNAME';
+			$field_def->{multiple} ||= 1;
 			
 			my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
-			
-			if (ref $self)
+		
+			if (ref $self and not exists $field_def->{value})
 			{
 				my $foreign_object_value;
-				
+			
 			 	foreach my $foreign_object ($self->$column)
 				{
 					$foreign_object_value->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
@@ -317,32 +314,32 @@ sub render_as_form
 				$field_def->{value} = clone ($foreign_object_value);
 			}
 			
-			my $object_options;
-			my $foreign_package = $relationships->{$column}->{class}.'::Manager';
-			my $objects = $foreign_package->get_objects;
-			foreach my $object (@{$objects})
-			{
-				$object_options->{$object->$foreign_primary_key} = $object->stringify_me;
-			}
+			unless ((exists $field_def->{static} and $field_def->{static}) or (exists $field_def->{type} and $field_def->{type} eq 'hidden') or exists $field_def->{options})
+			{			
+				my $object_options;
+				my $foreign_package = $relationships->{$column}->{class}.'::Manager';
+				my $objects = $foreign_package->get_objects;
+				foreach my $object (@{$objects})
+				{
+					$object_options->{$object->$foreign_primary_key} = $object->stringify_me;
+				}
 			
-			if ($object_options)
-			{
-				$field_def->{options} ||= $object_options;
-				$field_def->{sortopts} ||= 'LABELNAME';
-				$field_def->{multiple} ||= 1;
+				if ($object_options)
+				{
+					$field_def->{options} = $object_options;
+				}
+				else
+				{
+					$field_def->{type} ||= 'select';
+					$field_def->{disabled} ||= 1;
+				}
 			}
-			else
-			{
-				$field_def->{type} = 'select';
-				$field_def->{disabled} = 1;
-			}
-			
 		}
 		elsif (map {$_ =~ /^$column$/} @{$class->meta->columns}) #normal column
 		{	
-			$field_def->{required} = 1 if $self->meta->{columns}->{$column}->{not_null};
-			$field_def->{validate} = $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}} if exists $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}};
-			$field_def->{maxlength} ||= $self->meta->{columns}->{$column}->{length} if $self->meta->{columns}->{$column}->{length};
+			$field_def->{required} ||= 1 if $self->meta->{columns}->{$column}->{not_null};
+			$field_def->{validate} ||= $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}} if exists $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}};
+			$field_def->{maxlength} ||= $self->meta->{columns}->{$column}->{length} if exists $self->meta->{columns}->{$column}->{length} and $self->meta->{columns}->{$column}->{length};
 			if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Text')
 			{
 				$field_def->{type} ||= 'textarea';
@@ -351,70 +348,73 @@ sub render_as_form
 			}
 												
 			if (exists $foreign_keys->{$column}) #create or edit
-			{				
-				my $options;
-				my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
-						
-				my $foreign_primary_key = $foreign_keys->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
-					
-				$field_def->{label} ||= _to_label($foreign_keys->{$column}->{name});
-				$field_def->{required} ||= 1; #by default
-				
-				foreach my $foreign_object (@{$foreign_manager->get_objects})
-				{
-					$options->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
-				}
-				 
-				if ($options)
-				{
-					$field_def->{options} ||= $options;
-					$field_def->{sortopts} ||= 'LABELNAME';
-				}
-				else
-				{
-					$field_def->{type} = 'select';
-					$field_def->{disabled} = 1;
-				}
-			}
-			
-			$field_def->{options} ||= clone ($class->meta->{columns}->{$column}->{check_in}) if $class->meta->{columns}->{$column}->{check_in};
-						
-			$field_def->{multiple} = 1 if ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
-			
-			if (ref $self) #edit
 			{
-				my $current_value;
-				if (defined &{"$class\::$column\_for_edit"})
+				$field_def->{label} ||= _to_label($foreign_keys->{$column}->{name});
+				$field_def->{required} ||= 1;
+				$field_def->{sortopts} ||= 'LABELNAME';
+				
+				unless ((exists $field_def->{static} and $field_def->{static}) or (exists $field_def->{type} and $field_def->{type} eq 'hidden') or exists $field_def->{options})
 				{
-					my $edit_method = $column.'_for_edit';
-					$current_value = $self->$edit_method;
-					$field_def->{value} ||= "$current_value";
-				}
-				else
-				{
-					if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
+					my $options;
+					my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
+					my $foreign_primary_key = $foreign_keys->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+
+					foreach my $foreign_object (@{$foreign_manager->get_objects})
 					{
-						$field_def->{value} ||= $self->$column;
+						$options->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
+					}
+
+					if ($options)
+					{
+						$field_def->{options} = $options;
 					}
 					else
 					{
-						$current_value = $self->$column;
-						$field_def->{value} ||= "$current_value"; #double quote to make it literal to stringify object refs such as DateTime
+						$field_def->{type} ||= 'select';
+						$field_def->{disabled} ||= 1;
 					}
-					
+				}
+			}
+			
+			$field_def->{options} ||= clone ($class->meta->{columns}->{$column}->{check_in}) if exists $class->meta->{columns}->{$column}->{check_in} and $class->meta->{columns}->{$column}->{check_in};
+						
+			$field_def->{multiple} ||= 1 if ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
+			
+			if (ref $self) #edit
+			{
+				unless (exists $field_def->{value})
+				{
+					my $current_value;
+					if (defined &{"$class\::$column\_for_edit"})
+					{
+						my $edit_method = $column.'_for_edit';
+						$current_value = $self->$edit_method;
+						$field_def->{value} = "$current_value";
+					}
+					else
+					{
+						if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
+						{
+							$field_def->{value} = $self->$column;
+						}
+						else
+						{
+							$current_value = $self->$column;
+							$field_def->{value} = "$current_value"; #double quote to make it literal to stringify object refs such as DateTime
+						}
+					}
 				}
 									
-				if (defined $field_def->{type} and $field_def->{type} eq 'file') #file: if value exist in db, or in cgi param when the same form reloads
+				if (defined $field_def->{type} and $field_def->{type} eq 'file' and not exists $field_def->{comment}) #file: if value exist in db, or in cgi param when the same form reloads
 				{							
 					my $value = $form->cgi_param($form_id.'_'.$column) || $form->cgi_param($column) || $self->$column;
-					$field_def->{comment} .= '<br/>' if $field_def->{comment};
 					my $file_location = _get_file_url($self, $column, $value);
-					$field_def->{comment} .= '<a href="'.$file_location.'" target = "_blank">'.$CONFIG->{form}->{download_message}.'</a>' if $file_location;
+					$field_def->{comment} = '<br/><a href="'.$file_location.'" target = "_blank">'.$CONFIG->{form}->{download_message}.'</a>' if $file_location;
 				}
 			}
 			else
 			{
-				if (defined $self->meta->{columns}->{$column}->{default})
+				if (defined $self->meta->{columns}->{$column}->{default} and not exists $field_def->{value})
 				{
 					if (defined &{"$class\::$column\_for_create"})
 					{
@@ -429,29 +429,25 @@ sub render_as_form
 				}
 			}							
 		}
-		
-		if (exists $args{fields} and exists $args{fields}->{$column})
-		{	
-			foreach my $property (keys %{$args{fields}->{$column}})
-			{
-				$field_def->{$property} = clone($args{fields}->{$column}->{$property});
-			}
-		}		
-		
+				
 		delete $field_def->{value} if exists $field_def->{multiple} and $field_def->{multiple} and $form->submitted and not $form->cgi_param($column) and not $form->cgi_param($form_id.'_'.$column);
 		
 		$field_def->{label} ||= _to_label($column);
 		
-		if ($args{prefix})
+		unless (exists $field_def->{name})
 		{
-			push @{$field_order}, $form_id.'_'.$column;
-			$field_def->{name} = $form_id.'_'.$column;
+			if ($args{prefix})
+			{
+				push @{$field_order}, $form_id.'_'.$column;
+				$field_def->{name} = $form_id.'_'.$column;
+			}
+			else
+			{
+				push @{$field_order}, $column;
+				$field_def->{name} = $column;
+			}
 		}
-		else
-		{
-			push @{$field_order}, $column;
-			$field_def->{name} = $column;
-		}
+		
 		$form->field(%{$field_def});
 	}
     
@@ -498,7 +494,6 @@ sub render_as_form
 						variable => 'form', 
 						data => {
 									template_url => $CONFIG->{template}->{url},
-									js => $CONFIG->{form}->{js},
 									javascript_code => $args{javascript_code},
 									field_order => $field_order,
 									actions => $args{actions},
@@ -507,8 +502,6 @@ sub render_as_form
 									description => $args{description},
 									html_head => $html_head,
 									no_head => $args{no_head},
-									title_background_color => $CONFIG->{misc}->{title_background_color},
-									content_background_color => $CONFIG->{misc}->{content_background_color},
 									self => $self,
 									wait_message => $CONFIG->{form}->{wait_message},
 									extra => $args{extra},
@@ -581,6 +574,8 @@ sub render_as_form
 	return $output;
 }
 
+
+
 sub render_as_table
 {
 	my ($self, %args) = (@_);
@@ -592,14 +587,7 @@ sub render_as_table
 	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
 
-	my $table_id = $args{prefix};
-	unless ($table_id and $table_id ne 1)
-	{
-		$table_id = lc $class;
-		$table_id =~ s/::/_/g;
-		$table_id .= '_table';
-	}
-	
+	my $table_id = _create_id($class, $args{prefix}, (caller(0))[3]);
 	my $table_title = $args{title} || _to_label(stringify_package_name($class->meta->table));
 	
 	my $relationships = _get_relationships($class);	
@@ -630,33 +618,45 @@ sub render_as_table
 		$args{get}->{sort_by} = $query->param($param_list->{'sort_by'});
 	}	
 	
-	if ($args{searchable} and $query->param($param_list->{'q'})) 
+	if ($args{searchable})
 	{
-		my $or;
-		foreach my $searchable_column (@{$args{searchable}})
+		$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries}, which get serialised later as query stings
+		
+		if (defined $query->param($param_list->{'q'}) and $query->param($param_list->{'q'}) ne '')
 		{
-			my $search_value;
-			if (defined &{"$class\::$searchable_column\_for_search"})
+			my $or;
+			foreach my $searchable_column (@{$args{searchable}})
 			{
-				my $search_method = $searchable_column.'_for_search';
-				my $search_result = $class->$search_method($query->param($param_list->{'q'}));
-			 	$search_value = $search_result if $search_result;
+				my $search_value;
+				if (defined &{"$class\::$searchable_column\_for_search"})
+				{
+					my $search_method = $searchable_column.'_for_search';
+				 	$search_value = $class->$search_method($query->param($param_list->{'q'}));
+				}
+				else
+				{
+					$search_value = $query->param($param_list->{'q'}) unless ref $class->meta->{columns}->{$searchable_column} eq 'Rose::DB::Object::Metadata::Column::Boolean' and not ($query->param($param_list->{'q'}) eq '1' or $query->param($param_list->{'q'}) eq '0')
+				}
+				
+				if ($search_value)
+				{
+					if (ref $class->meta->{columns}->{$searchable_column} eq 'Rose::DB::Object::Metadata::Column::Scalar' or ref $class->meta->{columns}->{$searchable_column} eq 'Rose::DB::Object::Metadata::Column::Boolean')
+					{
+						push @{$or}, $searchable_column => $search_value;
+					}
+					else
+					{
+						push @{$or}, $searchable_column => { $CONFIG->{table}->{search_operator} => '%'. $search_value .'%'};
+					}
+				}
 			}
-			else
-			{
-				$search_value = '%'.$query->param($param_list->{'q'}).'%';
-			}			
-			push @{$or}, $searchable_column => { $CONFIG->{table}->{search_operator} => $search_value} if $search_value;
+
+			push @{$args{get}->{query}}, 'or' => $or;
+
+			$args{queries}->{$param_list->{q}} = $query->param($param_list->{'q'});
+
+			$table_title = 'Search Results for "'.$query->param($param_list->{'q'}).'"' unless $args{title};
 		}
-		
-		# return {output => Dumper $or};
-		push @{$args{get}->{query}}, 'or' => $or;
-		
-		$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries} (next line), which get serialised later as query stings
-		
-		$args{queries}->{$param_list->{q}} = $query->param($param_list->{'q'});
-		
-		$table_title = 'Search Results for "'.$query->param($param_list->{'q'}).'"' unless $args{title};
 	}
 	
 	if($args{or_filter} or $CONFIG->{table}->{or_filter})
@@ -729,7 +729,8 @@ sub render_as_table
 	}
 		
 	$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $CONFIG->{table}->{per_page};
-	$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;	
+	$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
+		
 	my $objects = $self->get_objects(%{$args{get}});
 
 	##Handle Submission
@@ -1040,7 +1041,6 @@ sub render_as_table
 			$html_table = _render_template(options => $args{template_options}, file => $template, output => 1, data => 
 			{
 				template_url => $CONFIG->{template}->{url},
-				js => $CONFIG->{table}->{js},
 				javascript_code => $args{javascript_code},
 				ajax => $ajax,
 				url => $url,
@@ -1062,8 +1062,6 @@ sub render_as_table
 				html_head => $html_head,
 				no_head => $args{no_head},
 				no_pagination => $args{no_pagination} || $CONFIG->{table}->{no_pagination},
-				title_background_color => $CONFIG->{misc}->{title_background_color},
-				content_background_color => $CONFIG->{misc}->{content_background_color},
 				extra => $args{extra}
 			});
 
@@ -1167,14 +1165,8 @@ sub render_as_menu
 	
 	my $class = ref $self || $self;
 	$class =~ s/::Manager$//;
-	
-	my $menu_id = $args{prefix};
-	unless ($menu_id and $menu_id ne 1)
-	{
-		$menu_id = lc $class;
-		$menu_id =~ s/::/_/g;
-		$menu_id .= '_menu';
-	}
+
+	my $menu_id = _create_id($class, $args{prefix}, (caller(0))[3]);
 	
 	my ($hide_menu_param, $current_param);
 	if ($args{prefix})
@@ -1274,7 +1266,6 @@ sub render_as_menu
 				no_head => $args{no_head},
 				html_head => $html_head,
 				template_url => $CONFIG->{template}->{url}, 
-				js => $CONFIG->{menu}->{js},
 				items => $items,
 				item_order => $item_order, 
 				current => $current,
@@ -1296,7 +1287,7 @@ sub render_as_menu
 				$menu .= 'class="light_menu_current" ' if $items->{$item}->{table} eq $current;
 				$menu .= 'href="'.$items->{$item}->{link}.'">'.$items->{$item}->{label}.'</a></li>';
 			}
-			$menu .= '</ul></div></div><p>'.$args{'description'}.'</p>';
+			$menu .= '</ul></div><p>'.$args{'description'}.'</p></div>';
 		}
 		$menu .= $output->{table}->{output};
 	}
@@ -1308,198 +1299,152 @@ sub render_as_menu
 sub render_as_chart
 {
 	my ($self, %args) = (@_);
-	return unless  ($self)->isa('Rose::DB::Object::Manager') and $args{'type'};
-	
+	return unless ($self)->isa('Rose::DB::Object::Manager');
 	my $class = ref $self || $self;
 	$class =~ s/::Manager$//;
-	
-	$args{title} ||= _to_label(stringify_package_name($class->meta->table));
-	
-	$args{'chart_id'} = $args{prefix};
-	unless ($args{'chart_id'} and $args{'chart_id'} ne 1)
-	{
-		$args{'chart_id'} = lc $class;
-		$args{'chart_id'} =~ s/::/_/g;
-		$args{'chart_id'} .= '_chart';
-	}
+	my $chart_id = _create_id($class, $args{prefix}, (caller(0))[3]);
 	
 	my $hide_chart;
 	if ($args{prefix})
 	{
-		$hide_chart = $args{'chart_id'}.'_hide_chart';
+		$hide_chart = $chart_id . '_hide_chart';
 	}
 	else
 	{
-		$hide_chart='hide_chart';
+		$hide_chart = 'hide_chart';
 	}
+	
 	my $query = $args{cgi} || CGI->new;
 	return if $query->param($hide_chart);
 	
-	$args{'chart_title'} ||= _to_label(stringify_package_name($class->meta->table));
-	my $dataset_name = $args{'chart_title'};
-	
-	$args{'type'} = ucfirst($args{'type'});
-	
-	if($args{'type'} eq 'Pie')
+	my ($chart, $output, $template, $html_head);
+	if ($args{engine} and ref $args{engine} eq 'CODE')
 	{
-		$args{'size'} ||= 300;
-		$args{'height'} = $args{'size'};
-		$args{'width'} = $args{'size'};
-		$args{'options'}->{'background'}->{'color'} ||= $CONFIG->{misc}->{content_background_color};
-		$args{'options'}->{'legend'}->{'position'}->{'left'} ||= ($args{'size'} - 50).'px';
-	}
-	else #'Line' or 'Bar'
-	{
-		$args{'type'} ||= 'Bar';
-		$args{'height'} ||= 300;	
-		$args{'width'} ||= 600;
-		$args{'options'}->{'padding'} ||= {left => 30, right => 0, top => 10, bottom => 30};
-		$args{'options'}->{'barOrientation'} = 'horizontal' if $args{'type'} eq 'Bar' and $args{'horizontal'};
-		$args{'options'}->{'shouldFill'} = 'false' if $args{'type'} eq 'Line' and not $args{'fill'};
-	}
-	
-	if($args{'dataset'})
-	{
-		$args{'dataset'} = {$dataset_name => $args{'dataset'}} if ref $args{'dataset'} eq 'ARRAY';		
+		no strict 'refs';
+		$chart = $args{engine}->($self, %args);
 	}
 	else
-	{
-		tie %{$args{'dataset'}}, 'Tie::Hash::Indexed';
-		if($args{'type'} eq 'Pie')
-		{
-			my $foreign_keys = _get_foreign_keys($class);
-			my $value_counter = 0;
-			foreach my $value (@{$args{'values'}})
-			{
-				my $number = $self->get_objects_count(query => [ $args{column} => $value ]);
-				next if $number == 0;
-				my $label = $value;
-				if (exists $foreign_keys->{$args{column}})
-				{
-					my $foreign_class = $foreign_keys->{$args{column}}->{class};
-					my $foreign_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0]; 					
-					my $foreign_object = $foreign_class->new($foreign_primary_key => $value);
-			
-					if($foreign_object->load(speculative => 1))
-					{
-						$label = $foreign_object->stringify_me;
-					}
-				}
-
-				$args{'dataset'}->{$label} = [[0, $number]];
-				push @{$args{'options'}->{'axis'}->{'x'}->{'ticks'}}, {v => $value_counter, label => $label};
-							
-				$value_counter++;
-			}
-		}
-		else
-		{
-			my $column_counter = 0;
-			my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0]; 
-			
-			foreach my $column (@{$args{'columns'}})
-			{
-				my $object_counter = 0;
-				foreach my $object_id (@{$args{'objects'}})
-				{
-					my $object = $class->new($primary_key => $object_id);
-					if($object->load(speculative => $object_id))
-					{
-						my $value = $object->$column;
-						push @{$args{'dataset'}->{_to_label($column)}}, [$object_counter, $value];
-					}
-					push @{$args{'options'}->{'axis'}->{'x'}->{'ticks'}}, {v => $object_counter, label => $object->stringify_me}; 
-					$object_counter++;
-				}
+	{		
+		$args{options}->{chs} ||= $args{size} || '600x300';
+		$args{options}->{chco} ||= 'ff6600';
 				
+		if (exists $args{type})
+		{
+			my $type = {
+				pie => 'p',
+				bar => 'bvg',
+				line => 'ls'
+			};
+			
+			if (exists $type->{$args{type}})
+			{
+				$args{options}->{cht} ||= $type->{$args{type}};
+				
+				unless (exists $args{options}->{chd})
+				{
+					my (@values, @labels);
+					if ($args{type} eq 'pie' and $args{column} and $args{values})
+					{
+						my $foreign_keys = _get_foreign_keys($class);
+						foreach my $value (@{$args{values}})
+						{
+							push @values, $self->get_objects_count(query => [ $args{column} => $value ]);
+														
+							if (exists $foreign_keys->{$args{column}})
+							{
+								my $foreign_class = $foreign_keys->{$args{column}}->{class};
+								my $foreign_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0]; 					
+								my $foreign_object = $foreign_class->new($foreign_primary_key => $value);
+
+								if($foreign_object->load(speculative => 1))
+								{
+									push @labels, $foreign_object->stringify_me;
+								}
+							}
+							else
+							{
+								push @labels, $value; 
+							}
+						}
+						
+						$args{options}->{chd} = 't:' . join (',', @values);
+					}
+					elsif ($args{objects} and $args{columns})
+					{
+						$args{options}->{chxt} ||= 'x,y';
+						$args{options}->{chdl} ||= join ('|', @{$args{columns}});
+						my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0]; 
+						
+						my $objects = $self->get_objects(query => [id => $args{objects}]);
+						@labels = map {$_->stringify_me} @{$objects};
+						
+						foreach my $column (@{$args{columns}})
+						{
+							my @object_values;
+							foreach my $object (@{$objects})
+							{
+								if ($object->$column)
+								{
+									push (@object_values, $object->$column);
+								}
+								else
+								{
+									push (@object_values, 0);
+								}
+							}
+							push (@values, join (',', @object_values));
+						}
+						
+						$args{options}->{chd} = 't:' . join ('|', @values);
+					}
+				
+					$args{options}->{chl} = join ('|', @labels);
+				}
 			}
 		}
-	}
-	return unless %{$args{dataset}};
-	_render_chart(%args); 
-}
-
-#rendering util
-
-sub _render_chart
-{
-	my %args = (@_);
-
-	$args{'options'}->{'strokeWidth'} = 1 unless exists $args{'options'}->{'strokeWidth'};
-	$args{'options'}->{'colorScheme'} ||= 'blue';
-	$args{'options'}->{'axis'}->{'labelColor'} 	||= '#ea440a';
-	$args{'options'}->{'axis'}->{'labelFont'} 	||= 'trebuchet ms';
-	$args{'options'}->{'background'}->{'color'} ||= '#E5ECF3';
-	
-	my $label_counter = 0;
-	foreach my $label (@{$args{'label'}})
-	{
-		push @{$args{'options'}->{'axis'}->{'x'}->{'ticks'}}, {v => $label_counter, label => $label};
-		$label_counter++;
-	}
-	
-	$args{'options'} = encode_json($args{'options'});
-	$args{'options'} =~ s/"(false)"/$1/g;
-	$args{'options'} =~ s/"v":"(\d+)"/"v":$1/g;
-	
-	my $dataset;
-	foreach my $key (keys %{$args{'dataset'}})
-	{
-		my $array = $args{'dataset'}->{$key};	
-		push @{$dataset}, qq("$key":).encode_json($array);
-	}
-	
-	$args{'dataset'} = join ',', @{$dataset};
-	$args{'dataset'} = '{'.$args{'dataset'}.'}';
-	
-	$args{'dataset'} =~ s/"([.\d]+)"/$1/g;
-	
-	my ($output, $html_head);
-	unless ($args{no_head})
-	{
-		$html_head = $CONFIG->{misc}->{html_head};
-		$html_head =~ s/\[%title%\]/$args{title}/;
-		$html_head .= qq(<script type="text/javascript" src="$CONFIG->{template}->{url}/js/prototype.js"></script><script type="text/javascript" src="$CONFIG->{template}->{url}/js/plotr/excanvas.js"/></script><script type="text/javascript" src="$CONFIG->{template}->{url}/js/plotr/plotr.js"/></script>);
-	}
 		
-	my ($template, $chart);
-	if ($args{template})
-	{
-		if($args{template} eq 1)
+		my $title = $args{title} || _to_label(stringify_package_name($class->meta->table));
+		unless($args{no_head})
 		{
-			$template = $CONFIG->{chart}->{template};
+			$html_head = $CONFIG->{misc}->{html_head};
+			$html_head =~ s/\[%title%\]/$title/;
+		}
+	
+		my $chart_url = 'http://chart.apis.google.com/chart?' . _create_query_string($args{options});
+
+		if ($args{template})
+		{
+			if($args{template} eq 1)
+			{
+				$template = $CONFIG->{chart}->{template};
+			}
+			else
+			{
+				$template = $args{template};
+			}
+			$chart = _render_template(
+				options => $args{template_options},
+				file => $template,
+				output => 1,
+				data => 
+					{
+						template_url => $CONFIG->{template}->{url},
+						chart => $chart_url,
+						options => $args{'options'},
+						chart_id => $chart_id,
+						title => $title ,
+						description => $args{'description'},
+						no_head => $args{no_head},
+						html_head => $html_head,
+						extra => $args{'extra'}
+					});		
 		}
 		else
 		{
-			$template = $args{template};
+			$chart = qq($html_head <div class="light_container"><div class="light_title_container"><h2>$title</h2><p>$args{description}</p></div><img src="$chart_url"/></div>);
 		}
-
-		$chart = _render_template(
-			options => $args{template_options},
-			file => $template,
-			output => 1,
-			data => 
-				{
-					template_url => $CONFIG->{template}->{url},
-					js => $CONFIG->{chart}->{js},
-					dataset => $args{'dataset'},
-					options => $args{'options'},
-					height => $args{'height'},
-					width => $args{'width'},
-					chart_id => $args{'chart_id'},
-					type => $args{'type'},
-					title => $args{'title'},
-					description => $args{'description'},
-					no_head => $args{no_head},
-					html_head => $html_head,
-					extra => $args{'extra'}
-				});		
 	}
-	else
-	{
-		$chart = $html_head.qq(<body><div class="light_container"><div class="light_title_container"><h2>$args{title}</h2><p>$args{description}</p></div><div><canvas id="$args{chart_id}_canvas" height="$args{height}" width="$args{width}"></canvas></div></div><script type="text/javascript">var $args{chart_id}_dataset = $args{dataset};var $args{chart_id}_options = $args{options};var $args{chart_id} = new Plotr.$args{type}Chart('$args{chart_id}_canvas',$args{chart_id}_options);$args{chart_id}.addDataset($args{chart_id}_dataset);$args{chart_id}.render();</script></body>);
-	}
-
+	
 	$args{output}?$output->{output} = $chart:print $chart;
 	return $output;
 }
@@ -1839,8 +1784,8 @@ sub stringify_me
 	my $column_types = _match_column_types(ref $self, $foreign_keys, $column_order);
 	my @value;
 	foreach my $column (@{$column_order})
-	{
-		push @value, $self->$column if exists $column_types->{$column} and $CONFIG->{columns}->{$column_types->{$column}}->{stringify};
+	{	
+		push @value, $self->$column if exists $column_types->{$column} and $CONFIG->{columns}->{$column_types->{$column}}->{stringify} and not ref $self->$column;
 	}
 	
 	my $string = join $CONFIG->{misc}->{stringify_delimiter}, @value;
@@ -2069,6 +2014,19 @@ sub _clean_column_info
 	return $cloned_column_info;
 }
 
+sub _create_id
+{
+	my ($class, $prefix, $method) = @_;
+	unless ($prefix)
+	{
+		($method) = $method =~ /^.*_(\w+)$/;
+		$prefix = lc $class;
+		$prefix =~ s/::/_/g;
+		$prefix .= '_'. $method;
+	}
+	return $prefix;	
+}
+
 sub _to_label
 {
 	my $string = shift;
@@ -2167,7 +2125,7 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
   my $e = Company::Employee->new(id => 1);
   $e->load;
 
-  # Render a google map for the address column
+  # Render a link to google map for the 'address' column
   print $e->address_for_view();
 
   # Render a form with using the default template with custom fields
@@ -2176,20 +2134,19 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
     fields => {'hobby' => {required => 1, options => ['Coding', 'Reading', 'Cooking']}},
   );
 
-
   # Render a table
   Company::Employee::Manager->render_as_table();
 
   # Render a table for all the employees who love to code with create, edit, and delete access
   Company::Employee::Manager->render_as_table(
     get => {query => [hobby => 'Coding']}
-    order => ['first_name', 'email', 'address', 'phone'], # specify the column order
+    order => ['first_name', 'email', 'address', 'phone'],
     create => 1, 
     edit => 1,
     delete => 1,
   );
 
-  # Render a table with search and use a custom template
+  # Render a table with search and a custom template
   Company::Employee::Manager->render_as_table(
     get => {require_objects => [ 'position' ]},
     searchable => ['first_name', 'last_name', 'position.title'],
@@ -2199,8 +2156,8 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
 
   # Render a menu
   my $menu = Company::Employee::Manager->render_as_menu (
-    order => ['Company::Employee', 'Company::Position'], # the classes
-    output => 1 # store the rendered menu
+    order => ['Company::Employee', 'Company::Position'],
+    output => 1
   );
 
   print $menu->{output};
@@ -2208,25 +2165,26 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
 
   # Render a pie chart
   Company::Employee::Manager->render_as_chart(
-    type => 'pie', # type of the chart
-    values => ['Coding', 'Cooking'], # the values to compare
-    column => 'hobby', # in which column
+    type => 'pie',
+    values => ['Coding', 'Cooking'],
+    column => 'hobby',
   );
 
-  # Render a bar chart
+  # Render a bar chart using Google Chart API
   Company::Employee::Manager->render_as_chart(
     type => 'bar',
-    title => 'The Employee Bar Chart', # set the title
-    description => 'A useful bar chart.', # add some description
-    columns => ['salary', 'tax'], # the columns to compare
-    objects => [1, 2, 3] # for which objects
+    title => 'The Employee Bar Chart',
+    description => 'A useful bar chart.',
+    columns => ['salary', 'tax'],
+    objects => [1, 2, 3],
+	options => {chco => 'ff6600,ffcc00'} # the color for each bar
   );
 	
 =head1 DESCRIPTION
 
 Rose::DBx::Object::Renderer generates web UIs for Rose::DB::Object. It encapsulates many web conventions in the generated UIs as default behaviours. For example, email addresses are by default rendered as C<mailto> links in tables and appropiate validation is enforced automatically in forms. These behaviours are highly configurable and extensible. 
 
-Renderer integrates L<CGI::FormBuilder> to generate forms and Plotr to render charts. L<Template::Toolkit> is used for template processing, however, Renderer can generate a default set of UIs without any templates. Moreover, UIs are generated dynamically, in other words, no physical files are created.
+Renderer uses L<CGI::FormBuilder> to generate forms and the Google Chart API to render charts. L<Template::Toolkit> is used for template processing, however, Renderer can dynamically generate the full set of UIs without any templates.
 
 =head1 RESTRICTIONS
 
@@ -2234,17 +2192,17 @@ Renderer integrates L<CGI::FormBuilder> to generate forms and Plotr to render ch
 
 =item * The database table must follow the conventions in C<Rose::DB::Object>.
 
-=item * Support for tables with multiple primary keys is limited.
+=item * Support for database tables with multiple primary keys is limited.
 
 =back
 
 =head1 CONFIGURATION
 
-C<$Rose::DBx::Object::Renderer::CONFIG> is an exported hash which defines many settings in Renderer. 
+C<$Rose::DBx::Object::Renderer::CONFIG> is the global config hash.
 
 =head2 Database Connection
 
-The C<load_database> method by default uses the settings defined in C<$Rose::DBx::Object::Renderer::CONFIG> to connect a database. 
+The C<load_database> method by default uses the settings in C<$Rose::DBx::Object::Renderer::CONFIG> to connect a database. 
 
   # Use the DBD for PostgreSQL (defaulted to 'mysql')
   $Rose::DBx::Object::Renderer::CONFIG->{db}->{type} = 'Pg'; 
@@ -2288,7 +2246,11 @@ We can modify the default settings of the rendering methods, for example:
 
 =head2 Column Definitions
 
-Renderer embraces a built-in list of commonly-used column types in web applications, such as email, address, photo, document, and media. This list is defined in C<$Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}>. For those who are familiar with L<CGI::FormBuilder>, it is obvious that most of the values inside C<$Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}-E<gt>{column_name}> are in fact L<CGI::FormBuilder> field definitions, except for C<format>, C<unsortable>, and C<stringify>. We can create new column definitions simply by extending C<$CONFIG-E<gt>{columns}>.
+Renderer embraces a built-in list of commonly-used column types in web applications, such as email, address, photo, document, and media. This list is defined in:
+
+  $Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}
+
+For those who are familiar with L<CGI::FormBuilder>, it is obvious that most of the options inside C<$Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}-E<gt>{column_name}> are in fact L<CGI::FormBuilder> field definitions, except for C<format>, C<unsortable>, and C<stringify>. New column types can be defined by adding to that hash.
 
 =over
 
@@ -2365,12 +2327,11 @@ This parameter specifies which columns are stringified. This is used by the expo
 
 =back
 
-
 =head1 METHODS
 
 =head2 C<load_database>
 
-C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader>. In order to eliminate the need for manually mapping column definitions to database table columns, C<load_database> also tries to automatically assign a column definition to each column of the loaded classes by matching the column definition name with the database table column name. 
+C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader>. In order to eliminate the need for manually mapping column definitions to database table columns, C<load_database> also tries to automatically assign a built-in column definition to each column of the loaded classes by matching the column definition name with the database table column name. 
 
 C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to the C<make_classes> method. C<load_database> always use the title case of the database name as the C<class_prefix> unless it is specified. C<load_database> returns an array of the loaded classes via the C<make_classes> method in L<Rose::DB::Object::Loader>. However, if the L<Rose::DB::Object> C<base_class> for the database already exists, which most than likely happens in a persistent environment, C<load_database> will simply skip the loading process and return nothing.
 
@@ -2706,13 +2667,7 @@ The [% items %] variable passed to a template defines the menu item, which order
 
 =head2 C<render_as_chart>
 
-C<render_as_chart> renders pie, line, and bar charts using Plotr, a Prototype-based Javascript charting library. By default, C<render_as_chart> assumes that the Prototype and Plotr libraries are located in: 
-
-  $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}/js/prototype.js
-  $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}/js/plotr/excanvas.js
-  $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}/js/plotr/plotr.js
-  
-Therefore, please make sure those Javascript libraries are in place when no custom template is used. 
+C<render_as_chart> renders pie, line, and bar charts via the Google Chart API.
 
 =over
 
@@ -2728,13 +2683,17 @@ These two parameters are only applicable to pie charts. C<column> defines the co
 
 These two parameters are only applicable to bar and line charts. C<columns> defines the columns of the object to be compared. The C<objects> parameter is a list of object IDs representing the objects to be compared.
 
-=item C<dataset>
+=item C<options>
 
-We can use a pre-populated dataset. In this case, C<render_as_chart> would simply convert the pre-populated hash to a JSON string and pass it to the template directly.
+A hashref for specifying any Google Chart API options which is serialised into a querystring.
+
+=item C<engine>
+
+Accepts a coderef for your own charting engine.
 
 =back
 
-C<[% type %]>, C<[% options %]>, and C<[% dataset %]> are the three main variables passed to a template for rendering charts. 
+The C<[% chart %]> variable is passed to a template. 
 
 =head1 OBJECT METHODS
 
@@ -2774,21 +2733,6 @@ This method stringifies the package name:
 We can also specify the path to contents such as javascript libraries or images used within templates: 
   
   $Rose::DBx::Object::Renderer::CONFIG->{template}->{url} = '../docs/';
-  
-as well as which js libraries to include to the default template of a particular type of UI:
-
-  $Rose::DBx::Object::Renderer::CONFIG->{form}->{js}->{datepicker} = 1;
-  
-Such that, in the actual TT template, we can do
-
-  [% IF js.datepicker %]
-    <script type="text/javascript" src="[% template_url %]/js/prototype.js"></script>
-    <script type="text/javascript" src="[% template_url %]/js/scriptaculous/scriptaculous.js"/></script>
-    <style type="text/css">@import url([% template_url %]/js/datepicker/datepicker.css);</style>
-    <script type="text/javascript" src="[% template_url %]/js/datepicker/datepicker.js"/></script>
-  [% END %]
-
-The C<address_for_view> and C<media_for_view> object methods are also designed to work seamlessly with Lightview (L<http://www.nickstakenburg.com/projects/lightview/>), a Prototype based lightbox effect library. Simply include the appropriate Javascript libraries into your custom templates to enable the lightbox effect.
 
 The default CSS class for the 'address' column is 'disable_editor'. This is for excluding the TinyMCE editor with this setup: C<editor_deselector : "disable_editor">. 
 
@@ -2802,11 +2746,11 @@ By default, the 'date', 'phone', and 'mobile' columns are localised for Australi
 
 =head2 Sample Templates
 
-There are four sample templates: form.tt, table.tt, menu.tt, and chart.tt in the 'templates' folder inside the TAR archive of the module.
+There are four sample templates: form.tt, table.tt, menu.tt, and chart.tt in the 'templates' folder inside the TAR archive.
 
 =head1 SEE ALSO
 
-L<Rose::DB::Object>, L<CGI::FormBuilder>, L<Template::Toolkit>, L<http://solutoire.com/plotr/>
+L<Rose::DB::Object>, L<CGI::FormBuilder>, L<Template::Toolkit>, L<http://code.google.com/apis/chart/>
 
 =head1 AUTHOR
 

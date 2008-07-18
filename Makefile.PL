@@ -21,8 +21,6 @@ WriteMakefile(
         'Math::Round' => 0,
         'File::Copy::Recursive' => 0,
         'Image::ExifTool' => 0,
-        'JSON::XS' => '2.01',
-        'Tie::Hash::Indexed' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Rose-DBx-Object-Renderer-*' },

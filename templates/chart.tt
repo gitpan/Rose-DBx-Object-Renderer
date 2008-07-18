@@ -1,17 +1,8 @@
 [% html_head %]
-<body>
-	<div class="light_container">
-		<div class="light_title_container">
-			<h2>[% title %]</h2>
-			<p>[% description %]</p>
-		</div>
-		<div><canvas id="[% chart_id %]_canvas" height="[% height %]" width="[% width %]"></canvas></div>
+<div class="light_container">
+	<div class="light_title_container">
+		<h2>[% title %]</h2>
+		<p>[% description %]</p>
 	</div>
-	<script type="text/javascript">
-		var [% chart_id %]_dataset = [% dataset %];
-		var [% chart_id %]_options = [% options %];
-		var [% chart_id %] = new Plotr.[% type %]Chart('[% chart_id %]_canvas',[% chart_id %]_options);
-		[% chart_id %].addDataset([% chart_id %]_dataset);
-		[% chart_id %].render();	
-	</script>
-</body>
+	<img src="[% chart %]"/>
+</div>

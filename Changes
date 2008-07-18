@@ -46,6 +46,13 @@ Revision history for Rose-DBx-Object-Renderer
 0.14	26/06/2008
 		Minor updates to the default CSS.
 0.15	03/07/2008
-	        Added the 'for_filter' option for column filtering in render_as_table and the 'for_create' option for formatting default values in render_as_form.
-                Minor enhancements to the column definitions and the default table template.
-                Updated POD.
+        Added the 'for_filter' option for column filtering in render_as_table and the 'for_create' option for formatting default values in render_as_form.
+        Minor enhancements to the column definitions and the default table template.
+        Updated POD.
+0.16	18/07/2008
+		Removed obsolete js parameters in the global config.
+		Rewrote the logic for handling custom 'fields' option in render_as_form.
+		Rewrote the logic for handling 'searchable' option in render_as_table.
+		Rewrote render_as_chart to use the Google Chart API (removed the dependency on JSON::XS and Tie::Hash::Indexed).
+		Minor code re-factoring.
+        Updated POD.
