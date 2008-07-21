@@ -14,7 +14,6 @@
 	
 	<div class="light_table_actions_container"><div class="light_table_actions">
 		[% IF table.exists('create') %]<a href="[% table.create.link %]">[% table.create.value %]</a>[% END %]
-		[% IF table.exists('actions') %][% table.actions %][% END %]
 	</div>
 	
 	</div>

@@ -1,58 +1,64 @@
 Revision history for Rose-DBx-Object-Renderer
 
 0.01    17/03/2008
-		First version, released on an unsuspecting world.
+        First version, released on an unsuspecting world.
 0.02    01/04/2008
-		Minor change to render_as_menu's HTML title. Updated POD.
-0.03	04/04/2008
-		Updated POD.
-0.04	01/05/2008
-		Updated the timestamp definition to properly display minutes. 
-		Refined the file upload method for preserving old files.
-		Simplified the sample form template (form.tt).
-		Fixed chained output in render_as_menu.
-		Fixed date column's 'for_update' method.
-		Allow CGI object to be passed to the rendering methods (Stewart Heckenberg).
-		Fixed a bug in render_as_form when inserting empty values using custom 'for_update' methods.
-		Added the 'join_delimiter' parameter in $CONFIG for joining multiple values, such as foreign objects.
-		Minor Enhancements.
-		Updated POD.
-0.05	02/05/2008
-		Added the 'unsortable' parameter to custom column definition in render_as_table. 
-		Fixed buttons in the sample form.tt (Stewart Heckenberg).
-		Enhanced template settings in rendering methods.
-		Updated POD.
-0.06	06/05/2008
-		Added the 'no_pagination' parameter to render_as_table, updated the sample table template.
-		Fixed POD.
-0.07	27/05/2008
-		Deprecate the 'unsortable' parameter in custom column definition for render_as_table (introduced in 0.05). Custom columns are always unsortable.
-		Disable 'file' field type for foreign object and foreign key fields in render_as_form (Stewart Heckenberg)
-		Simplified CSS.
-		Updated POD.
+        Minor change to render_as_menu's HTML title. Updated POD.
+0.03    04/04/2008
+        Updated POD.
+0.04    01/05/2008
+        Updated the timestamp definition to properly display minutes. 
+        Refined the file upload method for preserving old files.
+        Simplified the sample form template (form.tt).
+        Fixed chained output in render_as_menu.
+        Fixed date column's 'for_update' method.
+        Allow CGI object to be passed to the rendering methods (Stewart Heckenberg).
+        Fixed a bug in render_as_form when inserting empty values using custom 'for_update' methods.
+        Added the 'join_delimiter' parameter in $CONFIG for joining multiple values, such as foreign objects.
+        Minor Enhancements.
+        Updated POD.
+0.05    02/05/2008
+        Added the 'unsortable' parameter to custom column definition in render_as_table. 
+        Fixed buttons in the sample form.tt (Stewart Heckenberg).
+        Enhanced template settings in rendering methods.
+        Updated POD.
+0.06    06/05/2008
+        Added the 'no_pagination' parameter to render_as_table, updated the sample table template.
+        Fixed POD.
+0.07    27/05/2008
+        Deprecate the 'unsortable' parameter in custom column definition for render_as_table (introduced in 0.05). Custom columns are always unsortable.
+        Disable 'file' field type for foreign object and foreign key fields in render_as_form (Stewart Heckenberg)
+        Simplified CSS.
+        Updated POD.
 0.08    10/06/2008
-		Fixed an issue when updating foreign objects.
-0.09	11/06/2008
-		Removed the constraint for all primary key must be named 'id'.
-		Updated POD.
-0.10	11/06/2008
-		Fixed search box CSS in 'render_as_table'.
-0.11	13/06/2008
-		Minor CSS Updates.
-0.12	17/06/2008
-		Optimise load_database for persistent environments (Cees Hek).
-0.13	25/06/2008
-		Fixed an issue when using the 'searchable' option with date or timestamp columns in render_as_table.
-0.14	26/06/2008
-		Minor updates to the default CSS.
-0.15	03/07/2008
+        Fixed an issue when updating foreign objects.
+0.09    11/06/2008
+        Removed the constraint for all primary key must be named 'id'.
+        Updated POD.
+0.10    11/06/2008
+        Fixed search box CSS in 'render_as_table'.
+0.11    13/06/2008
+        Minor CSS Updates.
+0.12    17/06/2008
+        Optimise load_database for persistent environments (Cees Hek).
+0.13    25/06/2008
+        Fixed an issue when using the 'searchable' option with date or timestamp columns in render_as_table.
+0.14    26/06/2008
+        Minor updates to the default CSS.
+0.15    03/07/2008
         Added the 'for_filter' option for column filtering in render_as_table and the 'for_create' option for formatting default values in render_as_form.
         Minor enhancements to the column definitions and the default table template.
         Updated POD.
-0.16	18/07/2008
-		Removed obsolete js parameters in the global config.
-		Rewrote the logic for handling custom 'fields' option in render_as_form.
-		Rewrote the logic for handling 'searchable' option in render_as_table.
-		Rewrote render_as_chart to use the Google Chart API (removed the dependency on JSON::XS and Tie::Hash::Indexed).
-		Minor code re-factoring.
+0.16    18/07/2008
+        Removed obsolete js parameters in the global $CONFIG.
+        Rewrote the logic for handling custom 'fields' option in render_as_form.
+        Rewrote the logic for handling 'searchable' option in render_as_table.
+        Rewrote render_as_chart to use the Google Chart API (removed the dependency on JSON::XS and Tie::Hash::Indexed).
+        Minor code re-factoring.
+        Updated POD.
+0.17    20/07/2008
+        Improved data scaling and Y axis labelling in render_as_chart.
+        Update the sample menu template (menu.tt).
+        Simplified the global $CONFIG hash.
+        Minor code re-factoring.
         Updated POD.

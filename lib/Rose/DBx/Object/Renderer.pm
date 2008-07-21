@@ -32,8 +32,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.16;
-# build: 64.15
+our $VERSION = 0.17;
+# build: 66.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -48,88 +48,73 @@ $CGI::FormBuilder::Field::VALIDATE{FILENAME} = '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/
 
 $CONFIG = {
 	db => {
-			type => 'mysql', 
-			host => '127.0.0.1',
-			port => undef,
-			username => 'root', 
-			password => 'root',
-			tables_are_singular => 0
-		},
+		type => 'mysql', 
+		host => '127.0.0.1',
+		port => undef,
+		username => 'root', 
+		password => 'root',
+		tables_are_singular => 0
+	},
 	template => {path => 'templates', url => 'templates'},
 	upload => {path => 'uploads', url => 'uploads'},
-	table => {
-				template => 'table.tt',
-				ajax_template => 'table_ajax.tt',
-				wait_message => 'Processing...',
-				empty_message => 'No Record Found.',
-				per_page => 15,
-				search_operator => 'like', #e.g. use 'ilike' for case-insensitive search in Postgresql 
-				or_filter => 0,
-				no_pagination => 0,
-			},
-	form => {
-				template => 'form.tt',
-				wait_message => 'Processing...',
-				download_message => 'Download File',
-				keep_old_file => 0,
-				cancel => 'Cancel'
-			},
-	menu => {template => 'menu.tt'},
-	chart => {template => 'chart.tt'},
+	table => {empty_message => 'No Record Found.', per_page => 15, search_operator => 'like', or_filter => 0, no_pagination => 0},
+	form => {download_message => 'Download File', keep_old_file => 0, cancel => 'Cancel'},
 	misc => {
-				stringify_delimiter => ', ',
-				join_delimiter => ', ',
-				currency_symbol => {'AUD' => '$', 'JPY' => '&yen;', 'EUR' => '&#8364;', 'GBP' => '&#163;'},
-				unit_of_length => 'cm',
-				unit_of_weight => 'kg',
-				unit_of_volume => 'cm<sup>3</sup>',
-				html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#ff6600;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:300%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width: 100%; border: 0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align: center;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee; padding:6px;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#ff6600;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
-			},
-	validation => 
-			{
-				'Rose::DB::Object::Metadata::Column::Date' => 'EUDATE',
-				'Rose::DB::Object::Metadata::Column::Integer' => 'INT',
-				'Rose::DB::Object::Metadata::Column::BigInt' => 'INT',
-				'Rose::DB::Object::Metadata::Column::Float' => 'FLOAT',
-				'Rose::DB::Object::Metadata::Column::Decimal' => 'NUM',
-				'Rose::DB::Object::Metadata::Column::DoublePrecision' => 'NUM',
-				'Rose::DB::Object::Metadata::Column::Numeric' => 'NUM',
-				'Rose::DB::Object::Metadata::Column::Time' => 'TIME'
-			},
+		wait_message => 'Processing...',
+		stringify_delimiter => ', ',
+		join_delimiter => ', ',
+		currency_symbol => {'AUD' => '$', 'JPY' => '&yen;', 'EUR' => '&#8364;', 'GBP' => '&#163;'},
+		unit_of_length => 'cm',
+		unit_of_weight => 'kg',
+		unit_of_volume => 'cm<sup>3</sup>',
+		html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[%title%]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#ff6600;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:300%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width:100%;border:0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align:left;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#ff6600;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'
+	},
+	validation => {
+		'Rose::DB::Object::Metadata::Column::Date' => 'EUDATE',
+		'Rose::DB::Object::Metadata::Column::Integer' => 'INT',
+		'Rose::DB::Object::Metadata::Column::Boolean' => '/^[01]?$/',
+		'Rose::DB::Object::Metadata::Column::BigInt' => 'INT',
+		'Rose::DB::Object::Metadata::Column::Float' => 'FLOAT',
+		'Rose::DB::Object::Metadata::Column::Decimal' => 'NUM',
+		'Rose::DB::Object::Metadata::Column::DoublePrecision' => 'NUM',
+		'Rose::DB::Object::Metadata::Column::Numeric' => 'NUM',
+		'Rose::DB::Object::Metadata::Column::Time' => 'TIME'
+	},
 	columns => {
-				'integer' => {validate => 'INT', sortopts => 'NUM', maxlength => 11},
-				'decimal' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14},
-				'float' => {validate => 'FLOAT', sortopts => 'NUM', comment => 'e.g.: 109700.00', maxlength => 14},
-				'varchar' => {sortopts => 'LABELNAME', maxlength => 255},
-				'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
-				'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
-				'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime'; $self->$column->set_time_zone('Australia/Sydney'); return $self->$column->dmy('/') if $self->$column;}}},
-				'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_view_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
-				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
-				'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
-				'length' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_length};}}},
-				'weight' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_weight};}}},
-				'volume' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_volume};}}},
-				'gender' => {options => ['Male', 'Female']},
-				'title' => {sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
-				'name' => {sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
-				'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
-				'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255},
-				'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com', maxlength => 255},
-				'url' => {required => 0, validate => 'URL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="$value" target = "_blank">$value</a>);}}, comment => 'e.g. http://www.google.com/', maxlength => 255},
-				'mobile' => {validate => 'MOBILE', sortopts => 'NUM', maxlength => 17, comment => 'e.g. 0433 123 456'},
-				'phone' => {validate => 'AUPHONE', sortopts => 'NUM', comment => 'e.g. 02 9988 1288', maxlength => 16},
-				'username' => {validate => '/^[a-zA-Z0-9]{4,20}$/', sortopts => 'LABELNAME', required => 1, maxlength => 20},
-				'password' => {validate => 'PASSWORD', sortopts => 'NUM', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
-				'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}, maxlength => 12},
-				'abn' => {label => 'ABN', validate => '/^(\d{2} \d{3} \d{3} \d{3})$/', sortopts => 'NUM', maxlength => 14, comment => 'e.g.: 12 234 456 678'},
-				'money' => {validate => 'MONEY', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne '';my $rf = _round_float($value);return $CONFIG->{misc}->{currency_symbol}->{AUD}.$rf;}}, maxlength => 14},
-				'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
-				'foreign_key' => {validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;return unless $self->$column;my $fk = _get_foreign_keys(ref $self || $self);my $fk_name = $fk->{$column}->{name};return $self->$fk_name->stringify_me;}}},
-				'document' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
-				'image' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'media' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'ipv4' => {validate => 'IPV4', format => {for_search => sub {my ($self, $column, $value) = @_;return unless $value and $value =~ /^([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])$/;return $value;}}},
+		'integer' => {validate => 'INT', sortopts => 'NUM', maxlength => 11},
+		'decimal' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14},
+		'float' => {validate => 'FLOAT', sortopts => 'NUM', comment => 'e.g.: 109700.00', maxlength => 14},
+		'varchar' => {sortopts => 'LABELNAME', maxlength => 255},
+		'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
+		'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
+		'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
+		'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime'; $self->$column->set_time_zone('Australia/Sydney'); return $self->$column->dmy('/') if $self->$column;}}},
+		'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_view_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
+		'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
+		'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
+		'length' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_length};}}},
+		'weight' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_weight};}}},
+		'volume' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_volume};}}},
+		'gender' => {options => ['Male', 'Female']},
+		'title' => {sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
+		'name' => {sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
+		'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255, stringify => 1},
+		'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255},
+		'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com', maxlength => 255},
+		'url' => {required => 0, validate => 'URL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="$value">$value</a>);}}, comment => 'e.g. http://www.google.com/', maxlength => 255},
+		'mobile' => {validate => 'MOBILE', sortopts => 'NUM', maxlength => 17, comment => 'e.g. 0433 123 456'},
+		'phone' => {validate => 'AUPHONE', sortopts => 'NUM', comment => 'e.g. 02 9988 1288', maxlength => 16},
+		'username' => {validate => '/^[a-zA-Z0-9]{4,20}$/', sortopts => 'LABELNAME', required => 1, maxlength => 20},
+		'password' => {validate => 'PASSWORD', sortopts => 'NUM', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
+		'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}, maxlength => 12},
+		'abn' => {label => 'ABN', validate => '/^(\d{2} \d{3} \d{3} \d{3})$/', sortopts => 'NUM', maxlength => 14, comment => 'e.g.: 12 234 456 678'},
+		'money' => {validate => 'MONEY', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne '';my $rf = _round_float($value);return $CONFIG->{misc}->{currency_symbol}->{AUD}.$rf;}}, maxlength => 14},
+		'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
+		'foreign_key' => {validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;return unless $self->$column;my $fk = _get_foreign_keys(ref $self || $self);my $fk_name = $fk->{$column}->{name};return $self->$fk_name->stringify_me;}}},
+		'document' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
+		'image' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+		'media' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+		'ipv4' => {validate => 'IPV4', format => {for_search => sub {my ($self, $column, $value) = @_;return unless $value and $value =~ /^([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])$/;return $value;}}},
 	}
 };
 
@@ -202,14 +187,10 @@ sub load_database
 				{
 					$package .= 'sub '.$column.'_'.$custom_method_key.'{my ($self, $value) = @_;return $Rose::DBx::Object::Renderer::CONFIG->{columns}->{'.$column_types->{$column}.'}->{format}->{'.$custom_method_key.'}->($self, \''.$column.'\', $value);'.'}';
 				}
-			}
-		
+			}		
 			$package .= '__PACKAGE__->meta->initialize;';
 		}
-		else
-		{
-		
-		}
+
 		$package .= '1;';
 		eval $package;
 		die "Can't load $class." if $@;
@@ -242,12 +223,15 @@ sub render_as_form
 	my $database = $self->meta->db->database;
 	my $table = $self->meta->table;
 	
-	my $form_id = _create_id($class, $args{prefix}, (caller(0))[3]);
+	my $ui_type = (caller(0))[3];
+	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
+	my $form_id = _create_id($class, $args{prefix}, $ui_type);
+	
 	my $form_template;
 	
 	if ($args{template} eq 1)
 	{
-		$form_template = $CONFIG->{form}->{template};
+		$form_template = $ui_type . '.tt';
 	}
 	else
 	{
@@ -409,7 +393,7 @@ sub render_as_form
 				{							
 					my $value = $form->cgi_param($form_id.'_'.$column) || $form->cgi_param($column) || $self->$column;
 					my $file_location = _get_file_url($self, $column, $value);
-					$field_def->{comment} = '<br/><a href="'.$file_location.'" target = "_blank">'.$CONFIG->{form}->{download_message}.'</a>' if $file_location;
+					$field_def->{comment} = '<br/><a href="'.$file_location.'">'.$CONFIG->{form}->{download_message}.'</a>' if $file_location;
 				}
 			}
 			else
@@ -496,14 +480,13 @@ sub render_as_form
 									template_url => $CONFIG->{template}->{url},
 									javascript_code => $args{javascript_code},
 									field_order => $field_order,
-									actions => $args{actions},
 									form_id => $form_id,
 									title => $form_title,
 									description => $args{description},
 									html_head => $html_head,
 									no_head => $args{no_head},
 									self => $self,
-									wait_message => $CONFIG->{form}->{wait_message},
+									wait_message => $CONFIG->{misc}->{wait_message},
 									extra => $args{extra},
 									cancel => $cancel,
 								 },
@@ -574,8 +557,6 @@ sub render_as_form
 	return $output;
 }
 
-
-
 sub render_as_table
 {
 	my ($self, %args) = (@_);
@@ -586,8 +567,11 @@ sub render_as_table
 	
 	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
-
-	my $table_id = _create_id($class, $args{prefix}, (caller(0))[3]);
+	
+	my $ui_type = (caller(0))[3];
+	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
+	my $table_id = _create_id($class, $args{prefix}, $ui_type);
+	
 	my $table_title = $args{title} || _to_label(stringify_package_name($class->meta->table));
 	
 	my $relationships = _get_relationships($class);	
@@ -887,8 +871,6 @@ sub render_as_table
 			$create_value = $args{create}->{title} if ref $args{create} eq 'HASH' and exists $args{create}->{title};
 			$table->{create} = {value => $create_value, link => qq($url?$query_string->{complete}$param_list->{action}=create)} if $args{create};
 		}
-				
-		$table->{actions} = $args{actions} if $args{actions};
 		
 		$table->{total_columns} = scalar @{$column_order} + scalar @controllers;
 		
@@ -915,7 +897,6 @@ sub render_as_table
 			}
 		
 			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$column}))
-			
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -1024,22 +1005,20 @@ sub render_as_table
 			my ($template, $ajax);
 		    if($args{ajax})
 		    {
-		    	$template = $args{ajax_template} || $CONFIG->{table}->{ajax_template};
+		    	$template = $args{ajax_template} || $ui_type . '_ajax.tt';
 		 		$ajax = 1 if $query->param($param_list->{ajax});
 		    }
 			elsif($args{template} eq 1)
 			{
-				$template = $CONFIG->{table}->{template};
+				$template = $ui_type . '.tt';
 			}
 			else
 			{
 				$template = $args{template};
 			}
-		
 	    		
 			my $sort_by_column = $query->param($param_list->{'sort_by'});			
-			$html_table = _render_template(options => $args{template_options}, file => $template, output => 1, data => 
-			{
+			$html_table = _render_template(options => $args{template_options}, file => $template, output => 1, data => {
 				template_url => $CONFIG->{template}->{url},
 				javascript_code => $args{javascript_code},
 				ajax => $ajax,
@@ -1052,19 +1031,16 @@ sub render_as_table
 				table => $table,
 				objects => $objects,
 				column_order => $column_order,
-				controllers => $args{controllers},
-				controller_order => $args{controller_order},
 				table_id => $table_id,
 				title => $table_title,
 				description => $args{description},
 				class_label => _to_label(stringify_package_name($class->meta->table)),
-				wait_message => $CONFIG->{table}->{wait_message},
+				wait_message => $CONFIG->{misc}->{wait_message},
 				html_head => $html_head,
 				no_head => $args{no_head},
 				no_pagination => $args{no_pagination} || $CONFIG->{table}->{no_pagination},
 				extra => $args{extra}
 			});
-
 		}
 		else
 		{			
@@ -1076,7 +1052,6 @@ sub render_as_table
 			$html_table .= qq(<div class="light_title_container"><h2>$table_title</h2><p>$args{description}</p></div>);
 			$html_table .= qq(<div class="light_table_actions_container"><div class="light_table_actions">);
 			$html_table .= qq(<a href="$table->{create}->{link}">$table->{create}->{value}</a>) if exists $table->{create};
-			$html_table .= qq($table->{actions}) if exists $table->{actions};
 			$html_table .= '</div></div>';			
 			
 			$html_table .= '<table id="'.$table_id.'" class="light_table">';
@@ -1166,7 +1141,9 @@ sub render_as_menu
 	my $class = ref $self || $self;
 	$class =~ s/::Manager$//;
 
-	my $menu_id = _create_id($class, $args{prefix}, (caller(0))[3]);
+	my $ui_type = (caller(0))[3];
+	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
+	my $menu_id = _create_id($class, $args{prefix}, $ui_type);
 	
 	my ($hide_menu_param, $current_param);
 	if ($args{prefix})
@@ -1189,7 +1166,7 @@ sub render_as_menu
 	my $template;
 	if ($args{template} eq 1)
 	{
-		$template = $CONFIG->{menu}->{template};
+		$template = $ui_type . '.tt';
 	}
 	else
 	{
@@ -1263,6 +1240,7 @@ sub render_as_menu
 			file => $template, 
 			output => 1, 
 			data => {
+				menu_id => $menu_id,
 				no_head => $args{no_head},
 				html_head => $html_head,
 				template_url => $CONFIG->{template}->{url}, 
@@ -1274,7 +1252,8 @@ sub render_as_menu
 				extra => $args{extra},
 				content => $output->{table}->{output},
 				hide => $hide_menu,
-				});
+			}
+		);
 	}
 	else
 	{	
@@ -1302,7 +1281,10 @@ sub render_as_chart
 	return unless ($self)->isa('Rose::DB::Object::Manager');
 	my $class = ref $self || $self;
 	$class =~ s/::Manager$//;
-	my $chart_id = _create_id($class, $args{prefix}, (caller(0))[3]);
+	
+	my $ui_type = (caller(0))[3];
+	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
+	my $chart_id = _create_id($class, $args{prefix}, $ui_type);
 	
 	my $hide_chart;
 	if ($args{prefix})
@@ -1371,6 +1353,9 @@ sub render_as_chart
 					}
 					elsif ($args{objects} and $args{columns})
 					{
+						my $min = 0;
+						my $max = 0;
+						
 						$args{options}->{chxt} ||= 'x,y';
 						$args{options}->{chdl} ||= join ('|', @{$args{columns}});
 						my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0]; 
@@ -1386,6 +1371,15 @@ sub render_as_chart
 								if ($object->$column)
 								{
 									push (@object_values, $object->$column);
+									
+									if ($object->$column > $max)
+									{
+										$max = $object->$column;
+									}
+									elsif($object->$column < $min)
+									{
+										$min = $object->$column;
+									}
 								}
 								else
 								{
@@ -1396,8 +1390,18 @@ sub render_as_chart
 						}
 						
 						$args{options}->{chd} = 't:' . join ('|', @values);
+						
+						$args{options}->{chds} ||= $min . ',' . $max;
+						unless (exists $args{options}->{chxl} or ($max <= 100 and $min >= 0))
+						{
+							my $avg = ($max - abs($min)) / 2;
+							my $max_avg = ($max - abs($avg)) / 2 + $avg;
+							my $min_avg = ($avg - abs($min)) / 2;
+							
+							$args{options}->{chxl} = '1:|' . join ('|', ($min, $min_avg, $avg, $max_avg, $max));
+						}
 					}
-				
+									
 					$args{options}->{chl} = join ('|', @labels);
 				}
 			}
@@ -1416,28 +1420,29 @@ sub render_as_chart
 		{
 			if($args{template} eq 1)
 			{
-				$template = $CONFIG->{chart}->{template};
+				$template = $ui_type . '.tt';
 			}
 			else
 			{
 				$template = $args{template};
 			}
+			
 			$chart = _render_template(
 				options => $args{template_options},
 				file => $template,
 				output => 1,
-				data => 
-					{
-						template_url => $CONFIG->{template}->{url},
-						chart => $chart_url,
-						options => $args{'options'},
-						chart_id => $chart_id,
-						title => $title ,
-						description => $args{'description'},
-						no_head => $args{no_head},
-						html_head => $html_head,
-						extra => $args{'extra'}
-					});		
+				data => {
+					template_url => $CONFIG->{template}->{url},
+					chart => $chart_url,
+					options => $args{'options'},
+					chart_id => $chart_id,
+					title => $title ,
+					description => $args{'description'},
+					no_head => $args{no_head},
+					html_head => $html_head,
+					extra => $args{'extra'}
+				}
+			);		
 		}
 		else
 		{
@@ -1461,7 +1466,7 @@ sub _render_template
 		if($args{output})
 		{
 			my $output = '';
-			$template->process($args{file},$args{data}, \$output) || die $template->error(), "\n";;
+			$template->process($args{file},$args{data}, \$output) || die $template->error(), "\n";
 			return $output;
 		}
 		else
@@ -1760,7 +1765,6 @@ sub _match_column_types
 			}
 		}		
 	}
-	
 	return $type;
 }
 
@@ -1843,7 +1847,7 @@ sub _view_file
 	$value ||= $self->$column;
 	return unless $value and $value ne '' and ref $self;
 	my $file_url = _get_file_url($self, $column);
-	return qq(<a href="$file_url" target="_blank">$value</a>);
+	return qq(<a href="$file_url">$value</a>);
 }
 
 sub _view_image
@@ -1873,10 +1877,8 @@ sub _view_address
 	$value = $self->$column;
 	my $a = $value; 
 	$a =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
-	my $id = $self->stringify_package_name . $self->$primary_key .'modal';
 	#add output=js for inline map
-	return qq(<a id="$id" href="http://gmodules.com/ig/ifr?url=http://ralph.feedback.googlepages.com/googlemap.xml&amp;up_locname=%20&amp;up_loc=$a\&amp;up_zoom=Street&amp;up_view=Map&amp;synd=open&amp;w=600&amp;h=340&amp;title=+&amp;border=%23ffffff%7C3px%2C1px+solid+%23999999&amp;" rel='iframe' title='$value :: Google Map :: width: 600, height: 340' class='lightview'>$value</a>);
+	return qq(<a href="http://gmodules.com/ig/ifr?url=http://ralph.feedback.googlepages.com/googlemap.xml&amp;up_locname=%20&amp;up_loc=$a\&amp;up_zoom=Street&amp;up_view=Map&amp;synd=open&amp;w=600&amp;h=340&amp;title=+&amp;border=%23ffffff%7C3px%2C1px+solid+%23999999&amp;" rel='iframe' title='$value :: Google Map :: width: 600, height: 340' class='lightview'>$value</a>);
 }
 
 sub _update_file
@@ -2016,13 +2018,12 @@ sub _clean_column_info
 
 sub _create_id
 {
-	my ($class, $prefix, $method) = @_;
+	my ($class, $prefix, $ui_type) = @_;
 	unless ($prefix)
 	{
-		($method) = $method =~ /^.*_(\w+)$/;
 		$prefix = lc $class;
 		$prefix =~ s/::/_/g;
-		$prefix .= '_'. $method;
+		$prefix .= '_'. $ui_type;
 	}
 	return $prefix;	
 }
@@ -2109,68 +2110,55 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
 
 =head1 SYNOPSIS
 
+  use Rose::DBx::Object::Renderer;
+
   use CGI;
   my $query = new CGI;
   print $query->header();
 
-  use Rose::DBx::Object::Renderer;
-
-  # Load a database called 'company', which has two tables 'employee' and 'position' where employee has a position
+  # Load a database, for instance, called 'company', which has two tables: 'employee' and 'position' where employee has a position
   load_database('company', {db_username => 'root', db_password => 'root'});
 
   # Render a form to add employees
   Company::Employee->render_as_form();
 
-  # Load an object
+  # Load an object and render a customised form
   my $e = Company::Employee->new(id => 1);
   $e->load;
-
+  $e->render_as_form(template => 'custom_template.tt');
+  
+  
   # Render a link to google map for the 'address' column
   print $e->address_for_view();
 
-  # Render a form with using the default template with custom fields
-  $e->render_as_form(
-    template => 1,
-    fields => {'hobby' => {required => 1, options => ['Coding', 'Reading', 'Cooking']}},
-  );
 
   # Render a table
   Company::Employee::Manager->render_as_table();
 
-  # Render a table for all the employees who love to code with create, edit, and delete access
+  # Render a table for all the employees who love 'Coding' with create, edit, and delete access
   Company::Employee::Manager->render_as_table(
     get => {query => [hobby => 'Coding']}
     order => ['first_name', 'email', 'address', 'phone'],
     create => 1, 
     edit => 1,
     delete => 1,
+    searchable => ['first_name', 'address']
   );
-
-  # Render a table with search and a custom template
-  Company::Employee::Manager->render_as_table(
-    get => {require_objects => [ 'position' ]},
-    searchable => ['first_name', 'last_name', 'position.title'],
-    template => 'custom_template.tt'
-  );
-
 
   # Render a menu
   my $menu = Company::Employee::Manager->render_as_menu (
-    order => ['Company::Employee', 'Company::Position'],
-    output => 1
+    order => ['Company::Employee', 'Company::Position']
   );
 
-  print $menu->{output};
 
-
-  # Render a pie chart
+  # Render a pie chart via Google Chart API
   Company::Employee::Manager->render_as_chart(
     type => 'pie',
     values => ['Coding', 'Cooking'],
     column => 'hobby',
   );
 
-  # Render a bar chart using Google Chart API
+  # Render a bar chart
   Company::Employee::Manager->render_as_chart(
     type => 'bar',
     title => 'The Employee Bar Chart',
@@ -2198,11 +2186,15 @@ Renderer uses L<CGI::FormBuilder> to generate forms and the Google Chart API to 
 
 =head1 CONFIGURATION
 
-C<$Rose::DBx::Object::Renderer::CONFIG> is the global config hash.
+Renderer exports a global config hash 
+
+  $Rose::DBx::Object::Renderer::CONFIG
+
+in which the database connection, template path, and column definitions are defined. 
 
 =head2 Database Connection
 
-The C<load_database> method by default uses the settings in C<$Rose::DBx::Object::Renderer::CONFIG> to connect a database. 
+We can configure the database connection settings used by the C<load_database> method:
 
   # Use the DBD for PostgreSQL (defaulted to 'mysql')
   $Rose::DBx::Object::Renderer::CONFIG->{db}->{type} = 'Pg'; 
@@ -2216,24 +2208,28 @@ The C<load_database> method by default uses the settings in C<$Rose::DBx::Object
 
 =head2 Paths
 
-The default TT INCLUDE_PATH is './template', which can be changed in: 
+The default Template Toolkit INCLUDE_PATH is './template', which can be configured in: 
 
   $Rose::DBx::Object::Renderer::CONFIG->{template}->{path} = '../templates:../alternative';
 
-Renderer also needs a directory with write access to upload files. The default upload path is './upload'.
+We can also specify the default URL to static contents, such as javascript libraries or images, templates: 
 
-  # Change the upload directory
+  $Rose::DBx::Object::Renderer::CONFIG->{template}->{url} = '../docs/';
+
+Renderer also needs a directory with write access to upload files. The default file upload path is './upload', which can be configured in:
+
   $Rose::DBx::Object::Renderer::CONFIG->{upload}->{path} = '../uploads';
 
-  # Change the url for the upload directory
+We can also update the corresponding url for the upload directory:
+
   $Rose::DBx::Object::Renderer::CONFIG->{upload}->{url} = '../uploads';
 
 =head2 Default Settings for Rendering Methods
 
-We can modify the default settings of the rendering methods, for example:
+The global config also defines the specific options available for each of the rendering methods, i.e. C<render_as_form>, C<render_as_table>, C<render_as_menu>, and C<render_as_chart>. For example:
 
-  # Change the default form template
-  $Rose::DBx::Object::Renderer::CONFIG->{form}->{template} = 'custom_form.tt';
+  # Keep old upload files
+  $Rose::DBx::Object::Renderer::CONFIG->{form}->{keep_old_file} = 1;
 
   # Change the default number of rows per page to 25 in tables
   $Rose::DBx::Object::Renderer::CONFIG->{table}->{per_page} = '25';
@@ -2241,24 +2237,21 @@ We can modify the default settings of the rendering methods, for example:
   # Use 'ilike' to perform case-insensitive searches in PostgreSQL
   $Rose::DBx::Object::Renderer::CONFIG->{table}->{search_operator} = 'ilike'; # defaulted to 'like'
 
-  # Keep old upload files
-  $Rose::DBx::Object::Renderer::CONFIG->{form}->{keep_old_file} = 1;
-
 =head2 Column Definitions
 
-Renderer embraces a built-in list of commonly-used column types in web applications, such as email, address, photo, document, and media. This list is defined in:
+In order to encapsulate web-oriented behaviours, Renderer maintains a list of built-in column types, such as email, address, photo, document, and media, which are defined in:
 
-  $Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}
+  $Rose::DBx::Object::Renderer::CONFIG->{columns}
 
-For those who are familiar with L<CGI::FormBuilder>, it is obvious that most of the options inside C<$Rose::DBx::Object::Renderer::CONFIG-E<gt>{columns}-E<gt>{column_name}> are in fact L<CGI::FormBuilder> field definitions, except for C<format>, C<unsortable>, and C<stringify>. New column types can be defined by adding to that hash.
+Except for the C<format>, C<unsortable>, and C<stringify> options, other options in each column type are in fact L<CGI::FormBuilder> field options.
 
 =over
 
 =item C<format>
 
-Renderer encapsulates web-oriented behaviours by injecting the coderefs defined inside the C<format> hashref as object methods, for example:
+C<load_database> injects the coderefs defined inside the C<format> hashref as object methods, for example:
 
-  # Prints the localised DateTime object in 'DD/MM/YYYY' format
+  # Prints the serialised DateTime object in 'DD/MM/YYYY' format
   print $object->date_for_view;
 
   # Prints the image column in formatted HTML
@@ -2270,9 +2263,9 @@ Renderer encapsulates web-oriented behaviours by injecting the coderefs defined 
   # Prints the file path of the image
   print $object->image_path;
 
-In order to generate web-ready UIs, these extended object methods take preference over the the default object methods. The C<for_edit> and C<for_update> methods are used by C<render_as_form>. The C<for_edit> methods are triggered to format column values during form rendering, while the C<for_update> methods are triggered to update column values during form submission. Similarly, the C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are used to format column values during table rendering, while the C<for_filter> and C<for_search> methods are respectively triggered for column filtering and keyword searches. 
+These extended object methods take preference over the the default object methods. The C<for_edit> and C<for_update> methods are used by C<render_as_form>. The C<for_edit> methods are triggered to format column values during form rendering, while the C<for_update> methods are triggered to update column values during form submission. On the other hand, the C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are used to format column values during table rendering, while the C<for_filter> and C<for_search> methods are respectively triggered for column filtering and keyword searches. 
 
-We can customise existing formatting methods or define new ones easily. Let's say we would like to use the L<HTML::Strip> module to strip out HTML for the 'description' column:
+We can easily overwrite the existing formatting methods or create new ones. For instance, we would like to use the L<HTML::Strip> module to strip out HTML for the 'description' column type:
 
   use HTML::Strip;
   ...
@@ -2284,8 +2277,6 @@ We can customise existing formatting methods or define new ones easily. Let's sa
     return $self->$column($clean_text);  
   };
 
-We can always use the modified method directly:
-
   load_namespace('company');
   my $p = Company::Product->new(id => 1);
   $p->load;
@@ -2296,24 +2287,31 @@ We can always use the modified method directly:
   
   $p->save();
 
-We can create a custom method for the 'first_name' column so that users can click on a link to search the first name in CPAN:
+Similarly, we can create a new method for the 'first_name' column type so that users can click on a link to search the first name in CPAN:
 
   $Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub{
   my ($self, $column) = @_; 
   my $value = $self->$column; 
   return qq(<a href="http://search.cpan.org/search?query=$value&mode=all">$value</a>) if $value;
-};
-...
-load_namespace('company');
-my $e = Company::Employee->new(id => 1);
-$e->load;
-print $e->first_name_in_cpan;
+  };
+  ...
+  load_namespace('company');
+  my $e = Company::Employee->new(id => 1);
+  $e->load;
+  print $e->first_name_in_cpan;
 
-# or use it directly inside a template: [% e.first_name_in_cpan %]
+Of course, we can always define new column types, for example:
+
+  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{hobby} = {
+    label => 'Your Favourite Hobby',
+    sortopts => 'LABELNAME',
+    required => 1,
+    options => ['Reading', 'Coding', 'Shopping']
+  };
 
 =item C<unsortable>
 
-This parameter defines whether a column is a sortable column in tables. For example, the 'password' column is by default unsortable, i.e.:
+This option defines whether a column is a sortable column in tables. For example, the 'password' column type is by default unsortable, i.e.:
 
   $Rose::DBx::Object::Renderer::CONFIG->{columns}->{password}->{unsortable} = 1;
 
@@ -2321,7 +2319,7 @@ Custom columns are always unsortable.
 
 =item C<stringify>
 
-This parameter specifies which columns are stringified. This is used by the exported C<stringify_me> object method.
+This option specifies which columns are stringified. This is used by the exported C<stringify_me> object method.
 
   $Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{stringify} = 1;
 
@@ -2331,27 +2329,41 @@ This parameter specifies which columns are stringified. This is used by the expo
 
 =head2 C<load_database>
 
-C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader>. In order to eliminate the need for manually mapping column definitions to database table columns, C<load_database> also tries to automatically assign a built-in column definition to each column of the loaded classes by matching the column definition name with the database table column name. 
+C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader>. In order to eliminate the need for manually mapping column type definitions to database table columns, C<load_database> also tries to auto-assign a column type to each column by matching the column definition name with the database table column name. 
 
-C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to the C<make_classes> method. C<load_database> always use the title case of the database name as the C<class_prefix> unless it is specified. C<load_database> returns an array of the loaded classes via the C<make_classes> method in L<Rose::DB::Object::Loader>. However, if the L<Rose::DB::Object> C<base_class> for the database already exists, which most than likely happens in a persistent environment, C<load_database> will simply skip the loading process and return nothing.
+C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to its C<make_classes> method. C<load_database> by default uses the title case of the database name provided as the C<class_prefix> unless the option is specified. For instance:
 
   load_database(
     'company',
     {db_username => 'admin', db_password => 'password'},
     {include_tables => ['employee','position']}
   );
+  
+  Company::Employee->render_as_form;
+  
+  Company::Employee::Manager->render_as_table;
+
+C<load_database> returns an array of the loaded classes via the C<make_classes> method in L<Rose::DB::Object::Loader>. However, if the L<Rose::DB::Object> C<base_class> for the particular database already exists, which most likely happens in a persistent environment, C<load_database> will simply skip the loading process and return nothing.
 
 =head2 Common Parameters in Rendering Methods
+
+Here is a list of parameters that are applicable for all the rendering methods:
 
 =over 
 
 =item C<template>
 
-A string to define the name of the TT template for rendering the UI. When it is set to 1, it will use the default templates defined in C<$CONFIG>. For instance, the default template for C<render_as_form> is defined in C<$CONFIG-E<gt>{form}-E<gt>{template}>.
+A string to define the name of the TT template for rendering the UI. When it is set to 1, it will try to find the default template based on the rendering method name. For example:
+
+  Company::Employee->render_as_form(template => 1);
+  # tries to use the template 'form.tt'
+
+  Company::Employee::Manager->render_as_table(template => 1);
+  # tries to use the template 'table.tt'
 
 =item C<prefix> 
 
-A string to set a prefix for a UI. C<prefix> is used to prevent CGI param conflicts between multiple generated UIs on the same page.
+A string to set a prefix for a UI. C<prefix> is for preventing CGI param conflicts when rendering multiple UIs on the same web page.
 
 =item C<title>
 
@@ -2363,7 +2375,11 @@ A string to set the description of the UI.
 
 =item C<no_head>
 
-When set to 1, rendering methods will not include the default DOCTYPE and CSS styles defined in C<$CONFIG-E<gt>{misc}-E<gt>{html_head}>. This is useful when rendering multiple UIs in the same page.
+When set to 1, rendering methods will not include the default DOCTYPE and CSS styles defined in 
+
+  $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+
+This is useful when rendering multiple UIs in the same page.
 
 =item C<output>
 
@@ -2374,9 +2390,12 @@ When set to 1, the rendering methods would return the rendered UI instead of pri
 
 =item C<extra>
 
-A hashref of additional variables passed to the template.
+A hashref of additional template variables. For example:
 
-	Company::Employee->render_as_form(extra => {hobby => 'basketball'});
+  Company::Employee->render_as_form(extra => {hobby => 'basketball'});
+
+  # to access it within a template:
+  [% extra.hobby %]
 
 =item C<template_options>
 
@@ -2386,7 +2405,7 @@ Optional parameters to be passed to template toolkit. This is not applicable to 
 
 =head2 C<render_as_form>
 
-C<render_as_form> renders forms and handles the submission.
+C<render_as_form> renders forms and handles its submission.
 
   # Render a form for creating a new object instance
   Company::Employee->render_as_form();
@@ -2404,7 +2423,7 @@ C<render_as_form> by default sorts all fields based on the column order of the u
 
 =item C<fields>
 
-Accepts a hashref to overwrite the L<CGI::FormBuilder> field definitions auto-initialised by C<render_as_form>. Any custom fields must be included to the C<order> arrayref in order to be shown. 
+Accepts a hashref to overwrite the L<CGI::FormBuilder> field options auto-initialised by C<render_as_form>. Any custom fields must be included to the C<order> arrayref in order to be shown. 
 
   Company::Employee->render_as_form(
     order => ['username', 'password', 'confirm_password', 'favourite_cuisine'],
@@ -2412,7 +2431,7 @@ Accepts a hashref to overwrite the L<CGI::FormBuilder> field definitions auto-in
     password => {required => 1, class=> 'password_css'},
   });
 
-Please note that 'confirm_password' is also a built-in column inside Renderer. The default validation Javascript will work automatically, unless the password field is not called 'password' or when a prefix is used, in which case, the validation code should be updated accordingly.  
+Please note that Renderer has a built-in column type called 'confirm_password', where its default validation tries to match a field named 'password' in the form.
 
 =item C<queries>
 
@@ -2508,7 +2527,21 @@ A string with javascript code to be added to the template
 
 =back
 
-C<render_as_form> calls L<CGI::FormBuilder>'s C<$form-E<gt>template()> method to process template. Thus, we can access the form object via the C<[% form %]> variable. Additionally, The order of the form fields are defined by C<[% field_order %]>. We can also access the calling object (or class) using the C<[% self %]> variable. 
+C<render_as_form> passes the following list of variables to a template:
+  
+  [% self %] - the calling object instance or class
+  [% form %] - CGI::FormBuilder's form object
+  [% field_order %] - The order of the form fields
+  [% form_id %] - the form id
+  [% title %] - the form title
+  [% description %] - the form description
+  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% no_head %] - the 'no_head' option
+  [% wait_message %] - the text defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{wait_message}
+  [% extra %] - custom variables
+  [% cancel %] - the name of the 'Cancel' controller
+  [% javascript_code %] - javascript code 
+  [% template_url %] - The template url defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
 
 =head2 C<render_as_table>
 
@@ -2522,11 +2555,11 @@ C<render_as_table> allows columns to be filtered via URL. For example:
 
   http://www.yoursite.com/yourscript.pl?first_name=Danny&last_name=Liang
 
-returns the object where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
+returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
 
 =item C<columns>
 
-The C<columns> parameter can be used to define custom columns which do not physically exist in the database table
+The C<columns> parameter can be used to define custom columns, which do not exist in the underlying database table
 
   Company::Employee::Manager->render_as_table(
     columns => {'custom_column' => 
@@ -2543,17 +2576,20 @@ C<order> accepts an arrayref to define the order of the columns to be shown. The
 
 =item C<searchable>
 
-C<searchable> enables search for multiple columns.
+The C<searchable> option enables keyword search in multiple columns, including the columns of foreign objects:
 
   Company::Employee::Manager->render_as_table(
-    searchable => ['first_name', 'hobby'], #search for those fields
+    get => {with_objects => [ 'position' ]},
+    searchable => ['first_name', 'last_name', 'position.title'],
   );
+
+A search box will be shown in rendered table. The CGI param of the search box is called 'q', in other words,
   
-  # A search box will be shown in rendered table. In the web browser, we can now do http://www.yoursite.com/yourscript.pl?q=coding 
+  http://www.yoursite.com/yourscript.pl?q=danny
 
 =item C<get>
 
-C<get> accepts a hashref to construct database queries. C<get> is directly passed to the get method of the manager class.
+C<get> accepts a hashref to construct database queries. C<get> is directly passed to the C<get> method of the manager class.
 
   Company::Employee::Manager->render_as_table(
     get => {
@@ -2619,17 +2655,45 @@ A string with javascript code to be added to the template
 
 =item C<ajax> and C<ajax_template>
 
-These two parameters are designed for rendering Ajax-enabled tables. When C<ajax> is set to 1, C<render_as_table> will use the template defined either via the C<ajax_template> parameter or in C<$CONFIG-E<gt>{table}-E<gt>{ajax_template}>. C<render_as_table> also passes a variable called 'ajax' to the template and sets it to 1 when a CGI param called 'ajax' is set. We can use this variable in the template to differentiate whether the current request is an ajax request or not.
+These two parameters are designed for rendering Ajax-enabled tables. When C<ajax> is set to 1, C<render_as_table> tries to use the template 'table_ajax.tt' for rendering, unless the name of the template is defined in C<ajax_template>. C<render_as_table> also passes a variable called 'ajax' to the template and sets it to 1 when a CGI param named 'ajax' is set. We can use this variable in the template to differentiate whether the current CGI request is an ajax request or not.
+
+=item C<no_pagination>
+
+The pagination will not be rendered if this option is set to 1.
 
 =back
 
 Within a template, we can loop through objects using the C<[% table %]> variable. Alternatively, we can use the C<[% objects %]> variable.
 
+C<render_as_table> passes the following list of variables to a template:
+  
+  [% table %] - the hash for the formatted table, see the sample template 'table.tt' 
+  [% objects %] - the raw objects returned by the 'get_object' method
+  [% column_order %] - the order of the columns
+  [% template_url %] - The template URL defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% table_id %] - the table id
+  [% title %] - the table title
+  [% description %] - the table description
+  [% class_label %] - title case of the calling package name
+  [% no_pagination %] - the 'no_pagination' option
+  [% query_string %] - a hash of URL encoded query strings
+  [% query_hidden_fields %] - CGI queries converted into hidden fields; it is used by the keyword search form
+  [% param_list %] - a list of CGI param names with the table prefix, e.g. the name of the keyword search box is [% param_list.q %]
+  [% searchable %] - the 'searchable' option
+  [% sort_by_column %] - the column to be sorted 
+  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% no_head %] - the 'no_head' option
+  [% wait_message %] - the text defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{wait_message}
+  [% extra %] - custom variables
+  [% javascript_code %] - javascript code
+  [% ajax %] - the ajax variable for checking whether the current CGI request is a ajax request
+  [% url %] - the base url
+
 =head2 C<render_as_menu>
 
-C<render_as_menu> generates a menu with the given list of classes and renders a table for the current class. We can have fine-grained control over each table within the menu. For example, we can make the 'date_of_birth' field to be mandatory inside the 'create' form of the 'Company::Employee' table within the menu:
+C<render_as_menu> generates a menu with the given list of classes and renders a table for the current class. We can have fine-grained control over each table within the menu. For example, we can alter the 'date_of_birth' field inside the 'create' form of the 'Company::Employee' table inside the menu:
 
-  my $menu = Company::Employee::Manager->render_as_menu (
+  Company::Employee::Manager->render_as_menu (
     order => ['Company::Employee', 'Company::Position'],
     items => {
     'Company::Employee' => {
@@ -2662,18 +2726,30 @@ These parameters are shortcuts which get passed to all the underlying tables ren
 
 =back
 
-The [% items %] variable passed to a template defines the menu item, which order is determined by the [% item_order %] variable.
+C<render_as_menu> passes the following list of variables to a template:
 
+  [% template_url %] - The template URL defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% menu_id %] - the menu id
+  [% title %] - the menu title
+  [% description %] - the menu description
+  [% items %] - the hash for the menu items
+  [% item_order %] - the order of the menu items
+  [% current %] - the current menu item
+  [% content %] - the output of the table
+  [% extra %] - custom variables
+  [% hide %] - whether the menu should be hidden
+  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% no_head %] - the 'no_head' option
 
 =head2 C<render_as_chart>
 
-C<render_as_chart> renders pie, line, and bar charts via the Google Chart API.
+C<render_as_chart> renders pie, line, and vertical bar charts via the Google Chart API.
 
 =over
 
 =item C<type>
 
-This can be either 'pie', 'bar', or 'line'.
+This can be 'pie', 'bar', or 'line', which maps to the Google chart type (cht) 'p', 'bvg', and 'ls' respectively.
 
 =item C<column> and C<values>
 
@@ -2685,19 +2761,29 @@ These two parameters are only applicable to bar and line charts. C<columns> defi
 
 =item C<options>
 
-A hashref for specifying any Google Chart API options which is serialised into a querystring.
+A hashref for specifying any Google Chart API options which is serialised into a query string.
 
 =item C<engine>
 
-Accepts a coderef for your own charting engine.
+Accepts a coderef to plug in your own charting engine.
 
 =back
 
-The C<[% chart %]> variable is passed to a template. 
+C<render_as_chart> passes the following list of variables to a template:
+
+  [% template_url %] - The template URL defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% chart_id %] - the chart id
+  [% title %] - the chart title
+  [% description %] - the chart description
+  [% chart %] - the chart
+  [% options %] - the 'options' hash
+  [% extra %] - custom variables
+  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% no_head %] - the 'no_head' option
 
 =head1 OBJECT METHODS
 
-Apart from the formatting methods injected by C<load_namespace>, there are several other less-used object methods.
+Apart from the formatting methods injected by C<load_namespace>, there are several lesser-used object methods:
 
 =head2 C<delete_with_file>
 
@@ -2724,29 +2810,22 @@ This method is used internally to stringify foreign objects as form field values
 
 This method stringifies the package name:
 
-  print Company::Employee->stringify_package_name(); # Prints 'company_employee'
+  print Company::Employee->stringify_package_name(); 
+  # Prints 'company_employee'
 
 =head1 OTHER CONFIGURATIONS
-
-=head2 Javascript
-
-We can also specify the path to contents such as javascript libraries or images used within templates: 
-  
-  $Rose::DBx::Object::Renderer::CONFIG->{template}->{url} = '../docs/';
-
-The default CSS class for the 'address' column is 'disable_editor'. This is for excluding the TinyMCE editor with this setup: C<editor_deselector : "disable_editor">. 
-
-=head2 Miscellaneous
 
 Other miscellaneous configurations are defined in:
   
   $Rose::DBx::Object::Renderer::CONFIG->{misc}
 
-By default, the 'date', 'phone', and 'mobile' columns are localised for Australia.
+By default, column types, such as 'date', 'phone', and 'mobile', are localised for Australia.
+
+The default CSS class for the 'address' column type is 'disable_editor'. This is for excluding the TinyMCE editor with this setup: C<editor_deselector : "disable_editor">.
 
 =head2 Sample Templates
 
-There are four sample templates: form.tt, table.tt, menu.tt, and chart.tt in the 'templates' folder inside the TAR archive.
+There are four sample templates: 'form.tt', 'table.tt', 'menu.tt', and 'chart.tt' in the 'templates' folder of the TAR archive.
 
 =head1 SEE ALSO
 

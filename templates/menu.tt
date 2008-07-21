@@ -8,7 +8,7 @@
 		[% END %]
 	</ul>
 </div>
-</div>
 <p>[% description %]</p>
+</div>
 [% END %]
 [% content %]
