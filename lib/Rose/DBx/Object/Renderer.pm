@@ -32,8 +32,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.18;
-# build: 68.17
+our $VERSION = 0.19;
+# build: 69.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -1560,7 +1560,6 @@ sub _update_object
 	{
 		my $column = $field;
 		$column =~ s/$form_id\_// if $prefix;
-		
 		my $field_value;
 		my @values = $form->field($field);
 		my $values_size = scalar @values;
@@ -1646,8 +1645,8 @@ sub _update_object
 			}
 		
 		}
-		elsif (defined &{"$class\::$column"})
-		{
+		else
+		{			
 			if ($field_value ne '')
 			{
 				$self->$column($field_value);
@@ -1703,20 +1702,17 @@ sub _create_object
 			{
 				$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
 			}
-			
-			next if $field_value eq '';
-			
+						
 			if (defined &{"$class\::$column\_for_update"})
 			{
 				my $update_method = $column.'_for_update';
 				$custom_field_value->{$update_method} = $field_value; #save it for later
-				$self->$column('0'); # zero fill for now
+				$self->$column('0') if $self->meta->{columns}->{$column}->{not_null}; # zero fill not null columns
 			}
-			elsif (defined &{"$class\::$column"})
+			else
 			{
-				$self->$column($field_value);
+				$self->$column($field_value) if $field_value ne '';
 			}
-			
 		}
 	}
 	
