@@ -62,3 +62,6 @@ Revision history for Rose-DBx-Object-Renderer
         Simplified the global $CONFIG hash.
         Minor code re-factoring.
         Updated POD.
+0.18    24/07/2008
+        Minor code re-factoring for the stringify_me object method.
+        Updated POD.

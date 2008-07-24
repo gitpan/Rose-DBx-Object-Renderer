@@ -32,8 +32,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.17;
-# build: 66.17
+our $VERSION = 0.18;
+# build: 68.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -203,12 +203,19 @@ sub render_as_form
 {
 	my ($self, %args) = (@_);
 	return unless ($self)->isa('Rose::DB::Object');
-	my ($object_id, $form_action, $field_order, $output);
+	my ($object_id, $form_action, $field_order, $output, $relationship_object);
 	my $class = ref $self || $self;
+	my $database = $self->meta->db->database;
+	my $table = $self->meta->table;
+	
+	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $foreign_keys = _get_foreign_keys($class);
+	my $relationships = _get_relationships($class);
+	my $column_order = $args{order} || _get_column_order($class, $relationships, $args{show_id});
+	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 	
 	if (ref $self)
     {
-		my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
 		$object_id = $self->$primary_key;		
 		$form_action = 'update';
     }
@@ -217,16 +224,11 @@ sub render_as_form
 		$object_id = 'new';
     	$form_action = 'create';
     }
-
-	my $cancel = $args{cancel} || $CONFIG->{form}->{cancel};
-
-	my $database = $self->meta->db->database;
-	my $table = $self->meta->table;
 	
 	my $ui_type = (caller(0))[3];
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
 	my $form_id = _create_id($class, $args{prefix}, $ui_type);
-	
+	my $cancel = $args{cancel} || $CONFIG->{form}->{cancel};
 	my $form_template;
 	
 	if ($args{template} eq 1)
@@ -255,14 +257,6 @@ sub render_as_form
 	
 	$form_def->{jsfunc} ||= qq(if (form._submit.value == '$cancel') {return true;});
 	my $form = CGI::FormBuilder->new($form_def);
-
-	my $relationships = _get_relationships($class);
-	my $foreign_keys = _get_foreign_keys($class);
-	my $relationship_object;
-	
-	my $column_order = $args{order} || _get_column_order(ref $self || $self, $relationships, $args{show_id});
-	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
-
 	foreach my $column (@{$column_order})
 	{		
 		my $field_def;
@@ -277,23 +271,28 @@ sub render_as_form
 			}
 		}
 		
+		
 		if (exists $relationships->{$column}) #one to many or many to many relationships
-		{
+		{	
 			delete $field_def->{type} if exists $field_def->{type} and $field_def->{type} eq 'file'; #relationships should not have a 'file' field type, in case $column_types thinks it's an image, etc.
 			$field_def->{validate} ||= 'INT';
 			$field_def->{sortopts} ||= 'LABELNAME';
 			$field_def->{multiple} ||= 1;
 			
-			my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
-		
+			my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+			my $foreign_class_foreign_keys = _get_foreign_keys($relationships->{$column}->{class});
+			my $foreign_class_relationships = _get_relationships($relationships->{$column}->{class});	
+			my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
+			my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
+			
 			if (ref $self and not exists $field_def->{value})
 			{
 				my $foreign_object_value;
 			
 			 	foreach my $foreign_object ($self->$column)
 				{
-					$foreign_object_value->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
-					$relationship_object->{$column}->{$foreign_object->$foreign_primary_key} = undef; #keep it for update
+					$foreign_object_value->{$foreign_object->$foreign_class_primary_key} = $foreign_object->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types);
+					$relationship_object->{$column}->{$foreign_object->$foreign_class_primary_key} = undef; #keep it for update
 				}
 				$field_def->{value} = clone ($foreign_object_value);
 			}
@@ -305,7 +304,7 @@ sub render_as_form
 				my $objects = $foreign_package->get_objects;
 				foreach my $object (@{$objects})
 				{
-					$object_options->{$object->$foreign_primary_key} = $object->stringify_me;
+					$object_options->{$object->$foreign_class_primary_key} = $object->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types);
 				}
 			
 				if ($object_options)
@@ -337,29 +336,45 @@ sub render_as_form
 				$field_def->{required} ||= 1;
 				$field_def->{sortopts} ||= 'LABELNAME';
 				
-				unless ((exists $field_def->{static} and $field_def->{static}) or (exists $field_def->{type} and $field_def->{type} eq 'hidden') or exists $field_def->{options})
+				unless (exists $field_def->{options} or (exists $field_def->{type} and $field_def->{type} eq 'hidden'))
 				{
-					my $options;
-					my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
-					my $foreign_primary_key = $foreign_keys->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
-
-					foreach my $foreign_object (@{$foreign_manager->get_objects})
+					my $foreign_class_primary_key = $foreign_keys->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+					my $foreign_class_foreign_keys = _get_foreign_keys($foreign_keys->{$column}->{class});
+					my $foreign_class_relationships = _get_relationships($foreign_keys->{$column}->{class});	
+					my $foreign_class_column_order = _get_column_order($foreign_keys->{$column}->{class}, $foreign_class_relationships);	
+					my $foreign_class_column_types = _match_column_types($foreign_keys->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
+					
+					if (exists $field_def->{static} and $field_def->{static})
 					{
-						$options->{$foreign_object->$foreign_primary_key} = $foreign_object->stringify_me;
-					}
-
-					if ($options)
-					{
-						$field_def->{options} = $options;
+						if (ref $self and $self->$column)
+						{
+							my $foreign_column = $foreign_keys->{$column}->{name};
+							$field_def->{options} = {$self->$column => $self->$foreign_column->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)};
+						}
 					}
 					else
 					{
-						$field_def->{type} ||= 'select';
-						$field_def->{disabled} ||= 1;
+						my $options;
+						my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
+
+						foreach my $foreign_object (@{$foreign_manager->get_objects})
+						{
+							$options->{$foreign_object->$foreign_class_primary_key} = $foreign_object->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types);
+						}
+
+						if ($options)
+						{
+							$field_def->{options} = $options;
+						}
+						else
+						{
+							$field_def->{type} ||= 'select';
+							$field_def->{disabled} ||= 1;
+						}
 					}
 				}
 			}
-			
+						
 			$field_def->{options} ||= clone ($class->meta->{columns}->{$column}->{check_in}) if exists $class->meta->{columns}->{$column}->{check_in} and $class->meta->{columns}->{$column}->{check_in};
 						
 			$field_def->{multiple} ||= 1 if ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
@@ -413,7 +428,7 @@ sub render_as_form
 				}
 			}							
 		}
-				
+		
 		delete $field_def->{value} if exists $field_def->{multiple} and $field_def->{multiple} and $form->submitted and not $form->cgi_param($column) and not $form->cgi_param($form_id.'_'.$column);
 		
 		$field_def->{label} ||= _to_label($column);
@@ -433,8 +448,8 @@ sub render_as_form
 		}
 		
 		$form->field(%{$field_def});
-	}
-    
+	}	
+
 	foreach my $query_key (keys %{$args{queries}})
 	{
 		if (ref $args{queries}->{$query_key} eq 'ARRAY')
@@ -450,6 +465,8 @@ sub render_as_form
 		}
 		
 	}
+	
+	
 				
 	unless (defined $args{controller_order})
 	{
@@ -465,7 +482,7 @@ sub render_as_form
 	$form->{submit} = $args{controller_order};
 		
 	my $form_title = $args{title};
-	ref $self?$form_title ||= _to_label($form_action.' '.$self->stringify_me()):$form_title ||= _to_label($form_action.' '.stringify_package_name($table));
+	ref $self?$form_title ||= _to_label($form_action.' '.$self->stringify_me($primary_key, $foreign_keys, $relationships, $column_order, $column_types)):$form_title ||= _to_label($form_action.' '.stringify_package_name($table));
 	
 	my $html_head;
 	unless ($args{no_head})
@@ -939,7 +956,13 @@ sub render_as_table
 				}
 				elsif (exists $relationships->{$column})
 				{
-					$value = join $CONFIG->{misc}->{join_delimiter}, map {$_->stringify_me} $object->$column;
+					my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+					my $foreign_class_foreign_keys = _get_foreign_keys($relationships->{$column}->{class});
+					my $foreign_class_relationships = _get_relationships($relationships->{$column}->{class});	
+					my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
+					my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
+					
+					$value = join $CONFIG->{misc}->{join_delimiter}, map {$_->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)} $object->$column;					
 				}
 				else
 				{
@@ -1335,12 +1358,12 @@ sub render_as_chart
 							if (exists $foreign_keys->{$args{column}})
 							{
 								my $foreign_class = $foreign_keys->{$args{column}}->{class};
-								my $foreign_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0]; 					
-								my $foreign_object = $foreign_class->new($foreign_primary_key => $value);
+								my $foreign_class_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0];
+								my $foreign_object = $foreign_class->new($foreign_class_primary_key => $value);
 
 								if($foreign_object->load(speculative => 1))
 								{
-									push @labels, $foreign_object->stringify_me;
+									push @labels, $foreign_object->stringify_me($foreign_class_primary_key);
 								}
 							}
 							else
@@ -1358,10 +1381,16 @@ sub render_as_chart
 						
 						$args{options}->{chxt} ||= 'x,y';
 						$args{options}->{chdl} ||= join ('|', @{$args{columns}});
-						my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0]; 
+						
+						my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0];
+						my $foreign_keys = _get_foreign_keys($class);
+						my $relationships = _get_relationships($class);
+						my $column_order = _get_column_order($class, $relationships);
+						my $column_types = _match_column_types($class, $foreign_keys, $column_order);
+						
 						
 						my $objects = $self->get_objects(query => [id => $args{objects}]);
-						@labels = map {$_->stringify_me} @{$objects};
+						@labels = map {$_->stringify_me($primary_key, $foreign_keys, $relationships, $column_order, $column_types)} @{$objects};
 						
 						foreach my $column (@{$args{columns}})
 						{
@@ -1567,18 +1596,18 @@ sub _update_object
 			{ 
 				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
 				
-				my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
 				
 				foreach my $id (@values)
 				{
-					push @{$new_foreign_object_id}, $foreign_primary_key => $id;
+					push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
 					$value_hash->{$id} = undef;
-					push @{$new_foreign_object_id_hash}, {$foreign_primary_key => $id};
+					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
 				}
 			
 				foreach my $id (keys %{$relationship_object->{$column}})
 				{
-					push @{$old_foreign_object_id}, $foreign_primary_key => $id unless exists $value_hash->{$id};
+					push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
 				}
 										
 				if ($relationships->{$column}->{type} eq 'one to many')
@@ -1652,11 +1681,11 @@ sub _create_object
 			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
 			{ 
 				my $new_foreign_object_id_hash;
-				my $foreign_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
 				
 				foreach my $id (@values)
 				{
-					push @{$new_foreign_object_id_hash}, {$foreign_primary_key => $id};
+					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
 				}
 			
 				$self->$column(@{$new_foreign_object_id_hash});
@@ -1780,12 +1809,13 @@ sub delete_with_file
 
 sub stringify_me
 {
-	my $self = shift;
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
-	my $foreign_keys = _get_foreign_keys(ref $self);
-	my $relationships = _get_relationships(ref $self);	
-	my $column_order = _get_column_order(ref $self, $relationships);	
-	my $column_types = _match_column_types(ref $self, $foreign_keys, $column_order);
+	my ($self, $primary_key, $foreign_keys, $relationships, $column_order, $column_types) = @_;
+	$primary_key ||= $self->meta->{primary_key_column_accessor_names}->[0];
+	$foreign_keys ||= _get_foreign_keys(ref $self);
+	$relationships ||= _get_relationships(ref $self);	
+	$column_order ||= _get_column_order(ref $self, $relationships);	
+	$column_types ||= _match_column_types(ref $self, $foreign_keys, $column_order);
+	
 	my @value;
 	foreach my $column (@{$column_order})
 	{	
@@ -2761,7 +2791,7 @@ These two parameters are only applicable to bar and line charts. C<columns> defi
 
 =item C<options>
 
-A hashref for specifying any Google Chart API options which is serialised into a query string.
+A hashref for specifying Google Chart API options, such as the chart type, size, labels, or data. This hashref is serialised into a query string.
 
 =item C<engine>
 
