@@ -67,3 +67,5 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.19    24/07/2008
         Updated render_as_form to allow the 'for_update' formatting method of an empty valued column to execute.
+0.20    25/07/2008
+        Improve the 'searchable' option in render_as_table to handle foreign class columns with 'for_search' methods.

@@ -32,8 +32,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.19;
-# build: 69.17
+our $VERSION = 0.20;
+# build: 70.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -271,7 +271,6 @@ sub render_as_form
 			}
 		}
 		
-		
 		if (exists $relationships->{$column}) #one to many or many to many relationships
 		{	
 			delete $field_def->{type} if exists $field_def->{type} and $field_def->{type} eq 'file'; #relationships should not have a 'file' field type, in case $column_types thinks it's an image, etc.
@@ -465,8 +464,6 @@ sub render_as_form
 		}
 		
 	}
-	
-	
 				
 	unless (defined $args{controller_order})
 	{
@@ -628,20 +625,32 @@ sub render_as_table
 			my $or;
 			foreach my $searchable_column (@{$args{searchable}})
 			{
-				my $search_value;
-				if (defined &{"$class\::$searchable_column\_for_search"})
+				my ($search_value, $search_class, $search_column);
+				if ($searchable_column =~ /\./)
 				{
-					my $search_method = $searchable_column.'_for_search';
-				 	$search_value = $class->$search_method($query->param($param_list->{'q'}));
+					my $relationship_column;
+					($relationship_column, $search_column) = split /\./, $searchable_column;
+					$search_class = $relationships->{$relationship_column}->{class} if exists $relationships->{$relationship_column};
 				}
 				else
 				{
-					$search_value = $query->param($param_list->{'q'}) unless ref $class->meta->{columns}->{$searchable_column} eq 'Rose::DB::Object::Metadata::Column::Boolean' and not ($query->param($param_list->{'q'}) eq '1' or $query->param($param_list->{'q'}) eq '0')
+					$search_class = $class;
+					$search_column = $searchable_column;
+				}
+				
+				if ($search_class and defined &{"$search_class\::$search_column\_for_search"})
+				{
+					my $search_method = $search_column.'_for_search';
+				 	$search_value = $search_class->$search_method($query->param($param_list->{'q'}));
+				}
+				else
+				{
+					$search_value = $query->param($param_list->{'q'}) unless $search_class and ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Boolean' and not ($query->param($param_list->{'q'}) eq '1' or $query->param($param_list->{'q'}) eq '0');
 				}
 				
 				if ($search_value)
 				{
-					if (ref $class->meta->{columns}->{$searchable_column} eq 'Rose::DB::Object::Metadata::Column::Scalar' or ref $class->meta->{columns}->{$searchable_column} eq 'Rose::DB::Object::Metadata::Column::Boolean')
+					if ($search_class and (ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Scalar' or ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Boolean'))
 					{
 						push @{$or}, $searchable_column => $search_value;
 					}
@@ -653,9 +662,8 @@ sub render_as_table
 			}
 
 			push @{$args{get}->{query}}, 'or' => $or;
-
+			
 			$args{queries}->{$param_list->{q}} = $query->param($param_list->{'q'});
-
 			$table_title = 'Search Results for "'.$query->param($param_list->{'q'}).'"' unless $args{title};
 		}
 	}
