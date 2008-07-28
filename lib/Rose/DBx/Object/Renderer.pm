@@ -9,7 +9,6 @@ use vars qw(@ISA @EXPORT $VERSION $CONFIG);
 @EXPORT = qw(load_database render_as_form render_as_table render_as_menu render_as_chart stringify_package_name stringify_me delete_with_file);
 
 use Lingua::EN::Inflect qw (PL);
-use Data::Dumper;
 use DateTime;
 use Rose::DB::Object::Loader;
 use CGI::FormBuilder;
@@ -32,8 +31,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.20;
-# build: 70.17
+our $VERSION = 0.21;
+# build: 71.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -57,12 +56,11 @@ $CONFIG = {
 	},
 	template => {path => 'templates', url => 'templates'},
 	upload => {path => 'uploads', url => 'uploads'},
-	table => {empty_message => 'No Record Found.', per_page => 15, search_operator => 'like', or_filter => 0, no_pagination => 0},
+	table => {empty_message => 'No Record Found.', per_page => 15, search_operator => 'like', or_filter => 0, no_pagination => 0, delimiter => ', '},
 	form => {download_message => 'Download File', keep_old_file => 0, cancel => 'Cancel'},
 	misc => {
 		wait_message => 'Processing...',
 		stringify_delimiter => ', ',
-		join_delimiter => ', ',
 		currency_symbol => {'AUD' => '$', 'JPY' => '&yen;', 'EUR' => '&#8364;', 'GBP' => '&#163;'},
 		unit_of_length => 'cm',
 		unit_of_weight => 'kg',
@@ -970,7 +968,7 @@ sub render_as_table
 					my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
 					my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
 					
-					$value = join $CONFIG->{misc}->{join_delimiter}, map {$_->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)} $object->$column;					
+					$value = join $CONFIG->{table}->{delimiter}, map {$_->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)} $object->$column;					
 				}
 				else
 				{
@@ -986,7 +984,7 @@ sub render_as_table
 					
 					if (ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
 					{
-						$value = join $CONFIG->{misc}->{join_delimiter}, $object->$view_method;
+						$value = join $CONFIG->{table}->{delimiter}, $object->$view_method;
 					}
 					else
 					{
@@ -1653,7 +1651,7 @@ sub _update_object
 			}
 		
 		}
-		else
+		elsif (defined &{"$class\::$column"})
 		{			
 			if ($field_value ne '')
 			{
@@ -1698,7 +1696,7 @@ sub _create_object
 				$self->$column(@{$new_foreign_object_id_hash});
 			}
 		}
-		else
+		elsif (defined &{"$class\::$column\_for_update"} or defined &{"$class\::$column"})
 		{
 			my $field_value;
 			my $values_size = scalar @values;
@@ -2273,7 +2271,7 @@ The global config also defines the specific options available for each of the re
 
 =head2 Column Definitions
 
-In order to encapsulate web-oriented behaviours, Renderer maintains a list of built-in column types, such as email, address, photo, document, and media, which are defined in:
+In order to encapsulate web-oriented behaviours, Renderer maintains a list of built-in column types, such as email, address, photo, document, and media, which is defined in:
 
   $Rose::DBx::Object::Renderer::CONFIG->{columns}
 

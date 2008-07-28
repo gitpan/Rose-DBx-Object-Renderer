@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Rose-DBx-Object-Renderer
-version: 0.20
+version: 0.21
 author:
   - Xufeng (Danny) Liang <danny.glue@gmail.com>
 abstract: Web UI Generation for Rose::DB::Object
@@ -8,7 +8,6 @@ license: perl
 requires:
   Test::More: 0
   Lingua::EN::Inflect: 0
-  Data::Dumper: 0
   DateTime: 0
   Rose::DB::Object::Loader: 0
   CGI::FormBuilder: 3.05

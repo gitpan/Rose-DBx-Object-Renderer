@@ -11,7 +11,6 @@ WriteMakefile(
     PREREQ_PM => {
         'Test::More' => 0,
         'Lingua::EN::Inflect' => 0,
-        'Data::Dumper' => 0,
         'DateTime' => 0,
         'Rose::DB::Object::Loader' => 0,
         'CGI::FormBuilder' => '3.05',
