@@ -72,3 +72,9 @@ Revision history for Rose-DBx-Object-Renderer
 0.21    28/07/2008
         Fixed a bug (introduced since 0.19) causing render_as_form to fail when inserting new objects with custom fields.
         Renamed the 'join_delimiter' in the global $CONFIG to 'delimiter' and moved it into the 'table' hash.
+0.22    30/07/2008
+        Fixed a bug in render_as_form with custom fields having the 'required' field option set to 0.
+        Fixed the regular expression for validating the built-in 'money' column type.
+        Enhanced rendering 'static' form fields in render_as_form.
+        Deprecated unused options in the global $CONFIG.
+        Minor code re-factoring.

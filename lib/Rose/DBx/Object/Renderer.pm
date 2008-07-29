@@ -31,8 +31,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.21;
-# build: 71.17
+our $VERSION = 0.22;
+# build: 73.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -40,9 +40,7 @@ $CGI::FormBuilder::Field::VALIDATE{AUPHONE} = '/^((\()?(\+)?\d{2,3}(\))?)?[-\ ]?
 $CGI::FormBuilder::Field::VALIDATE{MOBILE} = '/^((\()?(\+)?\d{2}(\))?)?[-\ ]?(\d{3}|\d{4})[-\ ]?\d{3}[-\ ]?\d{3}$/';
 $CGI::FormBuilder::Field::VALIDATE{EUDATE} = '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/?(0?[1-9]|1[0-2])\/?[0-9]{4}$/';
 $CGI::FormBuilder::Field::VALIDATE{URL} = '/^(\w+)://([^/:]+)(:\d+)?/?(.*)$/';
-$CGI::FormBuilder::Field::VALIDATE{MONEY} = '/^\-?\d{0,11}(?:\.\d{2})?$/';
-$CGI::FormBuilder::Field::VALIDATE{JPY} = '/^\-?\d{0,11}(?:\.\d{2})?$/'; 
-$CGI::FormBuilder::Field::VALIDATE{EUR} = '/^\-?\d{0,11}(?:\.\d{2})?$/'; 
+$CGI::FormBuilder::Field::VALIDATE{MONEY} = '/^\-?\d{1,11}(\.\d{2})?$/';
 $CGI::FormBuilder::Field::VALIDATE{FILENAME} = '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,200}$/';
 
 $CONFIG = {
@@ -61,7 +59,6 @@ $CONFIG = {
 	misc => {
 		wait_message => 'Processing...',
 		stringify_delimiter => ', ',
-		currency_symbol => {'AUD' => '$', 'JPY' => '&yen;', 'EUR' => '&#8364;', 'GBP' => '&#163;'},
 		unit_of_length => 'cm',
 		unit_of_weight => 'kg',
 		unit_of_volume => 'cm<sup>3</sup>',
@@ -106,7 +103,7 @@ $CONFIG = {
 		'password' => {validate => 'PASSWORD', sortopts => 'NUM', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
 		'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}, maxlength => 12},
 		'abn' => {label => 'ABN', validate => '/^(\d{2} \d{3} \d{3} \d{3})$/', sortopts => 'NUM', maxlength => 14, comment => 'e.g.: 12 234 456 678'},
-		'money' => {validate => 'MONEY', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne '';my $rf = _round_float($value);return $CONFIG->{misc}->{currency_symbol}->{AUD}.$rf;}}, maxlength => 14},
+		'money' => {validate => 'MONEY', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne ''; return '$'._round_float($value);}}, maxlength => 14},
 		'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
 		'foreign_key' => {validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;return unless $self->$column;my $fk = _get_foreign_keys(ref $self || $self);my $fk_name = $fk->{$column}->{name};return $self->$fk_name->stringify_me;}}},
 		'document' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
@@ -178,7 +175,7 @@ sub load_database
 			my $relationships = _get_relationships($class);	
 			my $column_order = _get_column_order($class, $relationships);
 			my $foreign_keys = _get_foreign_keys($class);
-			my $column_types = _match_column_types($class, $foreign_keys, $column_order);
+			my $column_types = _match_column_types($foreign_keys, $column_order);
 			foreach my $column (keys %{$column_types})
 			{
 				foreach my $custom_method_key (keys %{$CONFIG->{columns}->{$column_types->{$column}}->{format}})
@@ -210,7 +207,7 @@ sub render_as_form
 	my $foreign_keys = _get_foreign_keys($class);
 	my $relationships = _get_relationships($class);
 	my $column_order = $args{order} || _get_column_order($class, $relationships, $args{show_id});
-	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
+	my $column_types = _match_column_types($foreign_keys, $column_order);
 	
 	if (ref $self)
     {
@@ -280,7 +277,7 @@ sub render_as_form
 			my $foreign_class_foreign_keys = _get_foreign_keys($relationships->{$column}->{class});
 			my $foreign_class_relationships = _get_relationships($relationships->{$column}->{class});	
 			my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
-			my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
+			my $foreign_class_column_types = _match_column_types($foreign_class_foreign_keys, $foreign_class_column_order);
 			
 			if (ref $self and not exists $field_def->{value})
 			{
@@ -317,7 +314,7 @@ sub render_as_form
 		}
 		elsif (map {$_ =~ /^$column$/} @{$class->meta->columns}) #normal column
 		{	
-			$field_def->{required} ||= 1 if $self->meta->{columns}->{$column}->{not_null};
+			$field_def->{required} = 1 if $self->meta->{columns}->{$column}->{not_null} and not exists $field_def->{required};
 			$field_def->{validate} ||= $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}} if exists $CONFIG->{validation}->{ref $self->meta->{columns}->{$column}};
 			$field_def->{maxlength} ||= $self->meta->{columns}->{$column}->{length} if exists $self->meta->{columns}->{$column}->{length} and $self->meta->{columns}->{$column}->{length};
 			if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Text')
@@ -330,23 +327,45 @@ sub render_as_form
 			if (exists $foreign_keys->{$column}) #create or edit
 			{
 				$field_def->{label} ||= _to_label($foreign_keys->{$column}->{name});
-				$field_def->{required} ||= 1;
+				$field_def->{required} = 1 unless exists $field_def->{required};
 				$field_def->{sortopts} ||= 'LABELNAME';
 				
 				unless (exists $field_def->{options} or (exists $field_def->{type} and $field_def->{type} eq 'hidden'))
 				{
-					my $foreign_class_primary_key = $foreign_keys->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
-					my $foreign_class_foreign_keys = _get_foreign_keys($foreign_keys->{$column}->{class});
-					my $foreign_class_relationships = _get_relationships($foreign_keys->{$column}->{class});	
-					my $foreign_class_column_order = _get_column_order($foreign_keys->{$column}->{class}, $foreign_class_relationships);	
-					my $foreign_class_column_types = _match_column_types($foreign_keys->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
+					my $foreign_class = $foreign_keys->{$column}->{class};
+					my $foreign_class_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0];
+					my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
+					my $foreign_class_relationships = _get_relationships($foreign_class);	
+					my $foreign_class_column_order = _get_column_order($foreign_class, $foreign_class_relationships);	
+					my $foreign_class_column_types = _match_column_types($foreign_class_foreign_keys, $foreign_class_column_order);
 					
 					if (exists $field_def->{static} and $field_def->{static})
 					{
-						if (ref $self and $self->$column)
+						if (ref $self)
 						{
-							my $foreign_column = $foreign_keys->{$column}->{name};
-							$field_def->{options} = {$self->$column => $self->$foreign_column->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)};
+							if ($self->$column)
+							{
+								my $foreign_column = $foreign_keys->{$column}->{name};
+								$field_def->{options} = {$self->$column => $self->$foreign_column->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)};
+							}
+						}
+						else
+						{
+							my $foreign_object_id;
+							if (exists $field_def->{value})
+							{
+								$foreign_object_id = $field_def->{value};
+							}
+							elsif(defined $self->meta->{columns}->{$column}->{default})
+							{
+								$foreign_object_id = $self->meta->{columns}->{$column}->{default};
+							}
+							
+							if ($foreign_object_id)
+							{
+								my $foreign_object = $foreign_class->new($foreign_class_primary_key => $foreign_object_id);
+								$field_def->{options} = {$foreign_object_id => $foreign_object->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)} if $foreign_object->load(speculative => 1);
+							}
 						}
 					}
 					else
@@ -591,7 +610,7 @@ sub render_as_table
 	
 	my $column_order_hash = {map {$_ => undef} @{$column_order}};
 	my $foreign_keys = _get_foreign_keys($class);
-	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
+	my $column_types = _match_column_types($foreign_keys, $column_order);
 	
 	my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0];
 	
@@ -966,7 +985,7 @@ sub render_as_table
 					my $foreign_class_foreign_keys = _get_foreign_keys($relationships->{$column}->{class});
 					my $foreign_class_relationships = _get_relationships($relationships->{$column}->{class});	
 					my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
-					my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
+					my $foreign_class_column_types = _match_column_types($foreign_class_foreign_keys, $foreign_class_column_order);
 					
 					$value = join $CONFIG->{table}->{delimiter}, map {$_->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)} $object->$column;					
 				}
@@ -1392,7 +1411,7 @@ sub render_as_chart
 						my $foreign_keys = _get_foreign_keys($class);
 						my $relationships = _get_relationships($class);
 						my $column_order = _get_column_order($class, $relationships);
-						my $column_types = _match_column_types($class, $foreign_keys, $column_order);
+						my $column_types = _match_column_types($foreign_keys, $column_order);
 						
 						
 						my $objects = $self->get_objects(query => [id => $args{objects}]);
@@ -1769,7 +1788,6 @@ sub _get_relationships
 
 sub _match_column_types
 {
-	my $class = shift;
 	my $foreign_keys = shift;
 	my $column_order = shift;
 	my $type;
@@ -1816,7 +1834,7 @@ sub stringify_me
 	$foreign_keys ||= _get_foreign_keys(ref $self);
 	$relationships ||= _get_relationships(ref $self);	
 	$column_order ||= _get_column_order(ref $self, $relationships);	
-	$column_types ||= _match_column_types(ref $self, $foreign_keys, $column_order);
+	$column_types ||= _match_column_types($foreign_keys, $column_order);
 	
 	my @value;
 	foreach my $column (@{$column_order})
