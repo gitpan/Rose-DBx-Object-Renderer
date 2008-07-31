@@ -31,8 +31,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.22;
-# build: 73.17
+our $VERSION = 0.23;
+# build: 75.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -400,9 +400,9 @@ sub render_as_form
 				unless (exists $field_def->{value})
 				{
 					my $current_value;
-					if (defined &{"$class\::$column\_for_edit"})
+					if ($class->can($column . '_for_edit'))
 					{
-						my $edit_method = $column.'_for_edit';
+						my $edit_method = $column . '_for_edit';
 						$current_value = $self->$edit_method;
 						$field_def->{value} = "$current_value";
 					}
@@ -415,7 +415,7 @@ sub render_as_form
 						else
 						{
 							$current_value = $self->$column;
-							$field_def->{value} = "$current_value"; #double quote to make it literal to stringify object refs such as DateTime
+							$field_def->{value} = "$current_value"; # double quote to make it literal to stringify object refs such as DateTime
 						}
 					}
 				}
@@ -431,7 +431,7 @@ sub render_as_form
 			{
 				if (defined $self->meta->{columns}->{$column}->{default} and not exists $field_def->{value})
 				{
-					if (defined &{"$class\::$column\_for_create"})
+					if ($class->can($column . '_for_create'))
 					{
 						my $create_method = $column.'_for_create';
 						my $create_result = $self->$create_method($self->meta->{columns}->{$column}->{default});
@@ -628,7 +628,7 @@ sub render_as_table
 	$sort_by =~ s/ desc//;
 	
 	#ignore nonexisting columns, relationship columns, and unsortable columns
-	unless (not exists $column_order_hash->{$sort_by} or exists $relationships->{$sort_by} or (exists $column_types->{$sort_by} and exists $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$sort_by}))
+	unless (not exists $column_order_hash->{$sort_by} or exists $relationships->{$sort_by} or (exists $column_types->{$sort_by} and exists $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$sort_by}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$sort_by} and exists $args{columns}->{$sort_by}->{value}))
 	{
 		$args{get}->{sort_by} = $query->param($param_list->{'sort_by'});
 	}	
@@ -655,7 +655,7 @@ sub render_as_table
 					$search_column = $searchable_column;
 				}
 				
-				if ($search_class and defined &{"$search_class\::$search_column\_for_search"})
+				if ($search_class and $search_class->can($search_column . '_for_search'))
 				{
 					my $search_method = $search_column.'_for_search';
 				 	$search_value = $search_class->$search_method($query->param($param_list->{'q'}));
@@ -685,71 +685,52 @@ sub render_as_table
 		}
 	}
 	
-	if($args{or_filter} or $CONFIG->{table}->{or_filter})
+	my $filtered_columns;
+	foreach my $column (@{$column_order})
 	{
-		my $or_filter;
-		foreach my $column (@{$column_order})
+		unless (exists $relationships->{$column})
 		{
-			unless (exists $relationships->{$column})
-			{
-				my $cgi_column;
-				$cgi_column = $table_id.'_' if $args{prefix};
-				$cgi_column .= $column;
+			my $cgi_column;
+			$cgi_column = $table_id.'_' if $args{prefix};
+			$cgi_column .= $column;
 
-				if ($query->param($cgi_column))
+			if ($query->param($cgi_column))
+			{
+				my @cgi_column_values = $query->param($cgi_column);
+				my $formatted_values;
+				if ($class->can($column . '_for_filter'))
 				{
-					my @cgi_column_values = $query->param($cgi_column);
-					
-					if (defined &{"$class\::$column\_for_filter"})
+					my $filter_method = $column . '_for_filter';
+					foreach my $cgi_column_value (@cgi_column_values)
 					{
-						my $filter_method = $column.'_for_filter';
-						my $formatted_values;
-						foreach my $cgi_column_value (@cgi_column_values)
-						{
-							my $filter_result = $class->$filter_method($cgi_column_value);
-							push @{$formatted_values}, $filter_result if $filter_result;
-						}
-						
-						push @{$or_filter}, $column => $formatted_values;
+						my $filter_result = $class->$filter_method($cgi_column_value);
+						push @{$formatted_values}, $filter_result if $filter_result;
 					}
-					else
-					{
-						push @{$or_filter}, $column => \@cgi_column_values;
-					}
+				}
+				elsif ($class->can($column))
+				{
+					$formatted_values = \@cgi_column_values;
+				}
+				
+				if ($formatted_values)
+				{
+					push @{$filtered_columns}, $column => $formatted_values;
 				}
 			}
 		}
-		push @{$args{get}->{query}}, 'or' => $or_filter;
 	}
-	else
+	
+	if ($filtered_columns)
 	{
-		foreach my $column (@{$column_order})
+		if($args{or_filter} or $CONFIG->{table}->{or_filter})
 		{
-			unless (exists $relationships->{$column})
+			push @{$args{get}->{query}}, 'or' => $filtered_columns;						
+		}
+		else
+		{
+			foreach my $filtered_column (@{$filtered_columns})
 			{
-				my $cgi_column;
-				$cgi_column = $table_id.'_' if $args{prefix};
-				$cgi_column .= $column;
-
-				if ($query->param($cgi_column))
-				{
-					my @cgi_column_values = $query->param($cgi_column);
-					
-					if (defined &{"$class\::$column\_for_search"})
-					{
-						my $search_method = $column.'_for_search';
-						my $formatted_values;
-						foreach my $cgi_column_value (@cgi_column_values)
-						{
-							push @{$formatted_values}, $class->$search_method($cgi_column_value);
-						}						
-						push @{$args{get}->{query}}, $column => $formatted_values;
-					}
-					else
-					{
-						push @{$args{get}->{query}}, $column => \@cgi_column_values; 
-					}
-				}
+				push @{$args{get}->{query}}, $filtered_column; 
 			}
 		}
 	}
@@ -938,7 +919,7 @@ sub render_as_table
 				$head->{value} = _to_label($column);
 			}
 		
-			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$column}))
+			unless (not exists $column_order_hash->{$column} or exists $relationships->{$column} or (exists $column_types->{$column} and exists $CONFIG->{columns}->{$column_types->{$column}}->{unsortable} and $CONFIG->{columns}->{$column_types->{$column}}->{unsortable}) or (exists $args{columns} and exists $args{columns}->{$column} and exists $args{columns}->{$column}->{value}))
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -975,9 +956,9 @@ sub render_as_table
 			foreach my $column (@{$column_order})
 			{
 				my $value;
-				if(exists $args{columns} and exists $args{columns}->{$column}) #custom column value
+				if(exists $args{columns} and exists $args{columns}->{$column} and exists $args{columns}->{$column}->{value}) #custom column value
 				{
-					$value = $args{columns}->{$column}->{value}->{$object_id} if exists $args{columns}->{$column}->{value} and exists $args{columns}->{$column}->{value}->{$object_id};
+					$value = $args{columns}->{$column}->{value}->{$object_id} if exists $args{columns}->{$column}->{value}->{$object_id};
 				}
 				elsif (exists $relationships->{$column})
 				{
@@ -992,23 +973,27 @@ sub render_as_table
 				else
 				{
 					my $view_method;
-					if (defined &{"$class\::$column\_for_view"})
+					if ($class->can($column . '_for_view'))
 					{
-						$view_method = $column.'_for_view';
+						$view_method = $column . '_for_view';	
 					}
-					else
+					elsif ($class->can($column))
 					{
 						$view_method = $column;
 					}
 					
-					if (ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
+					if ($view_method)
 					{
-						$value = join $CONFIG->{table}->{delimiter}, $object->$view_method;
+						if (ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
+						{
+							$value = join $CONFIG->{table}->{delimiter}, $object->$view_method;
+						}
+						else
+						{
+							$value = $object->$view_method;
+						}
 					}
-					else
-					{
-						$value = $object->$view_method;
-					}				
+									
 				}
 				 
 				push @{$row->{columns}}, {name => $column, value => $value};
@@ -1597,6 +1582,7 @@ sub _update_object
 		{
 			$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
 		}
+		
 		if (exists $relationships->{$column}) #one to many or many to many
 		{
 			my $foreign_class = $relationships->{$column}->{class};
@@ -1656,31 +1642,31 @@ sub _update_object
 				}
 			
 			}	
-		}		
-		elsif (defined &{"$class\::$column\_for_update"})
+		}	
+		else
 		{
-			my $update_method = $column.'_for_update';
-			if ($field_value ne '')
+			my $update_method;
+			if ($class->can($column . '_for_update'))
 			{
-				$self->$update_method($field_value);
+				$update_method = $column . '_for_update';	
 			}
-			else
+			elsif ($class->can($column))
 			{
-				$self->$update_method(undef);
+				$update_method = $column;
 			}
-		
-		}
-		elsif (defined &{"$class\::$column"})
-		{			
-			if ($field_value ne '')
+			
+			if ($update_method)
 			{
-				$self->$column($field_value);
+				if ($field_value ne '')
+				{
+					$self->$update_method($field_value);
+				}
+				else
+				{
+					$self->$update_method(undef);
+				}
 			}
-			else
-			{
-				$self->$column(undef);
-			}
-		}
+		}	
 	}
 	$self->save;
 	return $self;
@@ -1715,7 +1701,7 @@ sub _create_object
 				$self->$column(@{$new_foreign_object_id_hash});
 			}
 		}
-		elsif (defined &{"$class\::$column\_for_update"} or defined &{"$class\::$column"})
+		else
 		{
 			my $field_value;
 			my $values_size = scalar @values;
@@ -1727,21 +1713,20 @@ sub _create_object
 			{
 				$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
 			}
-						
-			if (defined &{"$class\::$column\_for_update"})
+			
+			if ($class->can($column . '_for_update'))
 			{
-				my $update_method = $column.'_for_update';
-				$custom_field_value->{$update_method} = $field_value; #save it for later
+				$custom_field_value->{$column . '_for_update'} = $field_value; #save it for later
 				$self->$column('0') if $self->meta->{columns}->{$column}->{not_null}; # zero fill not null columns
 			}
-			else
+			elsif ($class->can($column))
 			{
 				$self->$column($field_value) if $field_value ne '';
 			}
 		}
 	}
 	
-	$self->save; 
+	$self->save;
 
 	#after save, run formatting methods, which may require an id, such as file upload
 	foreach my $update_method (keys %{$custom_field_value})

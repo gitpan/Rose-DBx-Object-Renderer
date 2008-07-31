@@ -78,3 +78,7 @@ Revision history for Rose-DBx-Object-Renderer
         Enhanced rendering 'static' form fields in render_as_form.
         Deprecated unused options in the global $CONFIG.
         Minor code re-factoring.
+0.23    31/07/2008
+        Fixed a bug in render_as_table where column values are not shown and column sorting is disabled when a custom column label is defined.
+        Fixed a bug in render_as_table with columns using the 'for_filter' formatting option.
+        Minor code re-factoring.
