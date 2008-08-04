@@ -31,8 +31,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.23;
-# build: 75.17
+our $VERSION = 0.24;
+# build: 76.17
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -54,10 +54,9 @@ $CONFIG = {
 	},
 	template => {path => 'templates', url => 'templates'},
 	upload => {path => 'uploads', url => 'uploads'},
-	table => {empty_message => 'No Record Found.', per_page => 15, search_operator => 'like', or_filter => 0, no_pagination => 0, delimiter => ', '},
+	table => {empty_message => 'No Record Found.', per_page => 15, search_operator => 'like', or_filter => 0, no_pagination => 0, delimiter => ', ', keyword_delimiter => ','},
 	form => {download_message => 'Download File', keep_old_file => 0, cancel => 'Cancel'},
 	misc => {
-		wait_message => 'Processing...',
 		stringify_delimiter => ', ',
 		unit_of_length => 'cm',
 		unit_of_weight => 'kg',
@@ -110,6 +109,7 @@ $CONFIG = {
 		'image' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 		'media' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 		'ipv4' => {validate => 'IPV4', format => {for_search => sub {my ($self, $column, $value) = @_;return unless $value and $value =~ /^([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])$/;return $value;}}},
+		'boolean' => {validate => '/^[0-1]$/', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column, $value) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
 	}
 };
 
@@ -175,7 +175,7 @@ sub load_database
 			my $relationships = _get_relationships($class);	
 			my $column_order = _get_column_order($class, $relationships);
 			my $foreign_keys = _get_foreign_keys($class);
-			my $column_types = _match_column_types($foreign_keys, $column_order);
+			my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 			foreach my $column (keys %{$column_types})
 			{
 				foreach my $custom_method_key (keys %{$CONFIG->{columns}->{$column_types->{$column}}->{format}})
@@ -207,7 +207,7 @@ sub render_as_form
 	my $foreign_keys = _get_foreign_keys($class);
 	my $relationships = _get_relationships($class);
 	my $column_order = $args{order} || _get_column_order($class, $relationships, $args{show_id});
-	my $column_types = _match_column_types($foreign_keys, $column_order);
+	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 	
 	if (ref $self)
     {
@@ -277,7 +277,7 @@ sub render_as_form
 			my $foreign_class_foreign_keys = _get_foreign_keys($relationships->{$column}->{class});
 			my $foreign_class_relationships = _get_relationships($relationships->{$column}->{class});	
 			my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
-			my $foreign_class_column_types = _match_column_types($foreign_class_foreign_keys, $foreign_class_column_order);
+			my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
 			
 			if (ref $self and not exists $field_def->{value})
 			{
@@ -337,7 +337,7 @@ sub render_as_form
 					my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
 					my $foreign_class_relationships = _get_relationships($foreign_class);	
 					my $foreign_class_column_order = _get_column_order($foreign_class, $foreign_class_relationships);	
-					my $foreign_class_column_types = _match_column_types($foreign_class_foreign_keys, $foreign_class_column_order);
+					my $foreign_class_column_types = _match_column_types($foreign_class, $foreign_class_foreign_keys, $foreign_class_column_order);
 					
 					if (exists $field_def->{static} and $field_def->{static})
 					{
@@ -517,7 +517,6 @@ sub render_as_form
 									html_head => $html_head,
 									no_head => $args{no_head},
 									self => $self,
-									wait_message => $CONFIG->{misc}->{wait_message},
 									extra => $args{extra},
 									cancel => $cancel,
 								 },
@@ -610,7 +609,7 @@ sub render_as_table
 	
 	my $column_order_hash = {map {$_ => undef} @{$column_order}};
 	my $foreign_keys = _get_foreign_keys($class);
-	my $column_types = _match_column_types($foreign_keys, $column_order);
+	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 	
 	my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0];
 	
@@ -639,10 +638,26 @@ sub render_as_table
 		
 		if (defined $query->param($param_list->{'q'}) and $query->param($param_list->{'q'}) ne '')
 		{
-			my $or;
+			my ($or, @raw_qs, @qs);
+			
+			if (defined $CONFIG->{table}->{keyword_delimiter})
+			{
+				@raw_qs = split $CONFIG->{table}->{keyword_delimiter}, $query->param($param_list->{'q'});
+			}
+			else
+			{
+				@raw_qs = $query->param($param_list->{'q'});
+			}
+			
+			foreach my $raw_q (@raw_qs)
+			{
+				$raw_q =~ s/^\s+|\s+$//g;
+				push @qs, $raw_q;
+			}
+						
 			foreach my $searchable_column (@{$args{searchable}})
 			{
-				my ($search_value, $search_class, $search_column);
+				my ($search_values, $search_class, $search_column, $search_method);
 				if ($searchable_column =~ /\./)
 				{
 					my $relationship_column;
@@ -657,29 +672,37 @@ sub render_as_table
 				
 				if ($search_class and $search_class->can($search_column . '_for_search'))
 				{
-					my $search_method = $search_column.'_for_search';
-				 	$search_value = $search_class->$search_method($query->param($param_list->{'q'}));
+					$search_method = $search_column.'_for_search';
+					foreach my $q (@qs)
+					{
+						my $search_result = $search_class->$search_method($q);
+						push @{$search_values},  $search_class->$search_method($q) if defined $search_result;
+					}
 				}
 				else
 				{
-					$search_value = $query->param($param_list->{'q'}) unless $search_class and ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Boolean' and not ($query->param($param_list->{'q'}) eq '1' or $query->param($param_list->{'q'}) eq '0');
+					$search_values = \@qs;
 				}
 				
-				if ($search_value)
+				if ($search_values)
 				{
-					if ($search_class and (ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Scalar' or ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Boolean'))
+					if ($search_class and ($search_method or (ref $search_class->meta->{columns}->{$search_column} eq 'Rose::DB::Object::Metadata::Column::Scalar')))
 					{
-						push @{$or}, $searchable_column => $search_value;
+						push @{$or}, $searchable_column => $search_values;
 					}
 					else
 					{
-						push @{$or}, $searchable_column => { $CONFIG->{table}->{search_operator} => '%'. $search_value .'%'};
+						my $like_search_values;
+						foreach my $search_value (@{$search_values})
+						{
+							push @{$like_search_values}, '%'. $search_value .'%' if defined $search_value;
+						}
+						push @{$or}, $searchable_column => { $CONFIG->{table}->{search_operator} => $like_search_values} if defined $like_search_values;
 					}
 				}
 			}
-
-			push @{$args{get}->{query}}, 'or' => $or;
 			
+			push @{$args{get}->{query}}, 'or' => $or;				
 			$args{queries}->{$param_list->{q}} = $query->param($param_list->{'q'});
 			$table_title = 'Search Results for "'.$query->param($param_list->{'q'}).'"' unless $args{title};
 		}
@@ -966,7 +989,7 @@ sub render_as_table
 					my $foreign_class_foreign_keys = _get_foreign_keys($relationships->{$column}->{class});
 					my $foreign_class_relationships = _get_relationships($relationships->{$column}->{class});	
 					my $foreign_class_column_order = _get_column_order($relationships->{$column}->{class}, $foreign_class_relationships);	
-					my $foreign_class_column_types = _match_column_types($foreign_class_foreign_keys, $foreign_class_column_order);
+					my $foreign_class_column_types = _match_column_types($relationships->{$column}->{class}, $foreign_class_foreign_keys, $foreign_class_column_order);
 					
 					$value = join $CONFIG->{table}->{delimiter}, map {$_->stringify_me($foreign_class_primary_key, $foreign_class_foreign_keys, $foreign_class_relationships, $foreign_class_column_order, $foreign_class_column_types)} $object->$column;					
 				}
@@ -1068,7 +1091,6 @@ sub render_as_table
 				title => $table_title,
 				description => $args{description},
 				class_label => _to_label(stringify_package_name($class->meta->table)),
-				wait_message => $CONFIG->{misc}->{wait_message},
 				html_head => $html_head,
 				no_head => $args{no_head},
 				no_pagination => $args{no_pagination} || $CONFIG->{table}->{no_pagination},
@@ -1396,7 +1418,7 @@ sub render_as_chart
 						my $foreign_keys = _get_foreign_keys($class);
 						my $relationships = _get_relationships($class);
 						my $column_order = _get_column_order($class, $relationships);
-						my $column_types = _match_column_types($foreign_keys, $column_order);
+						my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 						
 						
 						my $objects = $self->get_objects(query => [id => $args{objects}]);
@@ -1773,6 +1795,7 @@ sub _get_relationships
 
 sub _match_column_types
 {
+	my $class = shift;
 	my $foreign_keys = shift;
 	my $column_order = shift;
 	my $type;
@@ -1789,12 +1812,21 @@ sub _match_column_types
 		}
 		else
 		{
-			DEF: foreach my $column_key (keys %{$CONFIG->{columns}})
+			my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
+			($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;	
+			if (exists $Rose::DBx::Object::Renderer::CONFIG->{columns}->{$rdbo_column_type})
 			{
-				if ($column =~ /$column_key/) #random first match
+				$type->{$column} = $rdbo_column_type;
+			}
+			else
+			{
+				DEF: foreach my $column_key (keys %{$CONFIG->{columns}})
 				{
-					$type->{$column} = $column_key;
-					last DEF;
+					if ($column =~ /$column_key/) #random first match
+					{
+						$type->{$column} = $column_key;
+						last DEF;
+					}
 				}
 			}
 		}		
@@ -1816,10 +1848,11 @@ sub stringify_me
 {
 	my ($self, $primary_key, $foreign_keys, $relationships, $column_order, $column_types) = @_;
 	$primary_key ||= $self->meta->{primary_key_column_accessor_names}->[0];
-	$foreign_keys ||= _get_foreign_keys(ref $self);
-	$relationships ||= _get_relationships(ref $self);	
-	$column_order ||= _get_column_order(ref $self, $relationships);	
-	$column_types ||= _match_column_types($foreign_keys, $column_order);
+	my $class = ref $self;
+	$foreign_keys ||= _get_foreign_keys($class);
+	$relationships ||= _get_relationships($class);	
+	$column_order ||= _get_column_order($class, $relationships);	
+	$column_types ||= _match_column_types($class, $foreign_keys, $column_order);
 	
 	my @value;
 	foreach my $column (@{$column_order})
@@ -2009,6 +2042,7 @@ sub _search_time
 	my ($self, $column, $value) = @_;
 	my ($time) = ($value =~ /(\d{2}:\d{2}(:\d{2})?)/);
 	my ($h, $m, $s) = split ':', $time;
+	return unless $h and $m;
 	$s ||= '00';
 	return join ':', ($h, $m, $s);
 }
@@ -2018,6 +2052,13 @@ sub _search_percentage
 	my ($self, $column, $value) = @_;
 	return unless $value;
 	return $value/100;
+}
+
+sub _search_boolean
+{
+	my ($self, $column, $value) = @_;
+	my $mapping = {'Yes' => 1, 'No' => 0, 'yes' => 1, 'no' => 0};
+	return $mapping->{$value};
 }
 
 sub _create_timestamp
@@ -2572,7 +2613,6 @@ C<render_as_form> passes the following list of variables to a template:
   [% description %] - the form description
   [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
   [% no_head %] - the 'no_head' option
-  [% wait_message %] - the text defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{wait_message}
   [% extra %] - custom variables
   [% cancel %] - the name of the 'Cancel' controller
   [% javascript_code %] - javascript code 
@@ -2618,9 +2658,13 @@ The C<searchable> option enables keyword search in multiple columns, including t
     searchable => ['first_name', 'last_name', 'position.title'],
   );
 
-A search box will be shown in rendered table. The CGI param of the search box is called 'q', in other words,
+A search box will be shown in rendered table. The CGI param of the search box is called 'q', for example:
   
   http://www.yoursite.com/yourscript.pl?q=danny
+
+We can also use multiple keywords seperated by commas. The default keyword delimiter is defined in:
+
+  $Rose::DBx::Object::Renderer::CONFIG->{table}->{keyword_delimiter}
 
 =item C<get>
 
@@ -2718,7 +2762,6 @@ C<render_as_table> passes the following list of variables to a template:
   [% sort_by_column %] - the column to be sorted 
   [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
   [% no_head %] - the 'no_head' option
-  [% wait_message %] - the text defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{wait_message}
   [% extra %] - custom variables
   [% javascript_code %] - javascript code
   [% ajax %] - the ajax variable for checking whether the current CGI request is a ajax request

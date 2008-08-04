@@ -82,3 +82,8 @@ Revision history for Rose-DBx-Object-Renderer
         Fixed a bug in render_as_table where column values are not shown and column sorting is disabled when a custom column label is defined.
         Fixed a bug in render_as_table with columns using the 'for_filter' formatting option.
         Minor code re-factoring.
+0.24    04/08/2008
+        Enabled multiple keyword searches for 'searchable' columns in render_as_table. Added the 'keyword_delimiter' option to the global $CONFIG.
+        Added support for matching RDBO column types.
+        Deprecated the 'wait_message' option in the global $CONFIG and in rendering methods.
+        Updated POD.
