@@ -31,8 +31,8 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.24;
-# build: 76.17
+our $VERSION = 0.25;
+# build: 78.19
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -78,12 +78,11 @@ $CONFIG = {
 		'integer' => {validate => 'INT', sortopts => 'NUM', maxlength => 11},
 		'decimal' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14},
 		'float' => {validate => 'FLOAT', sortopts => 'NUM', comment => 'e.g.: 109700.00', maxlength => 14},
-		'varchar' => {sortopts => 'LABELNAME', maxlength => 255},
 		'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
 		'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
 		'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
-		'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {my ($self, $column, $value) = @_;return $self->$column->dmy('/') if $self->$column;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {my ($self, $column, $value) = @_;return unless ref $self->$column eq 'DateTime'; $self->$column->set_time_zone('Australia/Sydney'); return $self->$column->dmy('/') if $self->$column;}}},
-		'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_view_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
+		'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {_edit_date(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
+		'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_edit_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
 		'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
 		'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
 		'length' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_length};}}},
@@ -429,17 +428,17 @@ sub render_as_form
 			}
 			else
 			{
-				if (defined $self->meta->{columns}->{$column}->{default} and not exists $field_def->{value})
+				if (not exists $field_def->{value})
 				{
 					if ($class->can($column . '_for_create'))
 					{
 						my $create_method = $column.'_for_create';
 						my $create_result = $self->$create_method($self->meta->{columns}->{$column}->{default});
-						$field_def->{value} ||= $create_result if $create_result;
+						$field_def->{value} = $create_result if defined $create_result;
 					}
 					else
 					{
-						$field_def->{value} ||= $self->meta->{columns}->{$column}->{default};
+						$field_def->{value} = $self->meta->{columns}->{$column}->{default} if defined $self->meta->{columns}->{$column}->{default};
 					}
 				}
 			}							
@@ -2016,6 +2015,14 @@ sub _upload_file
 	return 1;
 }
 
+sub _edit_date
+{
+	my ($self, $column, $value) = @_;
+	return $self->$column unless ref $self->$column eq 'DateTime';
+	$self->$column->set_time_zone('Australia/Sydney');
+	return $self->$column->dmy('/') if $self->$column;
+}
+
 sub _search_date
 {
 	my ($self, $column, $value) = @_;
@@ -2063,11 +2070,22 @@ sub _search_boolean
 
 sub _create_timestamp
 {
-	my ($self, $column, $value) = @_;
 	my $dt = DateTime->now->set_time_zone( 'Australia/Sydney');
-	my $t = $dt->hms; 
-	$t =~ s/:\d{2}$//;
+	my $t = $dt->hms;
 	return $dt->dmy('/').' '.$t;
+}
+
+sub _edit_timestamp
+{
+	my ($self, $column, $value) = @_;
+	if ($self->$column and ref $self->$column eq 'DateTime')
+	{
+		return _view_timestamp($self, $column);
+	}
+	else
+	{
+		return _create_timestamp();
+	}
 }
 
 sub _view_timestamp
@@ -2076,7 +2094,6 @@ sub _view_timestamp
 	return unless $self->$column and ref $self->$column eq 'DateTime';
 	$self->$column->set_time_zone('Australia/Sydney');
 	my $t = $self->$column->hms; 
-	# $t =~ s/:\d{2}$//;
 	return $self->$column->dmy('/').' '.$t;
 }
 
@@ -2288,15 +2305,15 @@ The default Template Toolkit INCLUDE_PATH is './template', which can be configur
 
   $Rose::DBx::Object::Renderer::CONFIG->{template}->{path} = '../templates:../alternative';
 
-We can also specify the default URL to static contents, such as javascript libraries or images, templates: 
+We can also specify an optional URL for static contents, such as javascript libraries or images, templates: 
 
   $Rose::DBx::Object::Renderer::CONFIG->{template}->{url} = '../docs/';
 
-Renderer also needs a directory with write access to upload files. The default file upload path is './upload', which can be configured in:
+Renderer needs a directory with write access to upload files. The default file upload path is './upload', which can be configured in:
 
   $Rose::DBx::Object::Renderer::CONFIG->{upload}->{path} = '../uploads';
 
-We can also update the corresponding url for the upload directory:
+We can also update the corresponding URL for the upload directory:
 
   $Rose::DBx::Object::Renderer::CONFIG->{upload}->{url} = '../uploads';
 
@@ -2315,17 +2332,29 @@ The global config also defines the specific options available for each of the re
 
 =head2 Column Definitions
 
-In order to encapsulate web-oriented behaviours, Renderer maintains a list of built-in column types, such as email, address, photo, document, and media, which is defined in:
+Renderer maintains a list of built-in column types, such as email, address, photo, document, and media, that encapsulate web-oriented conventions and behaviours:
 
   $Rose::DBx::Object::Renderer::CONFIG->{columns}
 
-Except for the C<format>, C<unsortable>, and C<stringify> options, other options in each column type are in fact L<CGI::FormBuilder> field options.
+Rendering methods take advantage of the properties and operations defined in each column type to generate web UIs. In order to eliminate the need for manually mapping the built-in column definitions to database table columns, Renderer employs the following assignment logic:
+
+ Column name exists in $Rose::DBx::Object::Renderer::CONFIG->{columns}?
+   Yes: Use that column type.
+   No: Is the column a foreign key?
+     Yes: Use the 'foreign_key' column type.
+     No: Match the column's metadata object type?
+       Yes: Use the matching column type.
+       No: Match a column type based on the column name?
+         Yes: Use the first matching column type.
+         No: No match found.
+
+In addition to L<CGI::FormBuilder> field options, column types accept the following options:
 
 =over
 
 =item C<format>
 
-C<load_database> injects the coderefs defined inside the C<format> hashref as object methods, for example:
+For matching column types, C<load_database> injects the coderefs defined inside the C<format> hashref as object methods, for example:
 
   # Prints the serialised DateTime object in 'DD/MM/YYYY' format
   print $object->date_for_view;
@@ -2339,13 +2368,21 @@ C<load_database> injects the coderefs defined inside the C<format> hashref as ob
   # Prints the file path of the image
   print $object->image_path;
 
-These extended object methods take preference over the the default object methods. The C<for_edit> and C<for_update> methods are used by C<render_as_form>. The C<for_edit> methods are triggered to format column values during form rendering, while the C<for_update> methods are triggered to update column values during form submission. On the other hand, the C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are used to format column values during table rendering, while the C<for_filter> and C<for_search> methods are respectively triggered for column filtering and keyword searches. 
+These extended object methods take preference over the the default object methods by the rendering methods when they are available.
+
+The C<for_create>, C<for_edit>, and C<for_update> methods are used by C<render_as_form>. When creating new objects, C<render_as_form> triggers the C<for_create> method to format the default value of a column, which is defined in:
+
+  $class->meta->{columns}->{$column}->{default}
+
+When rendering an existing object as a form, however, the C<for_edit> methods are triggered to format column values. During form submission, the C<for_update> methods are triggered to format the submitted form field values.
+
+The C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are triggered to format column values, the C<for_filter> methods are triggered for data filtering, and the C<for_search> methods are triggered for keyword searches.
 
 We can easily overwrite the existing formatting methods or create new ones. For instance, we would like to use the L<HTML::Strip> module to strip out HTML for the 'description' column type:
 
   use HTML::Strip;
   ...
-  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{description}->{format}->{for_update} = sub{
+  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{description}->{format}->{for_update} = sub {
     my ($self, $column, $value) = @_;
     return unless $value;
     my $hs = HTML::Strip->new(emit_spaces => 0);
@@ -2365,7 +2402,7 @@ We can easily overwrite the existing formatting methods or create new ones. For 
 
 Similarly, we can create a new method for the 'first_name' column type so that users can click on a link to search the first name in CPAN:
 
-  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub{
+  $Rose::DBx::Object::Renderer::CONFIG->{columns}->{first_name}->{format}->{in_cpan} = sub {
   my ($self, $column) = @_; 
   my $value = $self->$column; 
   return qq(<a href="http://search.cpan.org/search?query=$value&mode=all">$value</a>) if $value;
@@ -2405,9 +2442,7 @@ This option specifies which columns are stringified. This is used by the exporte
 
 =head2 C<load_database>
 
-C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader>. In order to eliminate the need for manually mapping column type definitions to database table columns, C<load_database> also tries to auto-assign a column type to each column by matching the column definition name with the database table column name. 
-
-C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to its C<make_classes> method. C<load_database> by default uses the title case of the database name provided as the C<class_prefix> unless the option is specified. For instance:
+C<load_database> loads database tables into classes using L<Rose::DB::Object::Loader> and injects the neccessary formatting methods. C<load_database> accepts three parameters. The first parameter is the database name, the second parameter is a hashref that gets passed directly to the L<Rose::DB::Object::Loader> constructor, while the last parameter is passed to its C<make_classes> method. C<load_database> by default uses the title case of the database name provided as the C<class_prefix> unless the option is specified. For instance:
 
   load_database(
     'company',
