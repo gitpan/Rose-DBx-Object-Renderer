@@ -31,14 +31,14 @@ if($@)
   *clone = \&Clone::clone;
 }
 
-our $VERSION = 0.25;
-# build: 78.19
+our $VERSION = 0.26;
+# build: 80.19
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
 $CGI::FormBuilder::Field::VALIDATE{AUPHONE} = '/^((\()?(\+)?\d{2,3}(\))?)?[-\ ]?\d{4}[-\ ]?\d{4}$/';
 $CGI::FormBuilder::Field::VALIDATE{MOBILE} = '/^((\()?(\+)?\d{2}(\))?)?[-\ ]?(\d{3}|\d{4})[-\ ]?\d{3}[-\ ]?\d{3}$/';
-$CGI::FormBuilder::Field::VALIDATE{EUDATE} = '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/?(0?[1-9]|1[0-2])\/?[0-9]{4}$/';
+$CGI::FormBuilder::Field::VALIDATE{EUDATE} = '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/';
 $CGI::FormBuilder::Field::VALIDATE{URL} = '/^(\w+)://([^/:]+)(:\d+)?/?(.*)$/';
 $CGI::FormBuilder::Field::VALIDATE{MONEY} = '/^\-?\d{1,11}(\.\d{2})?$/';
 $CGI::FormBuilder::Field::VALIDATE{FILENAME} = '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,200}$/';
@@ -81,7 +81,7 @@ $CONFIG = {
 		'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
 		'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
 		'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
-		'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {_edit_date(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney'); return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
+		'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {_edit_date(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt;eval {$dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney')};return if $@;return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
 		'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_edit_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
 		'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
 		'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
@@ -1811,21 +1811,22 @@ sub _match_column_types
 		}
 		else
 		{
-			my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
-			($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;	
-			if (exists $Rose::DBx::Object::Renderer::CONFIG->{columns}->{$rdbo_column_type})
+			DEF: foreach my $column_key (keys %{$CONFIG->{columns}})
 			{
-				$type->{$column} = $rdbo_column_type;
-			}
-			else
-			{
-				DEF: foreach my $column_key (keys %{$CONFIG->{columns}})
+				if ($column =~ /$column_key/) # first match
 				{
-					if ($column =~ /$column_key/) #random first match
-					{
-						$type->{$column} = $column_key;
-						last DEF;
-					}
+					$type->{$column} = $column_key;
+					last DEF;
+				}
+			}
+			
+			unless (exists $type->{$column})
+			{
+				my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
+				($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;	
+				if (exists $Rose::DBx::Object::Renderer::CONFIG->{columns}->{$rdbo_column_type})
+				{
+					$type->{$column} = $rdbo_column_type;
 				}
 			}
 		}		
@@ -2338,15 +2339,15 @@ Renderer maintains a list of built-in column types, such as email, address, phot
 
 Rendering methods take advantage of the properties and operations defined in each column type to generate web UIs. In order to eliminate the need for manually mapping the built-in column definitions to database table columns, Renderer employs the following assignment logic:
 
- Column name exists in $Rose::DBx::Object::Renderer::CONFIG->{columns}?
-   Yes: Use that column type.
-   No: Is the column a foreign key?
-     Yes: Use the 'foreign_key' column type.
-     No: Match the column's metadata object type?
-       Yes: Use the matching column type.
-       No: Match a column type based on the column name?
-         Yes: Use the first matching column type.
-         No: No match found.
+  Column name exists in $Rose::DBx::Object::Renderer::CONFIG->{columns}?
+    Yes: Use that column type.
+    No: Is the column a foreign key?
+      Yes: Use the 'foreign_key' column type.
+      No: Match a column type based on the column name?
+        Yes: Use the first matching column type.
+        No: Match the column's metadata object type?
+          Yes: Use the matching column type.
+          No: No match found.
 
 In addition to L<CGI::FormBuilder> field options, column types accept the following options:
 

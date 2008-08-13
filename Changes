@@ -91,3 +91,7 @@ Revision history for Rose-DBx-Object-Renderer
         Updated the 'date' and 'timestamp' column types.
         Deprecated the 'varchar' column type.
         Updated POD.
+0.26    13/08/2008
+        Added error handling code for the 'date' column type.
+        Update the column type assignment logic.
+        Updated POD.
