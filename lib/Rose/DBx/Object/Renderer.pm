@@ -21,18 +21,18 @@ use Image::ExifTool qw(:Public);
 
 eval
 {
-  require Scalar::Util::Clone;
-  *clone = \&Scalar::Util::Clone::clone;
+	require Scalar::Util::Clone;
+	*clone = \&Scalar::Util::Clone::clone;
 };
 
 if($@)
 {
-  require Clone;
-  *clone = \&Clone::clone;
+	require Clone;
+	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.26;
-# build: 80.19
+our $VERSION = 0.27;
+# build: 81.20
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -81,8 +81,8 @@ $CONFIG = {
 		'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class=>'disable_editor'},
 		'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class=>'disable_editor', format => {for_view => sub {_view_address(@_);}}},
 		'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
-		'date' => {validate => 'EUDATE', sortopts => 'NUM', maxlength => 255, format => {for_edit => sub {_edit_date(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt;eval {$dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney')};return if $@;return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
-		'timestamp' => {readonly => 1, disabled => 1, sortopts => 'NUM', maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_edit_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
+		'date' => {validate => 'EUDATE', maxlength => 255, format => {for_edit => sub {_edit_date(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(undef) if $value eq ''; my ($d, $m, $y) = split '/', $value; my $dt;eval {$dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney')};return if $@;return $self->$column($dt->ymd);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
+		'timestamp' => {readonly => 1, disabled => 1, maxlength => 255, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_edit_timestamp(@_);}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(DateTime->now->set_time_zone( 'Australia/Sydney'));}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
 		'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
 		'time' => {validate => 'TIME', format => {for_update => sub {my ($self, $column, $value) = @_;return unless $value;my ($h, $m, $s) = split ':', $value; $s ||= '00';my $t = Time::Clock->new(hour => $h, minute => $m, second => $s);return $self->$column($t);}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}, for_view => sub{my ($self, $column, $value) = @_;return unless $self->$column;$value = $self->$column->as_string;my ($h, $m, $s) = split ':', $value;return "$h:$m";}}},
 		'length' => {validate => 'NUM', sortopts => 'NUM', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return $value.' '.$CONFIG->{misc}->{unit_of_length};}}},
@@ -95,12 +95,12 @@ $CONFIG = {
 		'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, maxlength => 255},
 		'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com', maxlength => 255},
 		'url' => {required => 0, validate => 'URL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return qq(<a href="$value">$value</a>);}}, comment => 'e.g. http://www.google.com/', maxlength => 255},
-		'mobile' => {validate => 'MOBILE', sortopts => 'NUM', maxlength => 17, comment => 'e.g. 0433 123 456'},
-		'phone' => {validate => 'AUPHONE', sortopts => 'NUM', comment => 'e.g. 02 9988 1288', maxlength => 16},
+		'mobile' => {validate => 'MOBILE', maxlength => 17, comment => 'e.g. 0433 123 456'},
+		'phone' => {validate => 'AUPHONE', maxlength => 16, comment => 'e.g. 02 9988 1288'},
 		'username' => {validate => '/^[a-zA-Z0-9]{4,20}$/', sortopts => 'LABELNAME', required => 1, maxlength => 20},
-		'password' => {validate => 'PASSWORD', sortopts => 'NUM', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
+		'password' => {validate => 'PASSWORD', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => '5-12 characters', maxlength => 12, unsortable => 1},
 		'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}, maxlength => 12},
-		'abn' => {label => 'ABN', validate => '/^(\d{2} \d{3} \d{3} \d{3})$/', sortopts => 'NUM', maxlength => 14, comment => 'e.g.: 12 234 456 678'},
+		'abn' => {label => 'ABN', validate => '/^(\d{2} \d{3} \d{3} \d{3})$/', maxlength => 14, comment => 'e.g.: 12 234 456 678'},
 		'money' => {validate => 'MONEY', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne ''; return '$'._round_float($value);}}, maxlength => 14},
 		'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', maxlength => 14, format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
 		'foreign_key' => {validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column, $value) = @_;return unless $self->$column;my $fk = _get_foreign_keys(ref $self || $self);my $fk_name = $fk->{$column}->{name};return $self->$fk_name->stringify_me;}}},
@@ -108,7 +108,7 @@ $CONFIG = {
 		'image' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 		'media' => {validate => 'FILENAME', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 		'ipv4' => {validate => 'IPV4', format => {for_search => sub {my ($self, $column, $value) = @_;return unless $value and $value =~ /^([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])$/;return $value;}}},
-		'boolean' => {validate => '/^[0-1]$/', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column, $value) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
+		'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column, $value) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
 	}
 };
 
@@ -209,15 +209,15 @@ sub render_as_form
 	my $column_types = _match_column_types($class, $foreign_keys, $column_order);
 	
 	if (ref $self)
-    {
-		$object_id = $self->$primary_key;		
+	{
+		$object_id = $self->$primary_key;
 		$form_action = 'update';
-    }
-    else
-    {
+	}
+	else
+	{
 		$object_id = 'new';
-    	$form_action = 'create';
-    }
+		$form_action = 'create';
+	}
 	
 	my $ui_type = (caller(0))[3];
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
@@ -1058,11 +1058,11 @@ sub render_as_table
 		if ($args{template})
 		{
 			my ($template, $ajax);
-		    if($args{ajax})
-		    {
-		    	$template = $args{ajax_template} || $ui_type . '_ajax.tt';
-		 		$ajax = 1 if $query->param($param_list->{ajax});
-		    }
+			if($args{ajax})
+			{
+				$template = $args{ajax_template} || $ui_type . '_ajax.tt';
+				$ajax = 1 if $query->param($param_list->{ajax});
+			}
 			elsif($args{template} eq 1)
 			{
 				$template = $ui_type . '.tt';
@@ -1071,7 +1071,7 @@ sub render_as_table
 			{
 				$template = $args{template};
 			}
-	    		
+
 			my $sort_by_column = $query->param($param_list->{'sort_by'});			
 			$html_table = _render_template(options => $args{template_options}, file => $template, output => 1, data => {
 				template_url => $CONFIG->{template}->{url},
@@ -2369,13 +2369,9 @@ For matching column types, C<load_database> injects the coderefs defined inside 
   # Prints the file path of the image
   print $object->image_path;
 
-These extended object methods take preference over the the default object methods by the rendering methods when they are available.
+These extended object methods take preference over the default object methods by the rendering methods when they are available.
 
-The C<for_create>, C<for_edit>, and C<for_update> methods are used by C<render_as_form>. When creating new objects, C<render_as_form> triggers the C<for_create> method to format the default value of a column, which is defined in:
-
-  $class->meta->{columns}->{$column}->{default}
-
-When rendering an existing object as a form, however, the C<for_edit> methods are triggered to format column values. During form submission, the C<for_update> methods are triggered to format the submitted form field values.
+The C<for_create>, C<for_edit>, and C<for_update> methods are used by C<render_as_form>. When creating new objects, C<render_as_form> triggers the C<for_create> method to format the default value of a column. When rendering an existing object as a form, however, the C<for_edit> methods are triggered to format column values. During form submissions, the C<for_update> methods are triggered to format the submitted form field values.
 
 The C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are triggered to format column values, the C<for_filter> methods are triggered for data filtering, and the C<for_search> methods are triggered for keyword searches.
 
