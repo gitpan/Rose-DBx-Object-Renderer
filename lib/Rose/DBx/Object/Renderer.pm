@@ -31,8 +31,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.27;
-# build: 81.20
+our $VERSION = 0.28;
+# build: 81.21
 
 $CGI::FormBuilder::Field::VALIDATE{TEXT} = '/^\w+/';
 $CGI::FormBuilder::Field::VALIDATE{PASSWORD} = '/^[\w.!?@#$%&*]{5,12}$/';
@@ -2375,7 +2375,7 @@ The C<for_create>, C<for_edit>, and C<for_update> methods are used by C<render_a
 
 The C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are triggered to format column values, the C<for_filter> methods are triggered for data filtering, and the C<for_search> methods are triggered for keyword searches.
 
-We can easily overwrite the existing formatting methods or create new ones. For instance, we would like to use the L<HTML::Strip> module to strip out HTML for the 'description' column type:
+We can easily overwrite the existing formatting methods or create new ones. For instance, we would like to use the L<HTML::Strip> module to strip out HTML tags for the 'description' column type:
 
   use HTML::Strip;
   ...
@@ -2387,7 +2387,7 @@ We can easily overwrite the existing formatting methods or create new ones. For 
     return $self->$column($clean_text);  
   };
 
-  load_namespace('company');
+  load_database('company');
   my $p = Company::Product->new(id => 1);
   $p->load;
   
@@ -2405,7 +2405,7 @@ Similarly, we can create a new method for the 'first_name' column type so that u
   return qq(<a href="http://search.cpan.org/search?query=$value&mode=all">$value</a>) if $value;
   };
   ...
-  load_namespace('company');
+  load_database('company');
   my $e = Company::Employee->new(id => 1);
   $e->load;
   print $e->first_name_in_cpan;
@@ -2893,7 +2893,7 @@ C<render_as_chart> passes the following list of variables to a template:
 
 =head1 OBJECT METHODS
 
-Apart from the formatting methods injected by C<load_namespace>, there are several lesser-used object methods:
+Apart from the formatting methods injected by C<load_database>, there are several lesser-used object methods:
 
 =head2 C<delete_with_file>
 

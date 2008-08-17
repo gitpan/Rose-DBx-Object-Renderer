@@ -98,3 +98,5 @@ Revision history for Rose-DBx-Object-Renderer
 0.27    15/08/2008
         Clean up the unnecessary 'sortopts' option for column types in the global $CONFIG.
         Updated POD.
+0.28    17/08/2008
+        Fixed an error in POD.
