@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Rose-DBx-Object-Renderer
-version: 0.28
+version: 0.29
 author:
   - Xufeng (Danny) Liang <danny.glue@gmail.com>
 abstract: Web UI Generation for Rose::DB::Object
@@ -15,5 +15,4 @@ requires:
   File::Path: 0
   Digest::MD5: 0
   Math::Round: 0
-  File::Copy::Recursive: 0
   Image::ExifTool: 0

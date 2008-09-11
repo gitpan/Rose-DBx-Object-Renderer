@@ -3,7 +3,7 @@
 	[% IF searchable %]	
 	<div class="light_table_searchable_container"><div class="light_table_searchable">
 		<form action="[% url %]" method="get" id="[% table_id %]_search_form"><label for="[% table_id %]_search">
-			<span class="light_table_searchable_span">Search</span><input type="search" name="[% param_list.q %]" id="[% table_id %]_search" accesskey="s"></label>[% query_hidden_fields %]
+			<span class="light_table_searchable_span">Search</span><input type="search" name="[% param_list.q %]" id="[% table_id %]_search" accesskey="s" value ="[% q %]"></label>[% query_hidden_fields %]
 		</form>
 	</div></div>
 	[% END %]

@@ -100,3 +100,20 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.28    17/08/2008
         Fixed an error in POD.
+0.29    10/09/2008
+        Migrated to an OO layout - BREAKS COMPATIBILITY WITH OLDER VERSIONS.
+        Replaced load_database() with new(), config(), and load().
+        Deprecated the global $CONFIG variable.
+        Deprecated the 'show_id' parameter across rendering methods.
+        Renamed stringify_package_name() to stringify_class().
+        Changed the default 'stringify_delimiter' option to space.
+        Moved the 'keep_old_file' in form options into the upload options and renamed to 'keep_old_files'.
+        Moved the 'search_operator' in table options into the db options and renamed to 'like_operator'.
+        Added the 'template_path', 'template_url', and 'html_head' options across rendering methods.        
+        Added the 'search_result_title' as a configurable option for render_as_table().
+        Passed the 'q' CGI param to template in render_as_table(), updated the sample 'table.tt' accordingly.
+        Updated column definitions.
+        Added Exporter tags.
+        Removed the dependencies on File::Copy::Recursive.
+        Code re-factoring.
+        Updated POD.

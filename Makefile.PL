@@ -18,7 +18,6 @@ WriteMakefile(
         'File::Path' => 0,
         'Digest::MD5' => 0,
         'Math::Round' => 0,
-        'File::Copy::Recursive' => 0,
         'Image::ExifTool' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
