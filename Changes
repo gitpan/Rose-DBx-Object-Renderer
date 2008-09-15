@@ -117,3 +117,6 @@ Revision history for Rose-DBx-Object-Renderer
         Removed the dependencies on File::Copy::Recursive.
         Code re-factoring.
         Updated POD.
+0.30    15/09/2008
+        Fixed a bug in render_as_form where 'fields' option values are ignored if the value is 0.
+        Updated POD.

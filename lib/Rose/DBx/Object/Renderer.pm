@@ -29,8 +29,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.29;
-# build: 88.22
+our $VERSION = 0.30;
+# build: 89.23
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -200,7 +200,7 @@ sub load
 					elsif (exists $foreign_keys->{$column}) # special treatment
 					{						
 						my $foreign_object_name = $foreign_keys->{$column}->{name};
-						$config->{columns}->{$column} = {label => _label($foreign_object_name), validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return $self->$foreign_object_name->stringify_me;}}};
+						$config->{columns}->{$column} = {label => _label($foreign_object_name), required => 1, validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return $self->$foreign_object_name->stringify_me;}}};
 						$column_type = $column;
 					}
 					else
@@ -343,8 +343,8 @@ sub render_as_form
 		{
 			my $column_definition = $class->$column_definition_method;
 			foreach my $property (keys %{$column_definition})
-			{				
-				$field_def->{$property} ||= $column_definition->{$property} unless $property eq 'format'  || $property eq 'stringify' || $property eq 'unsortable';
+			{
+				$field_def->{$property} = $column_definition->{$property} unless defined $field_def->{$property} || $property eq 'format'  || $property eq 'stringify' || $property eq 'unsortable';
 			}
 		}
 		
@@ -389,14 +389,10 @@ sub render_as_form
 				}
 			}
 		}
-		elsif (map {$_ =~ /^$column$/} @{$class->meta->columns}) #normal column
+		elsif (exists $class->meta->{columns}->{$column}) #normal column
 		{	
 			if (exists $foreign_keys->{$column}) #create or edit
-			{
-				$field_def->{label} ||= _label($foreign_keys->{$column}->{name});
-				$field_def->{required} = 1 unless exists $field_def->{required};
-				$field_def->{sortopts} ||= 'LABELNAME';
-				
+			{				
 				unless (exists $field_def->{options} || $field_def->{type} eq 'hidden')
 				{
 					my $foreign_class = $foreign_keys->{$column}->{class};
@@ -553,7 +549,6 @@ sub render_as_form
 	
 	$form->{submit} = $args{controller_order};
 		
-	
 	$form->template({
 						variable => 'form', 
 						data => {
@@ -2427,7 +2422,7 @@ The C<table> option defines the default behaviours of C<render_as_table>:
 
 =head3 C<columns>
 
-Renderer has a built-in list of column definitions that encapsulate web-oriented conventions and behaviours. A column definition is a collection of column options. Column definitions are used by the rendering methods to generate web UIs. We can list the built-in column definition:
+Renderer has a built-in list of column definitions that encapsulate web-oriented conventions and behaviours. A column definition is a collection of column options. Column definitions are used by the rendering methods to generate web UIs. The built-in column definitions are store inside C<columns>:
 
   my $config = $renderer->config();
   print join (', ', keys %{$config->{columns}});
