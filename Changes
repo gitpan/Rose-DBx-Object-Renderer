@@ -120,3 +120,7 @@ Revision history for Rose-DBx-Object-Renderer
 0.30    15/09/2008
         Fixed a bug in render_as_form where 'fields' option values are ignored if the value is 0.
         Updated POD.
+0.31    16/09/2008
+        Fixed a primary key related issue that prevents objects being created, updated, or deleted properly.
+        Rendering methods now use the manager class's object_class() method to resolve object class names. 
+        Updated POD.

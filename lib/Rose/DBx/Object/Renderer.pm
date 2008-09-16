@@ -29,8 +29,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.30;
-# build: 89.23
+our $VERSION = 0.31;
+# build: 90.24
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -237,7 +237,6 @@ sub load
 				}				
 			}
 			$package .= "sub renderer_config {return \$config;}\n";
-			$package .= '__PACKAGE__->meta->initialize;'; # without this line primary_key_column_accessor_names is undef
 		}
 		else
 		{
@@ -272,7 +271,7 @@ sub render_as_form
 	my ($self, %args) = (@_);
 	my ($class, $object_id, $form_action, $field_order, $output, $relationship_object);
 	my $table = $self->meta->table;
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $self->meta->primary_key_column_names->[0];
 	my $form_title = $args{title};
 
 	if (ref $self)
@@ -354,7 +353,7 @@ sub render_as_form
 			$field_def->{sortopts} ||= 'LABELNAME';
 			$field_def->{multiple} ||= 1;
 			
-			my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+			my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 			
 			if (ref $self && not exists $field_def->{value})
 			{
@@ -370,22 +369,23 @@ sub render_as_form
 			
 			unless ($field_def->{static} || $field_def->{type} eq 'hidden' || exists $field_def->{options})
 			{			
-				my $object_options;
-				my $foreign_package = $relationships->{$column}->{class}.'::Manager';
-				my $objects = $foreign_package->get_objects;
-				foreach my $object (@{$objects})
+				
+				my $foreign_manager = $relationships->{$column}->{class}.'::Manager'; # guess the manager class
+				if ($foreign_manager->isa('Rose::DB::Object::Manager') and $foreign_manager->can('get_objects'))
 				{
-					$object_options->{$object->$foreign_class_primary_key} = $object->stringify_me;
-				}
-			
-				if ($object_options)
-				{
-					$field_def->{options} = $object_options;
-				}
-				else
-				{
-					$field_def->{type} ||= 'select';
-					$field_def->{disabled} ||= 1;
+					my $objects = $foreign_manager->get_objects;
+					if (@{$objects})
+					{
+						foreach my $object (@{$objects})
+						{
+							$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
+						}
+					}
+					else
+					{
+						$field_def->{type} ||= 'select';
+						$field_def->{disabled} ||= 1;
+					}	
 				}
 			}
 		}
@@ -396,7 +396,7 @@ sub render_as_form
 				unless (exists $field_def->{options} || $field_def->{type} eq 'hidden')
 				{
 					my $foreign_class = $foreign_keys->{$column}->{class};
-					my $foreign_class_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0];
+					my $foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
 					if ($field_def->{static})
 					{
 						if (ref $self)
@@ -428,22 +428,22 @@ sub render_as_form
 					}
 					else
 					{
-						my $options;
-						my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager';
-
-						foreach my $foreign_object (@{$foreign_manager->get_objects})
+						my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager'; # guess the manager class
+						if ($foreign_manager->isa('Rose::DB::Object::Manager') and $foreign_manager->can('get_objects'))
 						{
-							$options->{$foreign_object->$foreign_class_primary_key} = $foreign_object->stringify_me;
-						}
-
-						if ($options)
-						{
-							$field_def->{options} = $options;
-						}
-						else
-						{
-							$field_def->{type} ||= 'select';
-							$field_def->{disabled} ||= 1;
+							my $objects = $foreign_manager->get_objects;
+							if (@{$objects})
+							{
+								foreach my $object (@{$objects})
+								{
+									$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
+								}
+							}
+							else
+							{
+								$field_def->{type} ||= 'select';
+								$field_def->{disabled} ||= 1;
+							}	
 						}
 					}
 				}
@@ -634,8 +634,7 @@ sub render_as_table
 {
 	my ($self, %args) = (@_);
 	my ($table, @controllers, $output, $previous_page, $next_page, $last_page, $total, $query_hidden_fields, $q, $sort_by_column, $table_config);
-	my $class = ref $self || $self;
-	$class =~ s/::Manager$//;
+	my $class = $self->object_class();
 	
 	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
@@ -665,7 +664,7 @@ sub render_as_table
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
 	my $table_id = _identify($class, $args{prefix}, $ui_type);
 	
-	my $primary_key = $class->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $class->meta->primary_key_column_names->[0];
 	my $relationships = _get_relationships($class);	
 	my $column_order = $args{order} || _get_column_order($class, $relationships);	
 	my $foreign_keys = _get_foreign_keys($class);
@@ -1240,8 +1239,7 @@ sub render_as_menu
 {
 	my ($self, %args) = (@_);
 	my($menu, $hide_menu_param, $current_param, $output, $content, $item_order, $items, $hide_menu, $current, $template);
-	my $class = ref $self || $self;
-	$class =~ s/::Manager$//;
+	my $class = $self->object_class();
 
 	my $menu_title = $args{title};
 	
@@ -1378,8 +1376,7 @@ sub render_as_menu
 sub render_as_chart
 {
 	my ($self, %args) = (@_);
-	my $class = ref $self || $self;
-	$class =~ s/::Manager$//;
+	my $class = $self->object_class();
 	
 	my $title = $args{title} || _label($class->meta->table);
 	
@@ -1406,7 +1403,7 @@ sub render_as_chart
 	my $query = $args{cgi} || CGI->new;
 	return if $query->param($hide_chart);
 	
-	my ($chart, $output, $template, $html_head);
+	my ($chart, $output, $template);
 	if (ref $args{engine} eq 'CODE')
 	{
 		no strict 'refs';
@@ -1442,7 +1439,7 @@ sub render_as_chart
 							if (exists $foreign_keys->{$args{column}})
 							{
 								my $foreign_class = $foreign_keys->{$args{column}}->{class};
-								my $foreign_class_primary_key = $foreign_class->meta->{primary_key_column_accessor_names}->[0];
+								my $foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
 								my $foreign_object = $foreign_class->new($foreign_class_primary_key => $value);
 
 								if($foreign_object->load(speculative => 1))
@@ -1631,7 +1628,7 @@ sub _update_object
 {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
 	
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $self->meta->primary_key_column_names->[0];
 	
 	foreach my $field (@{$field_order})
 	{
@@ -1665,51 +1662,52 @@ sub _update_object
 				}
 			}
 
-			my $foreign_manager = $foreign_class.'::Manager';
-			my $default = undef;
-			$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
-			
-			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
-			{ 
-				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
+			my $foreign_manager = $foreign_class.'::Manager'; # guess the manager class
+			if ($foreign_manager->isa('Rose::DB::Object::Manager') and $foreign_manager->can('update_objects'))
+			{
+				my $default = undef;
+				$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
+				if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
+				{ 
+					my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
 				
-				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+					my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 				
-				foreach my $id (@values)
-				{
-					push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
-					$value_hash->{$id} = undef;
-					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
-				}
+					foreach my $id (@values)
+					{
+						push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
+						$value_hash->{$id} = undef;
+						push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
+					}
 			
-				foreach my $id (keys %{$relationship_object->{$column}})
-				{
-					push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
-				}
+					foreach my $id (keys %{$relationship_object->{$column}})
+					{
+						push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
+					}
 										
-				if ($relationships->{$column}->{type} eq 'one to many')
-				{					
-					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
-					$foreign_manager->update_objects(set => { $foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
+					if ($relationships->{$column}->{type} eq 'one to many')
+					{					
+						$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
+						$foreign_manager->update_objects(set => { $foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
+					}
+					else #many to many
+					{
+						$self->$column(@{$new_foreign_object_id_hash});
+					}
 				}
-				else #many to many
+				else
 				{
-					$self->$column(@{$new_foreign_object_id_hash});
+					if ($relationships->{$column}->{type} eq 'one to many')
+					{
+						$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [$foreign_key => $self->$primary_key]); # $self->$column([]) cascade deletes foreign objects
+					}
+					else #many to many
+					{
+						$self->$column([]);
+					}
 				}
 			}
-			else
-			{
-				if ($relationships->{$column}->{type} eq 'one to many')
-				{
-					$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [$foreign_key => $self->$primary_key]); # $self->$column([]) cascade deletes foreign objects
-				}
-				else #many to many
-				{
-					$self->$column([]);
-				}
-			
-			}	
-		}	
+		}
 		else
 		{
 			my $update_method;
@@ -1742,9 +1740,9 @@ sub _update_object
 sub _create_object
 {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;	
-	$self = $self->new();
-
 	my $custom_field_value;
+	
+	$self = $self->new();
 	
 	foreach my $field (@{$field_order})
 	{
@@ -1758,7 +1756,7 @@ sub _create_object
 			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
 			{ 
 				my $new_foreign_object_id_hash;
-				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->{primary_key_column_accessor_names}->[0];
+				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 				
 				foreach my $id (@values)
 				{
@@ -1796,11 +1794,14 @@ sub _create_object
 	$self->save;
 
 	#after save, run formatting methods, which may require an id, such as file upload
-	foreach my $update_method (keys %{$custom_field_value})
+	if ($custom_field_value)
 	{
-		$self->$update_method($custom_field_value->{$update_method});
+		foreach my $update_method (keys %{$custom_field_value})
+		{
+			$self->$update_method($custom_field_value->{$update_method});
+		}
+		$self->save;
 	}
-	$self->save;
 	
 	return $self;
 }
@@ -1859,7 +1860,7 @@ sub delete_with_file
 	my $self = shift;
 	return unless ref $self;
 	my $renderer_config = _get_renderer_config($self);
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $self->meta->primary_key_column_names->[0];
 	my $directory = join '/', ($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key);
 	rmtree($directory) || die ("Could not remove $directory") if -d $directory;
 	return $self->delete();
@@ -1884,7 +1885,7 @@ sub stringify_me
 		my $renderer_config = _get_renderer_config($self);
 		return join $renderer_config->{misc}->{stringify_delimiter}, @values;
 	}
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $self->meta->primary_key_column_names->[0];
 	return $self->$primary_key;	
 }
 
@@ -1904,7 +1905,7 @@ sub _get_file_path
 	my $value = $self->$column;
 	return unless $value;
 	my $renderer_config = _get_renderer_config($self);
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $self->meta->primary_key_column_names->[0];
 	return join '/', ($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
@@ -1914,7 +1915,7 @@ sub _get_file_url
 	my $value = $self->$column;
 	return unless $value;
 	my $renderer_config = _get_renderer_config($self);
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0];
+	my $primary_key = $self->meta->primary_key_column_names->[0];
 	return join '/', ($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
@@ -1982,7 +1983,7 @@ sub _update_file
 	my ($self, $column, $value) = @_;
 	return unless $value && $value ne '';
 	my $renderer_config = _get_renderer_config($self);
-	my $primary_key = $self->meta->{primary_key_column_accessor_names}->[0]; 
+	my $primary_key = $self->meta->primary_key_column_names->[0]; 
 	my $upload_path = join '/', ($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column);	
 	mkpath($upload_path) unless -d $upload_path;
 	
@@ -2321,9 +2322,9 @@ Renderer uses L<CGI::FormBuilder> to generate forms and the Google Chart API to 
 
 =over 4
 
-=item * Database tables must follow the conventions in L<Rose::DB::Object>.
+=item * Must follow the default conventions in L<Rose::DB::Object>.
 
-=item * Support for database tables with multiple primary keys is limited.
+=item * Limited support for database tables with multiple primary keys.
 
 =back
 
@@ -2558,7 +2559,7 @@ C<load> uses L<Rose::DB::Object::Loader> to load L<Rose::DB::Object> classes dyn
           No: Create a custom column definition by aggregating database column information.
 
 
-C<load> accepts a hashref to pass parameters to the C<new> and C<make_classes> methods in L<Rose::DB::Object::Loader>.
+C<load> accepts a hashref to pass parameters to the C<new> and C<make_classes> methods in L<Rose::DB::Object::Loader>. 
 
 =over
 
@@ -2588,8 +2589,9 @@ C<load> returns an array of the loaded classes via the C<make_classes> method in
 
 =head1 RENDERING METHODS
 
-Rendering methods are exported for L<Rose::DB::Object> derived classes. We can also import these rendering methods in custom L<Rose::DB::Object> classes:
+Rendering methods are exported for L<Rose::DB::Object> subclasses to generate web UIs. L<Rose::DB::Object> subclasses generated by calling C<load> will import the rendering methods automatically. However, we can also import the rendering methods into custom L<Rose::DB::Object> subclasses:
 
+  # For object classes
   package Company::Employee
   use Rose::DBx::Object::Renderer qw(:object);
   ...
@@ -2598,6 +2600,8 @@ Rendering methods are exported for L<Rose::DB::Object> derived classes. We can a
   package Company::Employee::Manager
   use Rose::DBx::Object::Renderer qw(:manager);
   ...
+
+Obviously, the rendering methods in custom subclasses cannot take advantages of the built-in column definitions and formatting methods. However, you can still replicate those behaviours by using the C<fields> option in C<render_as_form>, or the C<columns> option in C<render_as_table>, as well as hand crafting the formatting methods.
 
 The following is a list of common parameters for the rendering methods:
 
@@ -3046,7 +3050,7 @@ C<render_as_chart> passes the following list of variables to a template:
 
 =head1 OBJECT METHODS
 
-Apart from the formatting methods injected by C<load_database>, there are several lesser-used object methods:
+Apart from the formatting methods injected by C<load>, there are several lesser-used object methods:
 
 =head2 C<delete_with_file>
 
