@@ -29,8 +29,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.31;
-# build: 90.24
+our $VERSION = 0.32;
+# build: 91.25
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -368,24 +368,19 @@ sub render_as_form
 			}
 			
 			unless ($field_def->{static} || $field_def->{type} eq 'hidden' || exists $field_def->{options})
-			{			
-				
-				my $foreign_manager = $relationships->{$column}->{class}.'::Manager'; # guess the manager class
-				if ($foreign_manager->isa('Rose::DB::Object::Manager') and $foreign_manager->can('get_objects'))
+			{				
+				my $objects = Rose::DB::Object::Manager->get_objects(object_class => $relationships->{$column}->{class});
+				if (@{$objects})
 				{
-					my $objects = $foreign_manager->get_objects;
-					if (@{$objects})
+					foreach my $object (@{$objects})
 					{
-						foreach my $object (@{$objects})
-						{
-							$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
-						}
+						$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
 					}
-					else
-					{
-						$field_def->{type} ||= 'select';
-						$field_def->{disabled} ||= 1;
-					}	
+				}
+				else
+				{
+					$field_def->{type} ||= 'select';
+					$field_def->{disabled} ||= 1;
 				}
 			}
 		}
@@ -428,22 +423,18 @@ sub render_as_form
 					}
 					else
 					{
-						my $foreign_manager = $foreign_keys->{$column}->{class}.'::Manager'; # guess the manager class
-						if ($foreign_manager->isa('Rose::DB::Object::Manager') and $foreign_manager->can('get_objects'))
+						my $objects = Rose::DB::Object::Manager->get_objects(object_class => $foreign_keys->{$column}->{class});
+						if (@{$objects})
 						{
-							my $objects = $foreign_manager->get_objects;
-							if (@{$objects})
+							foreach my $object (@{$objects})
 							{
-								foreach my $object (@{$objects})
-								{
-									$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
-								}
+								$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
 							}
-							else
-							{
-								$field_def->{type} ||= 'select';
-								$field_def->{disabled} ||= 1;
-							}	
+						}
+						else
+						{
+							$field_def->{type} ||= 'select';
+							$field_def->{disabled} ||= 1;
 						}
 					}
 				}
@@ -1662,49 +1653,46 @@ sub _update_object
 				}
 			}
 
-			my $foreign_manager = $foreign_class.'::Manager'; # guess the manager class
-			if ($foreign_manager->isa('Rose::DB::Object::Manager') and $foreign_manager->can('update_objects'))
-			{
-				my $default = undef;
-				$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
-				if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
-				{ 
-					my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
-				
-					my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
-				
-					foreach my $id (@values)
-					{
-						push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
-						$value_hash->{$id} = undef;
-						push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
-					}
+			my $default = undef;
+			$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
+			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
+			{ 
+				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
 			
-					foreach my $id (keys %{$relationship_object->{$column}})
-					{
-						push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
-					}
-										
-					if ($relationships->{$column}->{type} eq 'one to many')
-					{					
-						$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
-						$foreign_manager->update_objects(set => { $foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
-					}
-					else #many to many
-					{
-						$self->$column(@{$new_foreign_object_id_hash});
-					}
-				}
-				else
+				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
+			
+				foreach my $id (@values)
 				{
-					if ($relationships->{$column}->{type} eq 'one to many')
-					{
-						$foreign_manager->update_objects(set => { $foreign_key => $default}, where => [$foreign_key => $self->$primary_key]); # $self->$column([]) cascade deletes foreign objects
-					}
-					else #many to many
-					{
-						$self->$column([]);
-					}
+					push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
+					$value_hash->{$id} = undef;
+					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
+				}
+		
+				foreach my $id (keys %{$relationship_object->{$column}})
+				{
+					push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
+				}
+									
+				if ($relationships->{$column}->{type} eq 'one to many')
+				{
+					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
+					
+					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;						
+				}
+				else #many to many
+				{
+					$self->$column(@{$new_foreign_object_id_hash});
+				}
+			}
+			else
+			{
+				if ($relationships->{$column}->{type} eq 'one to many')
+				{					
+					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [$foreign_key => $self->$primary_key]);	
+				}
+				else #many to many
+				{
+					$self->$column([]); # cascade deletes foreign objects
 				}
 			}
 		}
@@ -2601,7 +2589,7 @@ Rendering methods are exported for L<Rose::DB::Object> subclasses to generate we
   use Rose::DBx::Object::Renderer qw(:manager);
   ...
 
-Obviously, the rendering methods in custom subclasses cannot take advantages of the built-in column definitions and formatting methods. However, you can still replicate those behaviours by using the C<fields> option in C<render_as_form>, or the C<columns> option in C<render_as_table>, as well as hand crafting the formatting methods.
+Obviously, the rendering methods in the custom subclasses does not take advantages of the built-in column definitions and formatting methods. However, you can still replicate those behaviours by using the C<fields> option in C<render_as_form>, or the C<columns> option in C<render_as_table>, as well as hand crafting the formatting methods.
 
 The following is a list of common parameters for the rendering methods:
 

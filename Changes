@@ -12,14 +12,14 @@ Revision history for Rose-DBx-Object-Renderer
         Simplified the sample form template (form.tt).
         Fixed chained output in render_as_menu.
         Fixed date column's 'for_update' method.
-        Allow CGI object to be passed to the rendering methods (Stewart Heckenberg).
+        Allow CGI object to be passed to the rendering methods (Suggested by Stewart Heckenberg).
         Fixed a bug in render_as_form when inserting empty values using custom 'for_update' methods.
         Added the 'join_delimiter' parameter in $CONFIG for joining multiple values, such as foreign objects.
         Minor Enhancements.
         Updated POD.
 0.05    02/05/2008
         Added the 'unsortable' parameter to custom column definition in render_as_table. 
-        Fixed buttons in the sample form.tt (Stewart Heckenberg).
+        Fixed buttons in the sample form.tt (Reported by Stewart Heckenberg).
         Enhanced template settings in rendering methods.
         Updated POD.
 0.06    06/05/2008
@@ -27,7 +27,7 @@ Revision history for Rose-DBx-Object-Renderer
         Fixed POD.
 0.07    27/05/2008
         Deprecate the 'unsortable' parameter in custom column definition for render_as_table (introduced in 0.05). Custom columns are always unsortable.
-        Disable 'file' field type for foreign object and foreign key fields in render_as_form (Stewart Heckenberg)
+        Disable 'file' field type for foreign object and foreign key fields in render_as_form (Suggested by Stewart Heckenberg)
         Simplified CSS.
         Updated POD.
 0.08    10/06/2008
@@ -40,7 +40,7 @@ Revision history for Rose-DBx-Object-Renderer
 0.11    13/06/2008
         Minor CSS Updates.
 0.12    17/06/2008
-        Optimise load_database for persistent environments (Cees Hek).
+        Optimise load_database for persistent environments (Solution provided by Cees Hek).
 0.13    25/06/2008
         Fixed an issue when using the 'searchable' option with date or timestamp columns in render_as_table.
 0.14    26/06/2008
@@ -123,4 +123,7 @@ Revision history for Rose-DBx-Object-Renderer
 0.31    16/09/2008
         Fixed a primary key related issue that prevents objects being created, updated, or deleted properly.
         Rendering methods now use the manager class's object_class() method to resolve object class names. 
+        Updated POD.
+0.32    17/09/2008
+        Use the Rose::DB::Object::Manager class to manage multiple foreign class objects in render_as_form() (Solution provided by John Siracusa).
         Updated POD.
