@@ -127,3 +127,6 @@ Revision history for Rose-DBx-Object-Renderer
 0.32    17/09/2008
         Use the Rose::DB::Object::Manager class to manage multiple foreign class objects in render_as_form() (Solution provided by John Siracusa).
         Updated POD.
+0.33    17/09/2008
+        Updated the 'for_view' formatting methods for the 'media' and 'address' column definition.
+        Removed the dependencies on Image::ExifTool.
