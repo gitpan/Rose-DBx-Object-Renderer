@@ -13,8 +13,8 @@ use Rose::DB::Object::Loader;
 use CGI::FormBuilder;
 use Template;
 use File::Path;
+use File::Copy;
 use Digest::MD5 qw(md5_hex);
-use Math::Round qw(nearest);
 
 eval
 {
@@ -28,8 +28,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.33;
-# build: 92.25
+our $VERSION = 0.34;
+# build: 93.26
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -65,7 +65,7 @@ my $CONFIG = {
 		'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
 		'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}},
 		'abn' => {label => 'ABN', validate => '/^(\d{2}\s*\d{3}\s*\d{3}\s*\d{3})$/', comment => 'e.g.: 12 234 456 678'},
-		'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value ne ''; return '$'._round_float($value);}}},
+		'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('%.02f', $self->$column);}}},
 		'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column) = @_;my $value = $self->$column;return unless defined $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
 		'document' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
 		'image' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
@@ -1906,20 +1906,6 @@ sub _get_file_url
 	return join '/', ($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
-sub _upload_file
-{	
-	my ($upload_path, $file_name, $file) = @_;	
-	return unless $file_name && $upload_path && $file && not CGI::cgi_error();
-	
-	open FILE_HANDLER, ">$upload_path/$file_name" or die ("Could not open file handler for $upload_path/$file_name");
-	while (<$file>)
-	{
-	   print FILE_HANDLER;
-	}
-	close FILE_HANDLER;
-	return 1;
-}
-
 # formatting methods
 
 sub _create_timestamp
@@ -1995,18 +1981,18 @@ sub _update_file
 			$counter++;
 			$backup_file = $upload_path.'/'.$actual_name.'-'.$counter.'.'.$extension;
 		}
-		rename ($old_file, $backup_file);
+		move($old_file, $backup_file);
 		$old_file = $backup_file;
 	}
-		
-	if (_upload_file($upload_path,$file_name, $value))
+	
+	if (copy($value, "$upload_path/$file_name"))
 	{
-		unlink($old_file) unless not $old_file || $renderer_config->{upload}->{keep_old_files};
+		unlink($old_file) if $old_file && !$renderer_config->{upload}->{keep_old_files};
 		return $self->$column($file_name);
 	}
 	else
 	{
-		rename ($old_file, $upload_path.'/'.$current_file) if $old_file;
+		move($old_file, $upload_path.'/'.$current_file) if $old_file;
 		return;
 	}	
 }
@@ -2158,26 +2144,6 @@ sub _label
 	$string =~ s/_/ /g;
 	$string =~ s/\b(\w)/\u$1/g;
 	return $string;
-}
-
-sub _round_float
-{
-	my $value = shift;
-	return unless $value ne '';
-	(my $sign, $value) = ($value =~ /^(-)?(.*)/);
-	my $nearest_value = nearest(.01, $value);
-	if($nearest_value =~ /^\d+$/)
-	{
-		return $sign.$nearest_value.'.00';
-	}
-	elsif ($nearest_value =~ /^\d+\.[0-9]$/)
-	{
-		return $sign.$nearest_value.'0';
-	}
-	else
-	{
-		return $sign.$nearest_value;
-	}
 }
 
 sub _create_hidden_field
@@ -2783,12 +2749,12 @@ C<render_as_form> passes the following list of variables to a template:
   [% form_id %] - the form id
   [% title %] - the form title
   [% description %] - the form description
-  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
   [% extra %] - custom variables
   [% cancel %] - the name of the 'Cancel' controller
   [% javascript_code %] - javascript code 
-  [% template_url %] - The template url defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% template_url %] - The default template URL
 
 =head2 C<render_as_table>
 
@@ -2823,20 +2789,14 @@ C<order> accepts an arrayref to define the order of the columns to be shown. The
 
 =item C<searchable>
 
-The C<searchable> option enables keyword search in multiple columns, including the columns of foreign objects:
+The C<searchable> option allows keyword search in multiple columns, including the columns of foreign objects:
 
   Company::Employee::Manager->render_as_table(
     get => {with_objects => [ 'position' ]},
     searchable => ['first_name', 'last_name', 'position.title'],
   );
 
-A search box will be shown in rendered table. The CGI param of the search box is called 'q', for example:
-  
-  http://www.yoursite.com/yourscript.pl?q=danny
-
-We can also use multiple keywords seperated by commas. The default keyword delimiter is defined in:
-
-  $Rose::DBx::Object::Renderer::CONFIG->{table}->{keyword_delimiter}
+This option adds an input text field named 'q' (unless a prefix is specified) in rendered table. By default, comma is the delimiter for seperating multiple keywords. This is configurable via C<config()>.
 
 =item C<searchable>
 
@@ -2919,7 +2879,7 @@ C<render_as_table> passes the following list of variables to a template:
   [% table %] - the hash for the formatted table, see the sample template 'table.tt' 
   [% objects %] - the raw objects returned by the 'get_object' method
   [% column_order %] - the order of the columns
-  [% template_url %] - The template URL defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% template_url %] - The default template URL
   [% table_id %] - the table id
   [% title %] - the table title
   [% description %] - the table description
@@ -2931,7 +2891,7 @@ C<render_as_table> passes the following list of variables to a template:
   [% param_list %] - a list of CGI param names with the table prefix, e.g. the name of the keyword search box is [% param_list.q %]
   [% searchable %] - the 'searchable' option
   [% sort_by_column %] - the column to be sorted 
-  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
   [% extra %] - custom variables
   [% javascript_code %] - javascript code
@@ -2977,7 +2937,7 @@ These parameters are shortcuts which get passed to all the underlying tables ren
 
 C<render_as_menu> passes the following list of variables to a template:
 
-  [% template_url %] - The template URL defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% template_url %] - The default template URL
   [% menu_id %] - the menu id
   [% title %] - the menu title
   [% description %] - the menu description
@@ -2987,7 +2947,7 @@ C<render_as_menu> passes the following list of variables to a template:
   [% content %] - the output of the table
   [% extra %] - custom variables
   [% hide %] - whether the menu should be hidden
-  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
 
 =head2 C<render_as_chart>
@@ -3020,14 +2980,14 @@ Accepts a coderef to plug in your own charting engine.
 
 C<render_as_chart> passes the following list of variables to a template:
 
-  [% template_url %] - The template URL defined in $Rose::DBx::Object::Renderer::CONFIG->{template}->{url}
+  [% template_url %] - The default template URL
   [% chart_id %] - the chart id
   [% title %] - the chart title
   [% description %] - the chart description
   [% chart %] - the chart
   [% options %] - the 'options' hash
   [% extra %] - custom variables
-  [% html_head %] - the html doctype and css defined in $Rose::DBx::Object::Renderer::CONFIG->{misc}->{html_head}
+  [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
 
 =head1 OBJECT METHODS
