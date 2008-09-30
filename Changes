@@ -132,5 +132,7 @@ Revision history for Rose-DBx-Object-Renderer
         Removed the dependencies on Image::ExifTool.
 0.34    28/09/2008
         Removed the dependencies on Math::Round by tweaking the 'money' column definition.
-		Use File::Copy to copy, move files when handling uploads.
+        Use File::Copy to copy, move files when handling uploads.
+        Updated POD.
+0.35    30/09/2008
         Updated POD.

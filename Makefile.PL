@@ -16,9 +16,9 @@ WriteMakefile(
         'CGI::FormBuilder' => '3.05',
         'Template' => 0,
         'File::Path' => 0,
-		'File::Copy' => 0,
+        'File::Copy' => 0,
         'Digest::MD5' => 0,
-		'Exporter' => '5.57'
+        'Exporter' => '5.57'
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Rose-DBx-Object-Renderer-*' },

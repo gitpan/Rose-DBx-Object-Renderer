@@ -28,8 +28,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.34;
-# build: 93.26
+our $VERSION = 0.35;
+# build: 93.27
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
