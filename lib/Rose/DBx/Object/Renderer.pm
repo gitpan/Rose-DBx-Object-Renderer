@@ -28,8 +28,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.35;
-# build: 93.27
+our $VERSION = 0.36;
+# build: 94.27
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -523,7 +523,6 @@ sub render_as_form
 		{			
 			$form->field(name => $query_key, value => CGI::escapeHTML($args{queries}->{$query_key}), type => 'hidden', force => 1);
 		}
-		
 	}
 				
 	unless (defined $args{controller_order})
@@ -673,14 +672,14 @@ sub render_as_table
 	if ($sort_by)
 	{
 		my $sort_by_column = $sort_by;
-		$sort_by_column =~ s/\sdesc//;
+		$sort_by_column =~ s/\sdesc$//;
 		my $sort_by_column_definition_method = $sort_by_column . '_definition';
 		my $sort_by_column_definition;
 		$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
 			
 		unless (not exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && exists $args{columns}->{$sort_by_column}->{value}))
 		{
-			$args{get}->{sort_by} = $sort_by;
+			$args{get}->{sort_by} = $sort_by . ", $primary_key"; # always sort by a unique column to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 		}
 	}
 	

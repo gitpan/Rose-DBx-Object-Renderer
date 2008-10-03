@@ -136,3 +136,5 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.35    30/09/2008
         Updated POD.
+0.36    04/10/2008
+        Fixed a bug in render_as_table() having inconsistent paginated results when sorted by a particular column due to the behaviour of LIMIT and OFFSET in PostgreSQL.
