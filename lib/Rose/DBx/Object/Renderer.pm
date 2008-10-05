@@ -28,16 +28,16 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.36;
-# build: 94.27
+our $VERSION = 0.37;
+# build: 95.28
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
 	template => {path => 'templates', url => 'templates'},
 	upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 	form => {download_message => 'Download File', cancel => 'Cancel'},
-	table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', per_page => 15, or_filter => undef, no_pagination => undef, delimiter => ', ', keyword_delimiter => ','},
-	misc => {stringify_delimiter => ' ', html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[% title %]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#ea440a;text-decoration: none;}a:hover{color:#ff6600;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:300%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width:100%;border:0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align:left;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 20px 0px 20px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#666;background:#d0d0d0;text-decoration:none;margin:0px 10px;padding:6px 20px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#ff6600;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'},
+	table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},
+	misc => {stringify_delimiter => ' ', html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[% title %]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#1B80BB;text-decoration: none;}a:hover{color:#0D3247;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:330%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width:100%;border:0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align:left;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 6px 0px 6px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#0D3247;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'},
 	columns => {
 		'integer' => {validate => 'INT', sortopts => 'NUM'},
 		'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -541,18 +541,18 @@ sub render_as_form
 	$form->template({
 						variable => 'form', 
 						data => {
-									template_url => $template_url,
-									javascript_code => $args{javascript_code},
-									field_order => $field_order,
-									form_id => $form_id,
-									title => $form_title,
-									description => $args{description},
-									html_head => $html_head,
-									no_head => $args{no_head},
-									self => $self,
-									extra => $args{extra},
-									cancel => $cancel,
-								 },
+							template_url => $template_url,
+							javascript_code => $args{javascript_code},
+							field_order => $field_order,
+							form_id => $form_id,
+							title => $form_title,
+							description => $args{description},
+							html_head => $html_head,
+							no_head => $args{no_head},
+							self => $self,
+							extra => $args{extra},
+							cancel => $cancel,
+						},
 						template => $form_template, 
 						engine => {INCLUDE_PATH => $template_path}, 
 						type => 'TT2'
@@ -679,8 +679,19 @@ sub render_as_table
 			
 		unless (not exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && exists $args{columns}->{$sort_by_column}->{value}))
 		{
-			$args{get}->{sort_by} = $sort_by . ", $primary_key"; # always sort by a unique column to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
+			if ($sort_by_column eq $primary_key)
+			{
+				$args{get}->{sort_by} = $sort_by;
+			}
+			else
+			{
+				$args{get}->{sort_by} = $sort_by . ", $primary_key"; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
+			}
 		}
+	}
+	else
+	{
+		$args{get}->{sort_by} ||= $primary_key; # always sort by primary key by default to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 	}
 	
 	if ($args{searchable})
@@ -1087,12 +1098,42 @@ sub render_as_table
 			push @{$table->{rows}}, $row;
 		}
 		
-		$table->{pager}->{first_page} = {value => 1, link => qq($url?$query_string->{page}$param_list->{page}=1)};
-		$table->{pager}->{previous_page} = {value => $previous_page, link => qq($url?$query_string->{page}$param_list->{page}=$previous_page)};
-		$table->{pager}->{next_page} = {value => $next_page, link => qq($url?$query_string->{page}$param_list->{page}=$next_page)};
-		$table->{pager}->{last_page} = {value => $last_page, link => qq($url?$query_string->{page}$param_list->{page}=$last_page)};
-		$table->{pager}->{current_page} = {value => $args{get}->{page}, link => qq($url?$query_string->{page}$param_list->{page}=$args{get}->{page})};
-		$table->{pager}->{total} = $total;				
+		unless ($table_config->{no_pagination})
+		{
+			$table->{pager}->{first_page} = {value => 1, link => qq($url?$query_string->{page}$param_list->{page}=1)};
+			$table->{pager}->{previous_page} = {value => $previous_page, link => qq($url?$query_string->{page}$param_list->{page}=$previous_page)};
+			$table->{pager}->{next_page} = {value => $next_page, link => qq($url?$query_string->{page}$param_list->{page}=$next_page)};
+			$table->{pager}->{last_page} = {value => $last_page, link => qq($url?$query_string->{page}$param_list->{page}=$last_page)};
+			$table->{pager}->{current_page} = {value => $args{get}->{page}, link => qq($url?$query_string->{page}$param_list->{page}=$args{get}->{page})};
+			$table->{pager}->{total} = $total;
+
+			if ($table_config->{pages} % 2)
+			{
+				$table->{pager}->{start_page} = $table->{pager}->{current_page}->{value} - ($table_config->{pages} - 1)/2;
+			}
+			else
+			{
+				$table->{pager}->{start_page} = $table->{pager}->{current_page}->{value} - $table_config->{pages}/2;
+			}
+
+			if ($table->{pager}->{start_page} < 1)
+			{
+				$table->{pager}->{start_page} = 1;
+			}
+			elsif ($table->{pager}->{last_page}->{value} >= $table_config->{pages} && $table->{pager}->{start_page} > $table->{pager}->{last_page}->{value} - $table_config->{pages})
+			{
+				$table->{pager}->{start_page} = $table->{pager}->{last_page}->{value} - $table_config->{pages} + 1;
+			}
+
+			if ($table->{pager}->{last_page}->{value} < $table->{pager}->{start_page} + $table_config->{pages})
+			{
+				$table->{pager}->{end_page} = $table->{pager}->{last_page}->{value} + 1;
+			}
+			else
+			{
+				$table->{pager}->{end_page} = $table->{pager}->{start_page} + $table_config->{pages};
+			}
+		}		
 		
 		if ($args{template})
 		{
@@ -1200,9 +1241,20 @@ sub render_as_table
 					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}"> << </a>);
 					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}"> < </a>);
 				}
-			
-				$html_table .= qq( Page $table->{pager}->{current_page}->{value} of $table->{pager}->{last_page}->{value} );
-			
+				
+				while ($table->{pager}->{start_page} < $table->{pager}->{end_page})
+				{
+					if ($table->{pager}->{start_page} == $table->{pager}->{current_page}->{value})
+					{
+						$html_table .= qq( $table->{pager}->{start_page} );
+					}
+					else
+					{
+						$html_table .= qq(<a href="$url?$query_string->{page}$param_list->{page}=$table->{pager}->{start_page}"> $table->{pager}->{start_page} </a>);
+					}
+					$table->{pager}->{start_page}++;
+				}				
+
 				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value})
 				{
 					$html_table .= qq( >  >> );
@@ -2361,8 +2413,9 @@ The C<table> option defines the default behaviours of C<render_as_table>:
       search_result_title => 'Looking for "[% q %]"?',
       empty_message => 'No matching records.', 
       per_page => 25,  # number of records per table, defaulted to 15
+      pages => 5,  # the amount of page numbers in the table pagination, defaulted to 9
+      no_pagination => 1,  # do not display pagination, default to undef
       or_filter => 1,  # column filtering is joined by 'OR', defaulted to undef
-      no_pagination => 1,  # do not display pagination
       delimiter => '/',  # the delimiter for joining foreign objects in relationship columns, defaulted to ', '
       keyword_delimiter => '\s+',  # the delimiter for search keywords, defaulted to ','
     },
@@ -2622,8 +2675,6 @@ A hashref of additional template variables. For example:
 
 =back
 
-Additionally, C<render_as_form> and C<render_as_table> also respectively accepts the all the options available inside the Renderer config's C<form> and C<table> hash.
-
 =head2 C<render_as_form>
 
 C<render_as_form> renders forms and handles its submission.
@@ -2863,11 +2914,7 @@ A string with javascript code to be added to the template
 
 =item C<ajax> and C<ajax_template>
 
-These two parameters are designed for rendering Ajax-enabled tables. When C<ajax> is set to 1, C<render_as_table> tries to use the template 'table_ajax.tt' for rendering, unless the name of the template is defined in C<ajax_template>. C<render_as_table> also passes a variable called 'ajax' to the template and sets it to 1 when a CGI param named 'ajax' is set. We can use this variable in the template to differentiate whether the current CGI request is an ajax request or not.
-
-=item C<no_pagination>
-
-The pagination will not be rendered if this option is set to 1.
+These two parameters are designed for rendering Ajax-enabled tables. When C<ajax> is set to 1, C<render_as_table> tries to use the template 'table_ajax.tt' for rendering, unless it is defined via C<ajax_template>. C<render_as_table> also passes a variable called 'ajax' to the template and sets it to 1 when a CGI param named 'ajax' (assuming no prefix is in used) is found, indicating the current request is an ajax request.
 
 =back
 

@@ -105,6 +105,7 @@ Revision history for Rose-DBx-Object-Renderer
         Replaced load_database() with new(), config(), and load().
         Deprecated the global $CONFIG variable.
         Deprecated the 'show_id' parameter across rendering methods.
+        Deprecated the 'no_pagination' parameter in render_as_table().
         Renamed stringify_package_name() to stringify_class().
         Changed the default 'stringify_delimiter' option to space.
         Moved the 'keep_old_file' in form options into the upload options and renamed to 'keep_old_files'.
@@ -138,3 +139,8 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.36    04/10/2008
         Fixed a bug in render_as_table() having inconsistent paginated results when sorted by a particular column due to the behaviour of LIMIT and OFFSET in PostgreSQL.
+0.37    05/10/2008
+        Results from render_as_table() are now by default sorted by the primary key in order to prevent inconsistent paginated results in PostgreSQL.
+        Updated the default pagination in render_as_table(), added the 'pages' table option to the default config, updated 'table.tt' accordingly.
+        Minor update to the default CSS.
+        Updated POD.

@@ -49,7 +49,14 @@
 			<a href="[% table.pager.first_page.link %]"><< </a>
 			<a href="[% table.pager.previous_page.link %]"><</a>
 		[% END %]
-		Page [% table.pager.current_page.value %] of [% table.pager.last_page.value %]
+		[% WHILE table.pager.start_page < table.pager.end_page %]
+			[% IF table.pager.start_page == table.pager.current_page.value %]
+				 [% table.pager.start_page %] 
+			[% ELSE %]
+				<a href="[% url %]?[% query_string.page %][% param_list.page %]=[% table.pager.start_page %]"> [% table.pager.start_page %] </a>
+			[% END %]
+			[% table.pager.start_page = table.pager.start_page + 1 %]
+		[% END %]
 		[% IF table.pager.current_page.value == table.pager.last_page.value %]
 			> >>
 		[% ELSE %]
