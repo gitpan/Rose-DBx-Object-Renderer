@@ -144,3 +144,6 @@ Revision history for Rose-DBx-Object-Renderer
         Updated the default pagination in render_as_table(), added the 'pages' table option to the default config, updated 'table.tt' accordingly.
         Minor update to the default CSS.
         Updated POD.
+0.38    07/10/2008
+        Use table name in the default sort by clause in render_as_table() to prevent column name clashes.
+        Fixed a problem when passing the default config hash to config().

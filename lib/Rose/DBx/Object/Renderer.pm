@@ -28,8 +28,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.37;
-# build: 95.28
+our $VERSION = 0.38;
+# build: 96.28
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -107,33 +107,35 @@ sub config
 	
 	if (@_)
 	{
-		my $config = shift;
-		if (exists $config->{columns})
-		{
-			foreach my $column (keys %{$config->{columns}})
-			{
-				if (exists $config->{columns}->{$column}->{format})
-				{
-					foreach my $method (keys %{$config->{columns}->{$column}->{format}})
-					{
-						$self->{CONFIG}->{columns}->{$column}->{format}->{$method} = $config->{columns}->{$column}->{format}->{$method};
-					}
-				}
-				delete $config->{columns}->{$column}->{format};
-				
-				foreach my $key (keys %{$config->{columns}->{$column}})
-				{
-					$self->{CONFIG}->{columns}->{$column}->{$key} = $config->{columns}->{$column}->{$key};
-				}
-			}			
-			delete $config->{columns};
-		}
-		
+		my $config = shift;		
 		foreach my $hash (keys %{$config})
 		{
-			foreach my $key (keys %{$config->{$hash}})
+			if ($hash eq 'columns')
 			{
-				$self->{CONFIG}->{$hash}->{$key} = $config->{$hash}->{$key};
+				foreach my $column (keys %{$config->{columns}})
+				{
+					foreach my $key (keys %{$config->{columns}->{$column}})
+					{
+						if ($key eq 'format')
+						{
+							foreach my $method (keys %{$config->{columns}->{$column}->{format}})
+							{
+								$self->{CONFIG}->{columns}->{$column}->{format}->{$method} = $config->{columns}->{$column}->{format}->{$method};
+							}
+						}
+						else
+						{
+							$self->{CONFIG}->{columns}->{$column}->{$key} = $config->{columns}->{$column}->{$key};
+						}
+					}
+				}
+			}
+			else
+			{
+				foreach my $key (keys %{$config->{$hash}})
+				{
+					$self->{CONFIG}->{$hash}->{$key} = $config->{$hash}->{$key};
+				}
 			}
 		}
 		
@@ -685,7 +687,7 @@ sub render_as_table
 			}
 			else
 			{
-				$args{get}->{sort_by} = $sort_by . ", $primary_key"; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
+				$args{get}->{sort_by} = $sort_by . ', '. $class->meta->table . '.' . $primary_key; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 			}
 		}
 	}
