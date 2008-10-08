@@ -28,8 +28,8 @@ if($@)
 	*clone = \&Clone::clone;
 }
 
-our $VERSION = 0.38;
-# build: 96.28
+our $VERSION = 0.39;
+# build: 96.29
 
 my $CONFIG = {
 	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
@@ -2723,7 +2723,7 @@ Please note that when a prefix is used, all fields are renamed to 'C<prefix_fiel
 
 Controllers are essentially callbacks. We can add multiple custom controllers to a form. They are rendered as submit buttons. C<controller_order> defines the order of the controllers, in other words, the order of the submit buttons. 
 
-  my $form = Employee::Company->render_as_form(
+  my $form = Company::Employee->render_as_form(
     output => 1,
     controller_order => ['Hello', 'Good Bye'],
     controllers => {
@@ -2736,15 +2736,17 @@ Controllers are essentially callbacks. We can add multiple custom controllers to
           my $self = shift;
           if (ref $self)
           {
-            return 'Hello ' . $self->first_name;
+            return 'Welcome ' . $self->first_name;
           }
           else
           {
-            return 'No employee has been created'.
+            return 'Employees cannot be added on Sundays';
           }
+        }
       },
-      'Good Bye' => \&say_goodbye
-    });
+      'Good Bye' => sub {return 'Have fun!'}
+    }
+  );
 
   if (exists $form->{controller})
   {
@@ -2753,11 +2755,6 @@ Controllers are essentially callbacks. We can add multiple custom controllers to
   else
   {
     print $form->{output};
-  }
-
-  sub say_goodbye
-  {
-    return 'Good Bye';
   }
 
 Within the C<controllers> hashref, we can set the C<create> parameter to 1 so that the object is always inserted into the database before running the custom callback. We can also point C<create> to a coderef, in which case, the object is inserted into the database only if the coderef returns true. 
@@ -2769,8 +2766,9 @@ Similarly, when rendering an object instance as a form, we can update the object
     controllers => {
       'Hello' => {
         update => 1,
-        callback => sub{...};
+        callback => sub{...}
       }
+    }
   );
 
 Another parameter within the C<controllers> hashref is C<hide_form>, which informs C<render_as_form> not to render the form after executing the controller.
@@ -2824,16 +2822,20 @@ returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By
 
 =item C<columns>
 
-The C<columns> parameter can be used to define custom columns, which do not exist in the underlying database table
+The C<columns> parameter can be used change the label or the value of a column. It can also be used to create custom columns, which do not exist in the underlying database.
 
   Company::Employee::Manager->render_as_table(
-    columns => {'custom_column' => 
-      label => 'Total',
-      value => {
-        1 => '100', # the 'Total' is 100 for object ID 1
-        2 => '50'
-      },
-  });
+    order => ['first_name', 'custom_column'],
+    columns => {
+      'custom_column' => {
+        label => 'Favourite Drink',
+        value => {
+          1 => 'Tea',  # 1 is the primary key of the object
+          2 => 'Coffee'
+        },
+      }
+    }
+  );
 
 =item C<order>
 
