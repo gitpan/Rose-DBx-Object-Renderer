@@ -149,3 +149,17 @@ Revision history for Rose-DBx-Object-Renderer
         Fixed a problem when passing the default config hash to config().
 0.39    08/10/2008
         Updated POD.
+0.40    12/01/2009
+        Added the 'copy' option to render_as_form() for cloning objects (Suggested by Stewart Heckenberg). Updated render_as_table() and render_as_menu() to take advantage of this new option.
+        Added form field validation for unique keys (updated load()).
+        Added the 'template_data' option to all rendering methods.
+        Added the 'unsortable' option to the 'columns' parameter in render_as_table().
+    	Added the 'q' parameter to specify the search keyword in render_as_table().
+        Fixed a bug when sorting columns in render_as_table() due to clashing column names across multiple loaded tables.
+        Fixed a bug in delete_with_file() where uploaded files are not removed due to incorrect folder path (Reported by Stewart Heckenberg).
+        Use File::Spec to concatenate all folder and file paths.
+        Updated load() to better handle foreign keys with custom column definitions.
+        Updated config() and render_as_table() to eliminate the need for cloning variables.
+        Updated the sample templates to use the 'no_head' option.
+        Updated the sample 'form.tt' to use form field messages.
+        Updated POD.

@@ -10,104 +10,96 @@ our %EXPORT_TAGS = (object => [qw(render_as_form stringify_me stringify_class de
 use Lingua::EN::Inflect qw (PL);
 use DateTime;
 use Rose::DB::Object::Loader;
+use Rose::DB::Object::Helpers 'clone_and_reset';
 use CGI::FormBuilder;
 use Template;
 use File::Path;
 use File::Copy;
+use File::Copy::Recursive 'dircopy';
+use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-eval
-{
-	require Scalar::Util::Clone;
-	*clone = \&Scalar::Util::Clone::clone;
-};
-
-if($@)
-{
-	require Clone;
-	*clone = \&Clone::clone;
-}
-
-our $VERSION = 0.39;
-# build: 96.29
-
-my $CONFIG = {
-	db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
-	template => {path => 'templates', url => 'templates'},
-	upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
-	form => {download_message => 'Download File', cancel => 'Cancel'},
-	table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},
-	misc => {stringify_delimiter => ' ', html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[% title %]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#1B80BB;text-decoration: none;}a:hover{color:#0D3247;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:330%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width:100%;border:0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align:left;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 6px 0px 6px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#0D3247;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'},
-	columns => {
-		'integer' => {validate => 'INT', sortopts => 'NUM'},
-		'numeric' => {validate => 'NUM', sortopts => 'NUM'},
-		'float' => {validate => 'FLOAT', sortopts => 'NUM', comment => 'e.g.: 2982.21'},
-		'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class => 'disable_editor'},
-		'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class => 'disable_editor', format => {for_view => sub {_view_address(@_);}}},
-		'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
-		'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
-		'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_view_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
-		'timestamp' => {readonly => 1, disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_create_timestamp();}, for_update => sub {_update_timestamp(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
-		'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
-		'time' => {validate => 'TIME', format => {for_update => sub {_udpate_time(@_)}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{_edit_time(@_);}, for_view => sub{_edit_time(@_);}}},
-		'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
-		'weight' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' kg';}}},
-		'volume' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm<sup>3</sup>';}}},
-		'gender' => {options => ['Male', 'Female']},
-		'name' => {sortopts => 'LABELNAME', required => 1, stringify => 1},
-		'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
-		'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
-		'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com'},
-		'url' => {sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="$value">$value</a>);}}, comment => 'e.g. http://www.yourbusiness.com/'},
-		'mobile' => {validate => '/^((\()?(\+)?\d{2}(\))?)?[-\s]?(\d{3}|\d{4})[-\s]?\d{3}[-\s]?\d{3}$/', comment => 'e.g. 0433 123 456'},
-		'phone' => {validate => '/^((\()?(\+)?\d{2}[-\s]?\d?(\))?)?[-\s]?\d{4}[-\s]?\d{4}$/', comment => 'e.g. 02 9988 1288'},
-		'username' => {validate => '/^[a-zA-Z0-9]{4,}$/', sortopts => 'LABELNAME', required => 1},
-		'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
-		'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}},
-		'abn' => {label => 'ABN', validate => '/^(\d{2}\s*\d{3}\s*\d{3}\s*\d{3})$/', comment => 'e.g.: 12 234 456 678'},
-		'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('%.02f', $self->$column);}}},
-		'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column) = @_;my $value = $self->$column;return unless defined $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
-		'document' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
-		'image' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-		'media' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-		'ipv4' => {validate => 'IPV4', format => {for_search => sub {_search_ipv4(@_)}, for_filter => sub {_search_ipv4(@_)}}},
-		'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
-	}
-};
-
-$CONFIG->{columns}->{'doubleprecision'} = $CONFIG->{columns}->{'numeric'};
-$CONFIG->{columns}->{'decimal'} = $CONFIG->{columns}->{'numeric'};
-$CONFIG->{columns}->{'bigint'} = $CONFIG->{columns}->{'integer'};
-$CONFIG->{columns}->{'serial'} = $CONFIG->{columns}->{'integer'};
-$CONFIG->{columns}->{'bigserial'} = $CONFIG->{columns}->{'integer'};
-$CONFIG->{columns}->{'quantity'} = $CONFIG->{columns}->{'integer'};
-$CONFIG->{columns}->{'height'} = $CONFIG->{columns}->{'length'};
-$CONFIG->{columns}->{'width'} = $CONFIG->{columns}->{'length'};
-$CONFIG->{columns}->{'depth'} = $CONFIG->{columns}->{'length'};
-$CONFIG->{columns}->{'title'} = $CONFIG->{columns}->{'name'};
-$CONFIG->{columns}->{'birth'} = $CONFIG->{columns}->{'date'};
-$CONFIG->{columns}->{'fax'} = $CONFIG->{columns}->{'phone'};
-$CONFIG->{columns}->{'cost'} = $CONFIG->{columns}->{'money'};
-$CONFIG->{columns}->{'price'} = $CONFIG->{columns}->{'money'};
-$CONFIG->{columns}->{'blob'} = $CONFIG->{columns}->{'text'};
-$CONFIG->{columns}->{'comment'} = $CONFIG->{columns}->{'text'};
-$CONFIG->{columns}->{'file'} = $CONFIG->{columns}->{'document'};
-$CONFIG->{columns}->{'report'} = $CONFIG->{columns}->{'document'};
-$CONFIG->{columns}->{'photo'} = $CONFIG->{columns}->{'image'};
-$CONFIG->{columns}->{'logo'} = $CONFIG->{columns}->{'image'};
-$CONFIG->{columns}->{'sound'} = $CONFIG->{columns}->{'media'};
-$CONFIG->{columns}->{'voice'} = $CONFIG->{columns}->{'media'};
-$CONFIG->{columns}->{'video'} = $CONFIG->{columns}->{'media'};
-$CONFIG->{columns}->{'movie'} = $CONFIG->{columns}->{'media'};
+our $VERSION = 0.40;
+# 113.35
 
 sub config
 {
 	my $self = shift;
-	$self->{CONFIG} = clone($CONFIG) unless defined $self->{CONFIG};
+	unless ($self && defined $self->{CONFIG})
+	{		
+		$self->{CONFIG} = {
+			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
+			template => {path => 'templates', url => 'templates'},
+			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
+			form => {download_message => 'Download File', cancel => 'Cancel'},
+			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},
+			misc => {stringify_delimiter => ' ', html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[% title %]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#1B80BB;text-decoration: none;}a:hover{color:#0D3247;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:330%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width:100%;border:0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align:left;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 6px 0px 6px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#0D3247;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'},
+			columns => {
+				'integer' => {validate => 'INT', sortopts => 'NUM'},
+				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
+				'float' => {validate => 'FLOAT', sortopts => 'NUM', comment => 'e.g.: 2982.21'},
+				'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class => 'disable_editor'},
+				'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class => 'disable_editor', format => {for_view => sub {_view_address(@_);}}},
+				'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
+				'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
+				'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_view_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
+				'timestamp' => {readonly => 1, disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_create_timestamp();}, for_update => sub {_update_timestamp(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
+				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
+				'time' => {validate => 'TIME', maxlength => 5, format => {for_update => sub {_udpate_time(@_)}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{_edit_time(@_);}, for_view => sub{_edit_time(@_);}}},
+				'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
+				'weight' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' kg';}}},
+				'volume' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm<sup>3</sup>';}}},
+				'gender' => {options => ['Male', 'Female']},
+				'name' => {sortopts => 'LABELNAME', required => 1, stringify => 1},
+				'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
+				'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
+				'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="mailto:$value">$value</a>);}}, comment => 'e.g. your.name@work.com'},
+				'url' => {sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="$value">$value</a>);}}, comment => 'e.g. http://www.yourbusiness.com/'},
+				'mobile' => {validate => '/^((\()?(\+)?\d{2}(\))?)?[-\s]?(\d{3}|\d{4})[-\s]?\d{3}[-\s]?\d{3}$/', comment => 'e.g. 0433 123 456'},
+				'phone' => {validate => '/^((\()?(\+)?\d{2}[-\s]?\d?(\))?)?[-\s]?\d{4}[-\s]?\d{4}$/', comment => 'e.g. 02 9988 1288'},
+				'username' => {validate => '/^[a-zA-Z0-9]{4,}$/', sortopts => 'LABELNAME', required => 1},
+				'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
+				'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}},
+				'abn' => {label => 'ABN', validate => '/^(\d{2}\s*\d{3}\s*\d{3}\s*\d{3})$/', comment => 'e.g. 12 234 456 678'},
+				'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('%.02f', $self->$column);}}},
+				'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column) = @_;my $value = $self->$column;return unless defined $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
+				'document' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
+				'image' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+				'media' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+				'ipv4' => {validate => 'IPV4', format => {for_search => sub {_search_ipv4(@_)}, for_filter => sub {_search_ipv4(@_)}}},
+				'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
+			}
+		};
+
+		$self->{CONFIG}->{columns}->{'doubleprecision'} = $self->{CONFIG}->{columns}->{'numeric'};
+		$self->{CONFIG}->{columns}->{'decimal'} = $self->{CONFIG}->{columns}->{'numeric'};
+		$self->{CONFIG}->{columns}->{'bigint'} = $self->{CONFIG}->{columns}->{'integer'};
+		$self->{CONFIG}->{columns}->{'serial'} = $self->{CONFIG}->{columns}->{'integer'};
+		$self->{CONFIG}->{columns}->{'bigserial'} = $self->{CONFIG}->{columns}->{'integer'};
+		$self->{CONFIG}->{columns}->{'quantity'} = $self->{CONFIG}->{columns}->{'integer'};
+		$self->{CONFIG}->{columns}->{'height'} = $self->{CONFIG}->{columns}->{'length'};
+		$self->{CONFIG}->{columns}->{'width'} = $self->{CONFIG}->{columns}->{'length'};
+		$self->{CONFIG}->{columns}->{'depth'} = $self->{CONFIG}->{columns}->{'length'};
+		$self->{CONFIG}->{columns}->{'title'} = $self->{CONFIG}->{columns}->{'name'};
+		$self->{CONFIG}->{columns}->{'birth'} = $self->{CONFIG}->{columns}->{'date'};
+		$self->{CONFIG}->{columns}->{'fax'} = $self->{CONFIG}->{columns}->{'phone'};
+		$self->{CONFIG}->{columns}->{'cost'} = $self->{CONFIG}->{columns}->{'money'};
+		$self->{CONFIG}->{columns}->{'price'} = $self->{CONFIG}->{columns}->{'money'};
+		$self->{CONFIG}->{columns}->{'blob'} = $self->{CONFIG}->{columns}->{'text'};
+		$self->{CONFIG}->{columns}->{'comment'} = $self->{CONFIG}->{columns}->{'text'};
+		$self->{CONFIG}->{columns}->{'file'} = $self->{CONFIG}->{columns}->{'document'};
+		$self->{CONFIG}->{columns}->{'report'} = $self->{CONFIG}->{columns}->{'document'};
+		$self->{CONFIG}->{columns}->{'photo'} = $self->{CONFIG}->{columns}->{'image'};
+		$self->{CONFIG}->{columns}->{'logo'} = $self->{CONFIG}->{columns}->{'image'};
+		$self->{CONFIG}->{columns}->{'sound'} = $self->{CONFIG}->{columns}->{'media'};
+		$self->{CONFIG}->{columns}->{'voice'} = $self->{CONFIG}->{columns}->{'media'};
+		$self->{CONFIG}->{columns}->{'video'} = $self->{CONFIG}->{columns}->{'media'};
+		$self->{CONFIG}->{columns}->{'movie'} = $self->{CONFIG}->{columns}->{'media'};
+	}
 	
 	if (@_)
 	{
-		my $config = shift;		
+		my $config = shift;
 		foreach my $hash (keys %{$config})
 		{
 			if ($hash eq 'columns')
@@ -138,9 +130,8 @@ sub config
 				}
 			}
 		}
-		
-		return;
 	}
+	
 	return $self->{CONFIG};
 }
 
@@ -179,6 +170,7 @@ sub load
 	$loader->convention_manager->tables_are_singular(1) if $config->{db}->{tables_are_singular};
 	
 	my @loaded;
+	my $custom_definitions;
 	foreach my $class ($loader->make_classes(%{$args->{make_classes}}))
 	{
 		my $package = qq(package $class;);
@@ -186,6 +178,7 @@ sub load
 		if (($class)->isa('Rose::DB::Object'))
 		{	
 			my $foreign_keys = _get_foreign_keys($class);
+			my $unique_keys = _get_unique_keys($class);
 			
 			$package .= 'use Rose::DBx::Object::Renderer qw(:object);';
 
@@ -194,9 +187,17 @@ sub load
 				my $column_type;	
 				unless ($column->{is_primary_key_member})
 				{
-					if (exists $config->{columns}->{$column})
+					if (exists $config->{columns}->{$column} && ! exists $custom_definitions->{$column})
 					{	
 						$column_type = $column;
+						if (exists $foreign_keys->{$column})
+						{
+							my $foreign_object_name = $foreign_keys->{$column}->{name};
+							$config->{columns}->{$column}->{label} = _label($foreign_object_name) unless exists $config->{columns}->{$column}->{label};
+							$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
+							$config->{columns}->{$column}->{validate} = 'INT' unless exists $config->{columns}->{$column}->{validate};
+							$config->{columns}->{$column}->{format}->{for_view} = sub {my ($self, $column) = @_;return unless $self->$column;return $self->$foreign_object_name->stringify_me;} unless exists $config->{columns}->{$column}->{format} && exists $config->{columns}->{$column}->{format}->{for_view};
+						}
 					}
 					elsif (exists $foreign_keys->{$column}) # special treatment
 					{						
@@ -205,39 +206,119 @@ sub load
 						$column_type = $column;
 					}
 					else
-					{
+					{						
 						DEF: foreach my $column_key (keys %{$config->{columns}})
 						{
-							if ($column =~ /$column_key/) # first match
+							if ($column =~ /$column_key/ && ! exists $custom_definitions->{$column_key}) # first match
 							{
 								$column_type = $column_key;
 								last DEF;
 							}
-						}
-						
+						}						
+											
 						unless (defined $column_type)
 						{
 							my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
 							($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;	
-							$column_type = $rdbo_column_type if exists $config->{columns}->{$rdbo_column_type};
-						}
-						
-						unless (defined $column_type)
-						{
-							my $custom_definition;
-							$custom_definition->{required} = 1 if $class->meta->{columns}->{$column}->{not_null};
-							$custom_definition->{maxlength} = $class->meta->{columns}->{$column}->{length} if defined $class->meta->{columns}->{$column}->{length};
-							$custom_definition->{multiple} = 1 if ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
-							$custom_definition->{options} = $class->meta->{columns}->{$column}->{check_in} if defined $class->meta->{columns}->{$column}->{check_in};
 							
-							$config->{columns}->{$column} = $custom_definition;
+							if (exists $config->{columns}->{$rdbo_column_type})
+							{
+								$column_type = $rdbo_column_type;
+							}
+							else
+							{
+								my $custom_definition;
+								$custom_definition->{required} = 1 if $class->meta->{columns}->{$column}->{not_null};
+								$custom_definition->{maxlength} = $class->meta->{columns}->{$column}->{length} if defined $class->meta->{columns}->{$column}->{length};
+								$custom_definition->{multiple} = 1 if ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
+								$custom_definition->{options} = $class->meta->{columns}->{$column}->{check_in} if defined $class->meta->{columns}->{$column}->{check_in};
+								
+								$config->{columns}->{$column} = $custom_definition;
+								$column_type = $column;
+								$custom_definitions->{$column} = undef;
+							}						
+						}						
+					}
+					
+					if (exists $unique_keys->{$column})
+					{						
+						unless ($column_type eq $column)
+						{							
+							foreach my $key (keys %{$config->{columns}->{$column_type}})
+							{
+								$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
+							}
 							$column_type = $column;
 						}
-					}				
+						
+						$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
+						if (exists $config->{columns}->{$column}->{validate})
+						{
+							my $validate = $config->{columns}->{$column}->{validate};							
+							$validate = $CGI::FormBuilder::Field::VALIDATE{$validate} if exists $CGI::FormBuilder::Field::VALIDATE{$validate};
+													
+							if ($validate =~ /^m(\S)(.*)\1$/ || $validate =~ /^(\/)(.*)\1$/)
+							{
+							    (my $regex = $2) =~ s#\\/#/#g;
+							    $regex =~ s#/#\\/#g;
+															
+								$config->{columns}->{$column}->{validate} = {
+									javascript => $validate,
+									perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($class, $column, $value, $form);}
+								};							
+							}
+							elsif (ref $validate eq 'ARRAY')
+							{
+								$config->{columns}->{$column}->{validate} = {
+									javascript => $validate,
+									perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validate}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($class, $column, $value, $form);}
+								};
+							}
+							elsif (! ref $validate)
+							{
+								$config->{columns}->{$column}->{validate} = {
+									javascript => $validate,
+									perl => sub {my ($value, $form) = @_;return if $value ne $validate;return _unique($class, $column, $value, $form);}
+								};
+							}
+		
+						}
+						else
+						{
+							$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($class, $column, $value, $form);};
+						}
+												
+						unless (defined $config->{columns}->{$column}->{message})
+						{
+							my $column_label;
+							if (defined $config->{columns}->{$column}->{label})
+							{
+								$column_label = $config->{columns}->{$column}->{label};
+							}
+							else
+							{
+								$column_label = _label($column);
+							}
+							$config->{columns}->{$column}->{message} = qq($column_label already exists or is invalid, please choose another one.);
+							
+							unless (defined $config->{columns}->{$column}->{jsmessage})
+							{
+								if (exists $foreign_keys->{$column})
+								{
+									$config->{columns}->{$column}->{jsmessage} = qq(- Choose one of the "$column_label" options);
+								}
+								else
+								{
+									$config->{columns}->{$column}->{jsmessage} = qq(- Invalid entry for the "$column_label" field);
+								}
+							}											
+						}						
+					}
+					
 					$package .= _generate_methods($config, $column, $column_type);
 				}				
 			}
-			$package .= "sub renderer_config {return \$config;}\n";
+			$package .= "sub renderer_config {return \$config;}\n";		
 		}
 		else
 		{
@@ -249,6 +330,7 @@ sub load
 		die "Can't load $class: $@" if $@;
 		push @loaded, $class;
 	}
+	
 	return @loaded;
 }
 
@@ -270,22 +352,26 @@ sub _generate_methods
 sub render_as_form
 {
 	my ($self, %args) = (@_);
-	my ($class, $object_id, $form_action, $field_order, $output, $relationship_object);
+	my ($class, $form_action, $field_order, $output, $relationship_object);
 	my $table = $self->meta->table;
-	my $primary_key = $self->meta->primary_key_column_names->[0];
 	my $form_title = $args{title};
 
 	if (ref $self)
 	{
 		$class = ref $self;
-		$object_id = $self->$primary_key;
-		$form_action = 'update';
+		if ($args{copy})
+		{
+			$form_action = 'copy';
+		}
+		else
+		{
+			$form_action = 'update';
+		}
 		$form_title ||= _label($form_action.' '.$self->stringify_me);
 	}
 	else
 	{
 		$class = $self;
-		$object_id = 'new';
 		$form_action = 'create';
 		$form_title ||= _label($form_action.' '.$table);
 	}
@@ -315,7 +401,7 @@ sub render_as_form
 	{
 		$form_template = $args{template};
 	}
-		
+
 	my $form_def = $args{form};
 	$form_def->{name} ||= $form_id;
 	$form_def->{enctype} ||= 'multipart/form-data';
@@ -356,7 +442,7 @@ sub render_as_form
 			
 			my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 			
-			if (ref $self && not exists $field_def->{value})
+			if (ref $self && ! exists $field_def->{value})
 			{
 				my $foreign_object_value;
 			
@@ -466,7 +552,7 @@ sub render_as_form
 					}
 				}
 									
-				if ($field_def->{type} eq 'file' && not defined $field_def->{comment}) #file: if value exist in db, or in cgi param when the same form reloads
+				if ($field_def->{type} eq 'file' && ! defined $field_def->{comment}) #file: if value exist in db, or in cgi param when the same form reloads
 				{							
 					my $value = $form->cgi_param($form_id.'_'.$column) || $form->cgi_param($column) || $self->$column;
 					my $file_location = _get_file_url($self, $column, $value);
@@ -475,7 +561,7 @@ sub render_as_form
 			}
 			else
 			{
-				if (not exists $field_def->{value})
+				unless (exists $field_def->{value})
 				{
 					if ($class->can($column . '_for_create'))
 					{
@@ -539,7 +625,8 @@ sub render_as_form
 	}
 	
 	$form->{submit} = $args{controller_order};
-		
+	
+	$args{template_data} ||= {};
 	$form->template({
 						variable => 'form', 
 						data => {
@@ -552,48 +639,56 @@ sub render_as_form
 							html_head => $html_head,
 							no_head => $args{no_head},
 							self => $self,
-							extra => $args{extra},
 							cancel => $cancel,
+							extra => $args{extra},
+							%{$args{template_data}}
 						},
 						template => $form_template, 
 						engine => {INCLUDE_PATH => $template_path}, 
 						type => 'TT2'
 					}) if $args{template};
 	
-	if ($form->submitted && $form->validate(%{$args{validate}}))
+	if ($form->submitted)
 	{
-		no strict 'refs';
-		my $form_action_callback = '_'.$form_action.'_object';
-		if (exists $args{controllers}->{$form->submitted} && $form->submitted ne $cancel) #method buttons
-		{	
-			if (ref $args{controllers}->{$form->submitted} eq 'HASH')
-			{				
-				if ($args{controllers}->{$form->submitted}->{$form_action})
-				{
-					unless (ref $args{controllers}->{$form->submitted}->{$form_action} eq 'CODE' && not $args{controllers}->{$form->submitted}->{$form_action}->($self))
-					{
-						$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
-					}					
-				}
-
-				$output->{controller} = $args{controllers}->{$form->submitted}->{callback}->($self) if ref $args{controllers}->{$form->submitted}->{callback} eq 'CODE';
-				
-				$args{hide_form} = 1 if exists $args{controllers}->{$form->submitted}->{hide_form};
-			}
-			else
+		if ($form->submitted ne $cancel)
+		{
+			my $form_validate = $form->validate(%{$args{validate}});
+			if ($form_validate)
 			{
-				$output->{controller} = $args{controllers}->{$form->submitted}->($self) if ref $args{controllers}->{$form->submitted} eq 'CODE';
+				no strict 'refs';
+				my $form_action_callback = '_'.$form_action.'_object';
+				if (exists $args{controllers}->{$form->submitted}) #method buttons
+				{	
+					if (ref $args{controllers}->{$form->submitted} eq 'HASH')
+					{				
+						if ($args{controllers}->{$form->submitted}->{$form_action})
+						{
+							unless (ref $args{controllers}->{$form->submitted}->{$form_action} eq 'CODE' && ! $args{controllers}->{$form->submitted}->{$form_action}->($self))
+							{
+								$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
+							}					
+						}
+
+						$output->{controller} = $args{controllers}->{$form->submitted}->{callback}->($self) if ref $args{controllers}->{$form->submitted}->{callback} eq 'CODE';
+
+						$args{hide_form} = 1 if exists $args{controllers}->{$form->submitted}->{hide_form};
+					}
+					else
+					{
+						$output->{controller} = $args{controllers}->{$form->submitted}->($self) if ref $args{controllers}->{$form->submitted} eq 'CODE';
+					}
+				}
+				elsif($form->submitted eq ucfirst ($form_action))
+				{
+					$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
+				}		
+				$output->{validate} = $form_validate;
 			}
 		}
-		elsif($form->submitted eq ucfirst ($form_action))
+		else
 		{
-			$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
-		}		
-		$output->{validate} = $form->validate(%{$args{validate}});
-	}
-	elsif($form->submitted eq $cancel)
-	{
-		$output->{validate} = 1;
+			$output->{validate} = 1;
+		}
 	}
 	
 	my ($hide_form, $html_form);
@@ -624,13 +719,12 @@ sub render_as_form
 sub render_as_table
 {
 	my ($self, %args) = (@_);
-	my ($table, @controllers, $output, $previous_page, $next_page, $last_page, $total, $query_hidden_fields, $q, $sort_by_column, $table_config);
+	my ($table, @controllers, $output, $query_hidden_fields, $q, $sort_by_column, $table_config);
 	my $class = $self->object_class();
-	
 	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
-	
 	my $renderer_config = _get_renderer_config($class);	
+	
 	foreach my $option (keys %{$renderer_config->{table}})
 	{
 		if (defined $args{$option})
@@ -678,16 +772,16 @@ sub render_as_table
 		my $sort_by_column_definition_method = $sort_by_column . '_definition';
 		my $sort_by_column_definition;
 		$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
-			
-		unless (not exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && exists $args{columns}->{$sort_by_column}->{value}))
+		
+		unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable})))
 		{
 			if ($sort_by_column eq $primary_key)
 			{
-				$args{get}->{sort_by} = $sort_by;
+				$args{get}->{sort_by} = 't1.' . $sort_by;
 			}
 			else
 			{
-				$args{get}->{sort_by} = $sort_by . ', '. $class->meta->table . '.' . $primary_key; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
+				$args{get}->{sort_by} = 't1.' . $sort_by . ', '. $class->meta->table . '.' . $primary_key; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 			}
 		}
 	}
@@ -700,7 +794,7 @@ sub render_as_table
 	{
 		$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries}, which get serialised later as query stings
 
-		$q = $query->param($param_list->{'q'});
+		$q = $args{q} || $query->param($param_list->{'q'});
 		
 		if ($q)
 		{
@@ -835,85 +929,81 @@ sub render_as_table
 	my $reload_object;
 	if ($query->param($param_list->{action}))
 	{
-		if ($query->param($param_list->{action}) eq 'create' && $args{create})
+		my $valid_form_actions = {create => undef, edit => undef, copy => undef};
+		my $action = $query->param($param_list->{action});
+		
+		if (exists $valid_form_actions->{$action} && $args{$action})
 		{
-			$args{create} = {} if $args{create} eq 1;
-			$args{create}->{output} = 1;
-			$args{create}->{no_head} ||= 1 if $args{no_head};
-			$args{create}->{order} ||= $args{order} if $args{order};
+			$args{$action} = {} if $args{$action} eq 1;
+			$args{$action}->{output} = 1;
+			$args{$action}->{no_head} ||= 1 if $args{no_head};
+			$args{$action}->{order} ||= $args{order} if $args{order};			
+			$args{$action}->{template} ||= 1 if $args{template};
+			@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};						
+			$args{$action}->{queries}->{$param_list->{action}} = $action;
+			$args{$action}->{queries}->{$param_list->{sort_by}} = $query->param($param_list->{sort_by}) if $query->param($param_list->{sort_by});
+			$args{$action}->{queries}->{$param_list->{page}} = $query->param($param_list->{page}) if $query->param($param_list->{page});	
+			$args{$action}->{prefix} ||= $table_id.'_form';
 			
-			$args{create}->{template} ||= 1 if $args{template} && not exists $args{create}->{template};
+			my $form;
+			if ($action eq 'create')
+			{
+				$form = $class->render_as_form(%{$args{$action}});
+			}
+			elsif ($query->param($param_list->{object}))
+			{
+				$args{$action}->{queries}->{$param_list->{object}} = $query->param($param_list->{object});
+					
+			    $args{$action}->{copy} = 1 if $action eq 'copy';
+					
+				foreach my $object (@{$objects})
+				{
+					if ($object->$primary_key eq $query->param($param_list->{object}))
+					{
+						$form = $object->render_as_form(%{$args{$action}});
+						last;
+					}
+				}
+			}
 			
-			@{$args{create}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};			
-			
-			$args{create}->{queries}->{$param_list->{action}} = 'create';
-			
-			$args{create}->{queries}->{$param_list->{sort_by}} = $query->param($param_list->{sort_by}) if $query->param($param_list->{sort_by});
-			$args{create}->{queries}->{$param_list->{page}} = $query->param($param_list->{page}) if $query->param($param_list->{page});	
-			
-			$args{create}->{prefix} ||= $table_id.'_form';
-			my $form = $class->render_as_form(%{$args{create}});
 			$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
 			$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
 		}
-		else
+		elsif ($query->param($param_list->{object}))
 		{
-			if ($query->param($param_list->{object}))
-			{				
-				my @action_object = $query->param($param_list->{object});
-				my $object_counter = 0;
-				foreach my $object (@{$objects})
+			$reload_object = 1;
+			my @object_ids = $query->param($param_list->{object});
+			my (%valid_object_ids, @action_objects);
+			@valid_object_ids{@object_ids} = ();
+								
+			foreach my $object (@{$objects})
+			{
+				push @action_objects, $object if exists $valid_object_ids{$object->$primary_key};
+			}
+			
+			if ($query->param($param_list->{action}) eq 'delete' && $args{delete})
+			{
+				foreach my $action_object (@action_objects)
 				{
-					foreach my $action_object (@action_object)
-					{
-						if ($object->$primary_key eq $action_object)
-						{
-							if ($query->param($param_list->{action}) eq 'delete' && $args{delete})
-							{
-								$object->delete_with_file;
-								$reload_object = 1;					
-							}
-							elsif($query->param($param_list->{action}) eq 'edit' && $args{edit})
-							{
-								$args{edit} = {} if $args{edit} eq 1;
-								$args{edit}->{output} = 1;
-								$args{edit}->{no_head} ||= 1 if $args{no_head};								
-								$args{edit}->{order} ||= $args{order} if $args{order};
-								
-								$args{edit}->{template} ||= 1 if $args{template} && not exists $args{edit}->{template};
-																
-								@{$args{edit}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};				
-								$args{edit}->{queries}->{$param_list->{action}} = 'edit';
-								
-								$args{edit}->{queries}->{$param_list->{object}} = $action_object;
-								
-								$args{edit}->{queries}->{$param_list->{sort_by}} = $query->param($param_list->{sort_by}) if $query->param($param_list->{sort_by});
-								$args{edit}->{queries}->{$param_list->{page}} = $query->param($param_list->{page}) if $query->param($param_list->{page});								
-								
-								$args{edit}->{prefix} ||= $table_id.'_form';
-
-								my $form = $object->render_as_form(%{$args{edit}});
-								$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
-								$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
-							}
-							elsif(exists $args{controllers} && exists $args{controllers}->{$query->param($param_list->{action})})
-							{
-								no strict 'refs';	
-								if (ref $args{controllers}->{$query->param($param_list->{action})} eq 'HASH')
-								{									
-									$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->{callback}->($object) if ref $args{controllers}->{$query->param($param_list->{action})}->{callback} eq 'CODE';
-									$args{hide_table} = 1 if exists $args{controllers}->{$query->param($param_list->{action})}->{hide_table};
-								}
-								else
-								{
-									$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->($object) if ref $args{controllers}->{$query->param($param_list->{action})} eq 'CODE';
-								}
-							}
-						}
-					}
-					$object_counter++;
+					$action_object->delete_with_file;
 				}
 			}
+			elsif (exists $args{controllers} && exists $args{controllers}->{$query->param($param_list->{action})})
+			{
+				no strict 'refs';
+				foreach my $action_object (@action_objects)
+				{
+					if (ref $args{controllers}->{$query->param($param_list->{action})} eq 'HASH')
+					{									
+						$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->{callback}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})}->{callback} eq 'CODE';
+						$args{hide_table} = 1 if exists $args{controllers}->{$query->param($param_list->{action})}->{hide_table};
+					}
+					else
+					{
+						$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})} eq 'CODE';
+					}
+				}
+			}			
 		}
 		
 		if(defined $output->{output})
@@ -923,12 +1013,12 @@ sub render_as_table
 			return;
 		}
 	}
-	
-	($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get});
+
+	my ($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get});
 	if($reload_object)
 	{
 		$args{get}->{page} = $last_page if $args{get}->{page} > $last_page;
-		$objects = $self->get_objects(%{$args{get}}) if $reload_object;
+		$objects = $self->get_objects(%{$args{get}});
 	}
 	
 	##Render Table
@@ -944,6 +1034,7 @@ sub render_as_table
 		else
 		{
 		 	@controllers = keys %{$args{controllers}} if $args{controllers};
+			push @controllers, 'copy' if $args{copy};
 			push @controllers, 'edit' if $args{edit};
 			push @controllers, 'delete' if $args{delete};
 		}
@@ -953,8 +1044,8 @@ sub render_as_table
 		if(exists $args{queries})
 		{			
 			$query_string->{base} = _create_query_string($args{queries});
-			$query_string->{sort_by} = clone($query_string->{base});
-			$query_string->{page} = clone($query_string->{base});	
+			$query_string->{sort_by} = _create_query_string($args{queries});
+			$query_string->{page} = _create_query_string($args{queries});	
 		}
 		
 		if($query->param($param_list->{sort_by}))
@@ -963,14 +1054,14 @@ sub render_as_table
 			$query_string->{exclusive} = $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&';
 		}
 
-		$query_string->{complete} = clone($query_string->{page});
+		$query_string->{complete} = $query_string->{page};
 		
 		if ($query->param($param_list->{page}))
 		{
-			$query_string->{complete} .= $param_list->{page}.'='.$query->param($param_list->{page}).'&';
-			$query_string->{exclusive} .= $param_list->{page}.'='.$query->param($param_list->{page}).'&';
+			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&';
+			$query_string->{exclusive} .= $param_list->{page}.'='.$args{get}->{page}.'&';
 		}
-		
+				
 		##Define Table
 				
 		if ($args{create})
@@ -1000,7 +1091,7 @@ sub render_as_table
 				$head->{value} = $column_definition->{label} || _label($column);				
 			}
 					
-			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{value}))
+			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || $args{columns}->{$column}->{unsortable})))
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -1088,8 +1179,8 @@ sub render_as_table
 				my $controller_query_string;
 				if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{queries})
 				{
-					$controller_query_string = clone($query_string->{exclusive});
-					$controller_query_string .= _create_query_string($args{controllers}->{$controller}->{queries});
+					$controller_query_string = $query_string->{exclusive};
+					$controller_query_string .= _create_query_string($args{controllers}->{$controller}->{queries});					
 				}
 				else
 				{
@@ -1153,7 +1244,8 @@ sub render_as_table
 			{
 				$template = $args{template};
 			}
-
+			
+			$args{template_data} ||= {};
 			$html_table = _render_template(options => $args{template_options}, template_path => $template_path, file => $template, output => 1, data => {
 				template_url => $template_url,
 				javascript_code => $args{javascript_code},
@@ -1175,7 +1267,8 @@ sub render_as_table
 				html_head => $html_head,
 				no_head => $args{no_head},
 				no_pagination => $table_config->{no_pagination},
-				extra => $args{extra}
+				extra => $args{extra},
+				%{$args{template_data}}
 			});
 		}
 		else
@@ -1323,7 +1416,6 @@ sub render_as_menu
 		$template = $args{template};
 	}
 	
-	
 	$current = $query->param($current_param) || $class->meta->table;	
 	$item_order = $args{order} || [$class];
 	
@@ -1352,19 +1444,20 @@ sub render_as_menu
 			$options->{queries}->{$current_param} = $table;	
 			$options->{prefix} ||= $menu_id.'_table';
 			$options->{url} ||= $url;
-			
-			$options->{template} = 1 if $args{template} && not defined $options->{template};
-			
+						
 			if ($args{ajax})
 			{
-				$hide_menu = 1 if $query->param($options->{prefix}.'_ajax') && $query->param($options->{prefix}.'_action') ne 'create' && $query->param($options->{prefix}.'_action') ne 'edit';
-				$options->{ajax} = $args{ajax} unless defined $options->{ajax};
+				my $valid_form_actions = {create => undef, edit => undef, copy => undef};
+				$hide_menu = 1 if $query->param($options->{prefix}.'_ajax') && ! exists $valid_form_actions->{$query->param($options->{prefix}.'_action')};
 			}
 			
-			$options->{create} = 1 if $args{create} eq 1 && not exists $options->{create};
-			$options->{edit} ||= 1 if $args{edit} eq 1 && not exists $options->{edit};
-			$options->{delete} ||= 1 if $args{delete} eq 1 && not exists $options->{delete};
+			my $shortcuts = ['create', 'edit', 'copy', 'delete', 'template', 'ajax'];
 			
+			foreach my $shortcut (@{$shortcuts})
+			{
+				$options->{$shortcut} = 1 if $args{$shortcut} && ! exists $options->{$shortcut};
+			}
+						
 			$options->{no_head} = 1;
 			$output->{table} = "$item\::Manager"->render_as_table(%{$options});
 			$menu_title ||= $items->{$item}->{label};
@@ -1375,11 +1468,12 @@ sub render_as_menu
 	
 	if ($args{template})
 	{
+		$args{template_data} ||= {};
 	 	$menu = _render_template(
 			options => $args{template_options},
 			template_path => $template_path,
 			file => $template, 
-			output => 1, 
+			output => 1,
 			data => {
 				menu_id => $menu_id,
 				no_head => $args{no_head},
@@ -1390,9 +1484,10 @@ sub render_as_menu
 				current => $current,
 				title => $menu_title,
 				description => $args{'description'},
-				extra => $args{extra},
 				content => $output->{table}->{output},
 				hide => $hide_menu,
+				extra => $args{extra},
+				%{$args{template_data}}
 			}
 		);
 	}
@@ -1566,6 +1661,7 @@ sub render_as_chart
 				$template = $args{template};
 			}
 			
+			$args{template_data} ||= {};
 			$chart = _render_template(
 				options => $args{template_options},
 				template_path => $template_path,
@@ -1580,7 +1676,8 @@ sub render_as_chart
 					description => $args{'description'},
 					no_head => $args{no_head},
 					html_head => $html_head,
-					extra => $args{'extra'}
+					extra => $args{extra},
+					%{$args{template_data}}
 				}
 			);		
 		}
@@ -1621,7 +1718,7 @@ sub _get_renderer_config
 {
 	my $self = shift;
 	return $self->renderer_config if $self->can('renderer_config');
-	return $CONFIG;
+	return config();
 }
 
 sub _pagination
@@ -1665,6 +1762,20 @@ sub _pagination
 	}
 
 	return ($previous_page, $next_page, $last_page, $total);
+}
+
+sub _copy_object
+{
+	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
+	my $clone = Rose::DB::Object::Helpers::clone_and_reset($self);
+	$clone->save(); # need the auto generated primary key for files;
+
+	my $renderer_config = _get_renderer_config($self);
+	my $primary_key = $self->meta->primary_key_column_names->[0];
+	my $self_upload_path = File::Spec->catdir($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key);
+	File::Copy::Recursive::dircopy($self_upload_path, File::Spec->catdir($renderer_config->{upload}->{path}, $self->stringify_class, $clone->$primary_key)) if -d $self_upload_path;
+	
+	return _update_object($clone, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object);
 }
 
 sub _update_object
@@ -1874,6 +1985,17 @@ sub _get_foreign_keys
 	return $foreign_keys;
 }
 
+sub _get_unique_keys
+{
+	my $class = shift;
+	my $unique_keys;
+	foreach my $unique_key (@{$class->meta->{unique_keys}})
+	{
+		$unique_keys->{$unique_key->columns->[0]} = undef;
+	}
+	return $unique_keys;
+}
+
 sub _get_relationships
 {
 	my $class = shift;
@@ -1901,7 +2023,7 @@ sub delete_with_file
 	return unless ref $self;
 	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	my $directory = join '/', ($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key);
+	my $directory = File::Spec->catdir($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key);
 	rmtree($directory) || die ("Could not remove $directory") if -d $directory;
 	return $self->delete();
 }
@@ -1946,7 +2068,7 @@ sub _get_file_path
 	return unless $value;
 	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	return join '/', ($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column, $value);
+	return File::Spec->catfile($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
 sub _get_file_url
@@ -1956,7 +2078,7 @@ sub _get_file_url
 	return unless $value;
 	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	return join '/', ($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
+	return File::Spec->catfile($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
 # formatting methods
@@ -2010,7 +2132,7 @@ sub _update_file
 	return unless $value && $value ne '';
 	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0]; 
-	my $upload_path = join '/', ($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column);	
+	my $upload_path = File::Spec->catdir($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column);
 	mkpath($upload_path) unless -d $upload_path;
 	
 	my $file_name = "$value";
@@ -2022,30 +2144,30 @@ sub _update_file
 	my $current_file = $self->$column;
 	
 	my $old_file;
-	$old_file = $upload_path.'/'.$current_file if $current_file;
-	my $new_file = $upload_path.'/'.$file_name;
+	$old_file = File::Spec->catfile($upload_path, $current_file) if $current_file;
+	my $new_file = File::Spec->catfile($upload_path, $file_name);
 	
 	if ($old_file eq $new_file && -e $old_file) # same file name
 	{
 		my $counter = 1;
-		my $backup_file = $upload_path.'/'.$actual_name.'-'.$counter.'.'.$extension;
+		my $backup_file = File::Spec->catfile($upload_path, $actual_name.'-'.$counter.'.'.$extension);
 		while (-e $backup_file)
 		{			
 			$counter++;
-			$backup_file = $upload_path.'/'.$actual_name.'-'.$counter.'.'.$extension;
+			$backup_file = File::Spec->catfile($upload_path, $actual_name.'-'.$counter.'.'.$extension);
 		}
 		move($old_file, $backup_file);
 		$old_file = $backup_file;
 	}
 	
-	if (copy($value, "$upload_path/$file_name"))
+	if (copy($value, File::Spec->catfile($upload_path, $file_name)))
 	{
 		unlink($old_file) if $old_file && !$renderer_config->{upload}->{keep_old_files};
 		return $self->$column($file_name);
 	}
 	else
 	{
-		move($old_file, $upload_path.'/'.$current_file) if $old_file;
+		move($old_file, File::Spec->catfile($upload_path, $current_file)) if $old_file;
 		return;
 	}	
 }
@@ -2179,6 +2301,19 @@ sub _search_ipv4
 
 #misc util
 
+sub _unique
+{
+	my ($class, $column, $value, $form) = @_;
+	my $existing = $class->new($column => $value)->load(speculative => 1);
+	return 1 unless $existing;	
+	my $primary_key = $class->meta->primary_key_column_names->[0];
+	return 1 if $existing->$primary_key == $form->field('object');
+	my $object_id = $form->name;
+	$object_id =~ s/_form$/_object/;
+	return 1 if $existing->$primary_key == $form->field($object_id);
+	return;
+}
+
 sub _identify
 {
 	my ($class, $prefix, $ui_type) = @_;
@@ -2257,8 +2392,13 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
   my $query = new CGI;
   print $query->header();
 
-  # Load a MySQL database named 'company', which has two tables: 'employee' and 'position', where employee has a position
-  my $renderer = Rose::DBx::Object::Renderer->new(config => {db => {name => 'company', username => 'root', password => 'root', tables_are_singular => 1}}, load => 1);
+  # Load all tables in the local MySQL database named 'company'
+  my $renderer = Rose::DBx::Object::Renderer->new(
+    config => {
+      db => {name => 'company', username => 'root', password => 'password'}
+    },
+    load => 1
+  );
   
   
   # Render a form to add new employee
@@ -2277,11 +2417,12 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
   # Render a table
   Company::Employee::Manager->render_as_table();
 
-  # Render a table for all the employees who love 'Coding' with create, edit, and delete access
+  # Render a table for all the employees who love 'Coding' with create, copy, edit, and delete access
   Company::Employee::Manager->render_as_table(
     get => {query => [hobby => 'Coding']}
     order => ['first_name', 'email', 'address', 'phone'],
-    create => 1, 
+    create => 1,
+    copy => 1,
     edit => 1,
     delete => 1,
     searchable => ['first_name', 'address']
@@ -2375,8 +2516,8 @@ The C<template> option specifies the template toolkit C<INCLUDE_PATH> and the ba
   $renderer->config({
     ...
     template => {
-      path => '../templates:../alternative',  # TT INCLUDE_PATH, defaulted to 'template'
-      url => '../images',  # defaulted to 'template'
+      path => '../templates:../alternative',  # TT INCLUDE_PATH, defaulted to 'templates'
+      url => '../images',  # defaulted to 'templates'
     },
   });
 
@@ -2387,8 +2528,8 @@ Renderer needs a directory with write access to upload files. The C<upload> opti
   $renderer->config({
     ...
     upload => {
-      path => '../uploads',  # the upload directory path, defaulted to 'upload'
-      url => '../uploads',  # the corresponding URL path, defaulted to 'upload'
+      path => '../files',  # the upload directory path, defaulted to 'uploads'
+      url => '../files',  # the corresponding URL path, defaulted to 'uploads'
       keep_old_files => 1,  # defaulted to undef
     },
   });
@@ -2416,7 +2557,7 @@ The C<table> option defines the default behaviours of C<render_as_table>:
       empty_message => 'No matching records.', 
       per_page => 25,  # number of records per table, defaulted to 15
       pages => 5,  # the amount of page numbers in the table pagination, defaulted to 9
-      no_pagination => 1,  # do not display pagination, default to undef
+      no_pagination => 1,  # do not display pagination, defaulted to undef
       or_filter => 1,  # column filtering is joined by 'OR', defaulted to undef
       delimiter => '/',  # the delimiter for joining foreign objects in relationship columns, defaulted to ', '
       keyword_delimiter => '\s+',  # the delimiter for search keywords, defaulted to ','
@@ -2519,7 +2660,7 @@ We can overwrite the existing formatting methods or define new ones. For instanc
   print $p->description;
   # prints 'The Lightweight UI Generator.'
 
-Formatting methods are utilised by rendering methods. They take preference over the default CRUD methods. The C<for_create>, C<for_edit>, and C<for_update> methods are used by C<render_as_form>. When creating new objects, C<render_as_form> triggers the C<for_create> method to format the default value of a column. When rendering an existing object as a form, however, the C<for_edit> methods are triggered to format column values. During form submissions, the C<for_update> methods are triggered to format the submitted form field values. The C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are triggered to format column values, the C<for_filter> methods are triggered for data filtering, and the C<for_search> methods are triggered for keyword searches.
+Formatting methods are utilised by rendering methods. They take preference over the default CRUD methods. The C<for_create>, C<for_edit>, and C<for_update> methods are used by C<render_as_form>. When creating new objects, C<render_as_form> triggers the C<for_create> methods to format the default value of each column. When rendering an existing object as a form, however, the C<for_edit> methods are triggered to format column values. During form submissions, the C<for_update> methods are triggered to format the submitted form field values. The C<for_view>, C<for_search>, and C<for_filter> methods are used by C<render_as_table>. The C<for_view> methods are triggered to format column values for data presentation, the C<for_filter> methods are triggered during data filtering, and the C<for_search> methods are triggered during keyword searches.
 
 =item C<unsortable>
 
@@ -2589,6 +2730,8 @@ Similarly, the C<make_classes> option is passed to the C<make_classes> method.
 
 C<load> returns an array of the loaded classes via the C<make_classes> method in L<Rose::DB::Object::Loader>. However, if the L<Rose::DB::Object> C<base_class> for the particular database already exists, which most likely happens in a persistent environment, C<load> will simply skip the loading process and return undef.
 
+C<load> generates L<CGI::FormBuilder> validation subrefs to validate unique keys in forms. However, since column definitions are identified by column names, custom validation subrefs are required when there are multiple unique keys with the same table column name accross different tables loaded via Renderer.
+
 =head1 RENDERING METHODS
 
 Rendering methods are exported for L<Rose::DB::Object> subclasses to generate web UIs. L<Rose::DB::Object> subclasses generated by calling C<load> will import the rendering methods automatically. However, we can also import the rendering methods into custom L<Rose::DB::Object> subclasses:
@@ -2598,7 +2741,7 @@ Rendering methods are exported for L<Rose::DB::Object> subclasses to generate we
   use Rose::DBx::Object::Renderer qw(:object);
   ...
    
-  # For manager classes 
+  # For manager classes
   package Company::Employee::Manager
   use Rose::DBx::Object::Renderer qw(:manager);
   ...
@@ -2619,17 +2762,21 @@ The template file name. When it is set to 1, rendering methods will try to find 
   Company::Employee::Manager->render_as_table(template => 1);
   # tries to use the template 'table.tt'
 
-=item C<template_url>
+=item C<template_path>
 
 The L<Template Toolkit>'s C<INCLUDE_PATH>.
 
-=item C<template_path>
+=item C<template_url>
 
 An URL path variable that is passed to templates.
 
 =item C<template_options>
 
 Optional parameters to be passed to L<Template Toolkit>. This is not applicable to C<render_as_form>.
+
+=item C<template_data>
+
+A hashref to overwrite the variables passed to the template.
 
 =item C<html_head>
 
@@ -2702,10 +2849,16 @@ A hashref to specify the L<CGI::FormBuilder> field definitions for this particul
   Company::Employee->render_as_form(
     order => ['username', 'favourite_cuisine'],
     fields => {
-    favourite_cuisine => {required => 1, options},
-  });
+      favourite_cuisine => {required => 1, options => ['Chinese', 'French', 'Japanese']}
+    }
+  );
 
-Please note that Renderer has a built-in column type called 'confirm_password', where its default validation tries to match a field named 'password' in the form.
+=item C<copy>
+
+Instead of updating the calling object, we can clone the object by setting C<copy> to 1.
+
+  ...
+  $e->render_as_form(copy => 1);
 
 =item C<queries>
 
@@ -2759,7 +2912,7 @@ Controllers are essentially callbacks. We can add multiple custom controllers to
 
 Within the C<controllers> hashref, we can set the C<create> parameter to 1 so that the object is always inserted into the database before running the custom callback. We can also point C<create> to a coderef, in which case, the object is inserted into the database only if the coderef returns true. 
 
-Similarly, when rendering an object instance as a form, we can update the object before running the custom callback:
+When rendering an object instance as a form, we can use the same mechanism to 'copy' or 'update' the object before running the custom callback, for instance:
 
   ...
   $e->render_as_form(
@@ -2801,10 +2954,10 @@ C<render_as_form> passes the following list of variables to a template:
   [% description %] - the form description
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
-  [% extra %] - custom variables
   [% cancel %] - the name of the 'Cancel' controller
   [% javascript_code %] - javascript code 
-  [% template_url %] - The default template URL
+  [% template_url %] - The default template URL[% extra %] - custom variables
+  [% extra %] - extra template variables
 
 =head2 C<render_as_table>
 
@@ -2822,11 +2975,14 @@ returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By
 
 =item C<columns>
 
-The C<columns> parameter can be used change the label or the value of a column. It can also be used to create custom columns, which do not exist in the underlying database.
+The C<columns> parameter can be used set the label and value of a column, as well as whether the column is sortable. It can also be used to create custom columns, which do not exist in the underlying database.
 
   Company::Employee::Manager->render_as_table(
     order => ['first_name', 'custom_column'],
     columns => {
+      'first_name' => {
+        unsortable => 1
+      },
       'custom_column' => {
         label => 'Favourite Drink',
         value => {
@@ -2850,9 +3006,9 @@ The C<searchable> option allows keyword search in multiple columns, including th
     searchable => ['first_name', 'last_name', 'position.title'],
   );
 
-This option adds an input text field named 'q' (unless a prefix is specified) in rendered table. By default, comma is the delimiter for seperating multiple keywords. This is configurable via C<config()>.
+This option adds a text field named 'q' in the rendered table. C<render_as_table()> grabs the value of the C<q> parameter if it is defined, otherwise pulls 'q' value from CGI, to produce the rearch results.
 
-=item C<searchable>
+By default, comma is the delimiter for seperating multiple keywords. This is configurable via C<config()>.
 
 =item C<get>
 
@@ -2900,6 +3056,10 @@ Since C<render_as_form> is used to render the form, we can also pass a hashref t
 
 Similar to C<create>, C<edit> enables the built-in 'edit' controller for updating objects.
 
+=item C<copy>
+
+C<copy> enables the built-in 'copy' controller for cloning objects.
+
 =item C<delete>
 
 When set to 1, C<delete> enables the built-in 'delete' controller for removing objects.
@@ -2943,10 +3103,10 @@ C<render_as_table> passes the following list of variables to a template:
   [% sort_by_column %] - the column to be sorted 
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
-  [% extra %] - custom variables
   [% javascript_code %] - javascript code
   [% ajax %] - the ajax variable for checking whether the current CGI request is a ajax request
   [% url %] - the base url
+  [% extra %] - extra template variables
 
 =head2 C<render_as_menu>
 
@@ -2979,7 +3139,7 @@ The C<order> parameter defines the list of classes to be shown in the menu as we
 
 The C<items> parameter is a hashref of parameters to control each table within the menu.
 
-=item C<create>, C<edit>, C<delete>, and C<ajax>
+=item C<create>, C<copy>, C<edit>, C<delete>, C<template>, and C<ajax>
 
 These parameters are shortcuts which get passed to all the underlying tables rendered by the menu.
 
@@ -2995,10 +3155,10 @@ C<render_as_menu> passes the following list of variables to a template:
   [% item_order %] - the order of the menu items
   [% current %] - the current menu item
   [% content %] - the output of the table
-  [% extra %] - custom variables
   [% hide %] - whether the menu should be hidden
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
+  [% extra %] - extra template variables
 
 =head2 C<render_as_chart>
 
@@ -3036,9 +3196,9 @@ C<render_as_chart> passes the following list of variables to a template:
   [% description %] - the chart description
   [% chart %] - the chart
   [% options %] - the 'options' hash
-  [% extra %] - custom variables
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
+  [% extra %] - extra template variables
 
 =head1 OBJECT METHODS
 

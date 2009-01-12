@@ -1,4 +1,4 @@
-[% html_head %]
+[% UNLESS no_head %][% html_head %][% END %]
 [% form.jshead %]
 <div class="light_container">
 <div class="light_title_container">
@@ -22,7 +22,7 @@
 				<td>
 					[% form.field.$field.field %]
 					[% IF form.field.$field.invalid %]
-							<font style = "color:red">Missing or invalid entry, please try again.</font><br/>
+							<font style = "color:red">[% form.field.$field.message || 'Missing or invalid entry, please try again.' %]</font><br/>
 					[% END %]
 				</td>
 				<td>

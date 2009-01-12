@@ -1,4 +1,4 @@
-[% html_head %]
+[% UNLESS no_head %][% html_head %][% END %]
 <div class="light_container">
 	[% IF searchable %]	
 	<div class="light_table_searchable_container"><div class="light_table_searchable">

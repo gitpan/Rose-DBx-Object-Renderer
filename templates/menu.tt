@@ -1,4 +1,4 @@
-[% html_head %]
+[% UNLESS no_head %][% html_head %][% END %]
 [% UNLESS hide %]
 <div class="light_container">
 <div class="light_menu">

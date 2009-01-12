@@ -5,6 +5,6 @@ coverage" if $@;
 
 plan tests => 1;
 
-my $params = { trustme => [qr/^(?:new|clone)$/] };
+my $params = { trustme => [qr/^(?:new)$/] };
 
 pod_coverage_ok('Rose::DBx::Object::Renderer', $params);
