@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.40;
-# 113.35
+our $VERSION = 0.41;
+# 116.35
 
 sub config
 {
@@ -169,8 +169,7 @@ sub load
 	my $loader = Rose::DB::Object::Loader->new(%{$args->{loader}});
 	$loader->convention_manager->tables_are_singular(1) if $config->{db}->{tables_are_singular};
 	
-	my @loaded;
-	my $custom_definitions;
+	my (@loaded, $custom_definitions, $validated_unique_keys);
 	foreach my $class ($loader->make_classes(%{$args->{make_classes}}))
 	{
 		my $package = qq(package $class;);
@@ -179,7 +178,7 @@ sub load
 		{	
 			my $foreign_keys = _get_foreign_keys($class);
 			my $unique_keys = _get_unique_keys($class);
-			
+						
 			$package .= 'use Rose::DBx::Object::Renderer qw(:object);';
 
 			foreach my $column (@{$class->meta->columns})
@@ -239,55 +238,81 @@ sub load
 							}						
 						}						
 					}
-					
+										
 					if (exists $unique_keys->{$column})
-					{						
-						unless ($column_type eq $column)
-						{							
+					{
+						unless ($column eq $column_type)
+						{
 							foreach my $key (keys %{$config->{columns}->{$column_type}})
 							{
 								$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
 							}
-							$column_type = $column;
 						}
 						
-						$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
-						if (exists $config->{columns}->{$column}->{validate})
+						if (exists $config->{columns}->{$column_type}->{validate})
 						{
-							my $validate = $config->{columns}->{$column}->{validate};							
-							$validate = $CGI::FormBuilder::Field::VALIDATE{$validate} if exists $CGI::FormBuilder::Field::VALIDATE{$validate};
-													
-							if ($validate =~ /^m(\S)(.*)\1$/ || $validate =~ /^(\/)(.*)\1$/)
+							if (ref $config->{columns}->{$column_type}->{validate} eq 'HASH')
 							{
-							    (my $regex = $2) =~ s#\\/#/#g;
-							    $regex =~ s#/#\\/#g;
-															
-								$config->{columns}->{$column}->{validate} = {
-									javascript => $validate,
-									perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($class, $column, $value, $form);}
-								};							
+								$validated_unique_keys->{$column} = $config->{columns}->{$column_type}->{validate}->{javascript};
 							}
-							elsif (ref $validate eq 'ARRAY')
+							else
 							{
-								$config->{columns}->{$column}->{validate} = {
-									javascript => $validate,
-									perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validate}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($class, $column, $value, $form);}
-								};
+								if (ref $validated_unique_keys->{$column} eq 'CODE')
+								{
+									$validated_unique_keys->{$column} = undef;
+								}
+								else
+								{
+									if (ref $validated_unique_keys->{$column} eq 'ARRAY')
+									{
+										$validated_unique_keys->{$column} = $config->{columns}->{$column_type}->{validate};
+
+										$config->{columns}->{$column}->{validate} = {
+											javascript => $validated_unique_keys->{$column},
+											perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validated_unique_keys->{$column}}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($config, $class, $column, $value, $form);}
+										};
+									}
+									else
+									{
+										if (exists $CGI::FormBuilder::Field::VALIDATE{$config->{columns}->{$column_type}->{validate}})
+										{
+											$validated_unique_keys->{$column} =  $CGI::FormBuilder::Field::VALIDATE{$config->{columns}->{$column_type}->{validate}};
+										}
+										else
+										{
+											$validated_unique_keys->{$column} = $config->{columns}->{$column_type}->{validate};
+										}
+										
+										if ($validated_unique_keys->{$column} =~ /^m(\S)(.*)\1$/ || $validated_unique_keys->{$column} =~ /^(\/)(.*)\1$/)
+										{
+											(my $regex = $2) =~ s#\\/#/#g;
+										    $regex =~ s#/#\\/#g;
+											$config->{columns}->{$column}->{validate} = {
+												javascript => $validated_unique_keys->{$column},
+												perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($config, $class, $column, $value, $form);}
+											};
+										}
+										else
+										{								
+											$config->{columns}->{$column}->{validate} = {
+												javascript => $validated_unique_keys->{$column},
+												perl => sub {my ($value, $form) = @_;return if $value ne $validated_unique_keys->{$column};return _unique($config, $class, $column, $value, $form);}
+											};
+										}
+									}
+								}
 							}
-							elsif (! ref $validate)
-							{
-								$config->{columns}->{$column}->{validate} = {
-									javascript => $validate,
-									perl => sub {my ($value, $form) = @_;return if $value ne $validate;return _unique($class, $column, $value, $form);}
-								};
-							}
-		
 						}
 						else
 						{
-							$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($class, $column, $value, $form);};
+							$validated_unique_keys->{$column} = undef;
+							$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($config, $class, $column, $value, $form);};
 						}
 												
+						$column_type = $column;
+						
+						$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
+										
 						unless (defined $config->{columns}->{$column}->{message})
 						{
 							my $column_label;
@@ -313,6 +338,17 @@ sub load
 								}
 							}											
 						}						
+					}
+					elsif (exists $validated_unique_keys->{$column_type} && $column ne $column_type) # prevent inheriting validation subref from matching unique column type
+					{
+						foreach my $key (keys %{$config->{columns}->{$column_type}})
+						{
+							$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
+						}
+						$config->{columns}->{$column}->{validate} = $validated_unique_keys->{$column_type};
+						delete $config->{columns}->{$column}->{message};
+						delete $config->{columns}->{$column}->{jsmessage};
+						$column_type = $column;
 					}
 					
 					$package .= _generate_methods($config, $column, $column_type);
@@ -2303,9 +2339,19 @@ sub _search_ipv4
 
 sub _unique
 {
-	my ($class, $column, $value, $form) = @_;
-	my $existing = $class->new($column => $value)->load(speculative => 1);
-	return 1 unless $existing;	
+	my ($config, $class, $column, $value, $form) = @_;
+	
+	my $existing;
+	if (exists $config->{columns}->{$column} && exists $config->{columns}->{$column}->{format} && exists $config->{columns}->{$column}->{format}->{for_filter})
+	{
+		$existing = $class->new($column => $config->{columns}->{$column}->{format}->{for_filter}->($class, $column, $value))->load(speculative => 1);
+	}
+	else
+	{		
+		$existing = $class->new($column => $value)->load(speculative => 1);
+	}
+	
+	return 1 unless $existing;
 	my $primary_key = $class->meta->primary_key_column_names->[0];
 	return 1 if $existing->$primary_key == $form->field('object');
 	my $object_id = $form->name;
