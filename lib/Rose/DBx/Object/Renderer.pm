@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.41;
-# 116.35
+our $VERSION = 0.42;
+# 118.35
 
 sub config
 {
@@ -417,8 +417,7 @@ sub render_as_form
 	my $cancel = $args{cancel} || $renderer_config->{form}->{cancel};
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
-	my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head};
-	$html_head =~ s/\[%\s*title\s*%\]/$form_title/;
+	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$form_title/;
 	
 	my $foreign_keys = _get_foreign_keys($class);
 	my $relationships = _get_relationships($class);
@@ -778,8 +777,7 @@ sub render_as_table
 	my $like_operator = $args{like_operator} || $renderer_config->{db}->{like_operator};
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
-	my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head};
-	$html_head =~ s/\[%\s*title\s*%\]/$table_title/;
+	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$table_title/;
 	
 	my $ui_type = (caller(0))[3];
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
@@ -1419,13 +1417,10 @@ sub render_as_menu
 	
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
-	my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head};
-	$html_head =~ s/\[%\s*title\s*%\]/$menu_title/;
 	
 	my $ui_type = (caller(0))[3];
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
 	my $menu_id = _identify($class, $args{prefix}, $ui_type);
-	
 	
 	if ($args{prefix})
 	{
@@ -1502,6 +1497,7 @@ sub render_as_menu
 	
 	$hide_menu = 1 if $query->param($hide_menu_param);
 	
+	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$menu_title/;
 	if ($args{template})
 	{
 		$args{template_data} ||= {};
@@ -1556,9 +1552,8 @@ sub render_as_chart
 	
 	my $renderer_config = _get_renderer_config($class);
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
-	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
-	my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head};
-	$html_head =~ s/\[%\s*title\s*%\]/$title/;
+	my $template_path = $args{template_path} || $renderer_config->{template}->{path};	
+	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$title/;
 	
 	my $ui_type = (caller(0))[3];
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
@@ -2057,9 +2052,8 @@ sub delete_with_file
 {
 	my $self = shift;
 	return unless ref $self;
-	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	my $directory = File::Spec->catdir($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key);
+	my $directory = File::Spec->catdir(_get_renderer_config($self)->{upload}->{path}, $self->stringify_class, $self->$primary_key);
 	rmtree($directory) || die ("Could not remove $directory") if -d $directory;
 	return $self->delete();
 }
@@ -2070,19 +2064,22 @@ sub stringify_me
 	my @values;
 	foreach my $column (sort {$a->ordinal_position <=> $b->ordinal_position} @{$self->meta->columns})
 	{
-		my $column_definition_method = $column.'_definition';
-		if ($self->can($column_definition_method)) # filter primary keys and custom coded columns
+		my $column_definition_method = $column . '_definition';
+		if ($self->can($column_definition_method) && $self->$column_definition_method->{stringify}) # filter primary keys and custom coded columns
 		{
-			my $column_definition = $self->$column_definition_method;
-			push @values, $self->$column if $column_definition->{stringify};
+			my $for_view_method = $column . '_for_view';
+			if ($self->can($for_view_method))
+			{
+				push @values, $self->$for_view_method;
+			}
+			else
+			{
+				push @values, $self->$column;
+			}
 		}
 	}
 	
-	if (@values)
-	{
-		my $renderer_config = _get_renderer_config($self);
-		return join $renderer_config->{misc}->{stringify_delimiter}, @values;
-	}
+	return join _get_renderer_config($self)->{misc}->{stringify_delimiter}, @values if @values;
 	my $primary_key = $self->meta->primary_key_column_names->[0];
 	return $self->$primary_key;	
 }
@@ -2102,9 +2099,8 @@ sub _get_file_path
 	my ($self, $column) = @_;
 	my $value = $self->$column;
 	return unless $value;
-	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	return File::Spec->catfile($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column, $value);
+	return File::Spec->catfile(_get_renderer_config($self)->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
 sub _get_file_url
@@ -2112,9 +2108,8 @@ sub _get_file_url
 	my ($self, $column) = @_;
 	my $value = $self->$column;
 	return unless $value;
-	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	return File::Spec->catfile($renderer_config->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
+	return File::Spec->catfile(_get_renderer_config($self)->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
 # formatting methods
@@ -2347,16 +2342,15 @@ sub _unique
 		$existing = $class->new($column => $config->{columns}->{$column}->{format}->{for_filter}->($class, $column, $value))->load(speculative => 1);
 	}
 	else
-	{		
+	{
 		$existing = $class->new($column => $value)->load(speculative => 1);
-	}
-	
+	}	
 	return 1 unless $existing;
+
+	(my $prefix = $form->name) =~ s/_form$//;
+	return unless $form->field('action') eq 'edit' ||  $form->field($prefix.'_action') eq 'edit';
 	my $primary_key = $class->meta->primary_key_column_names->[0];
-	return 1 if $existing->$primary_key == $form->field('object');
-	my $object_id = $form->name;
-	$object_id =~ s/_form$/_object/;
-	return 1 if $existing->$primary_key == $form->field($object_id);
+	return 1 if $existing->$primary_key == $form->field('object') || $existing->$primary_key == $form->field($prefix.'_object');	
 	return;
 }
 
@@ -2365,8 +2359,7 @@ sub _identify
 	my ($class, $prefix, $ui_type) = @_;
 	unless ($prefix)
 	{
-		$prefix = lc $class;
-		$prefix =~ s/::/_/g;
+		($prefix = lc $class) =~ s/::/_/g;
 		$prefix .= '_'. $ui_type;
 	}
 	return $prefix;	

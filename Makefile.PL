@@ -18,8 +18,8 @@ WriteMakefile(
         'Template' => 0,
         'File::Path' => 0,
         'File::Copy' => 0,
-	'File::Copy::Recursive' => 0,
-	'File::Spec' => 0,
+        'File::Copy::Recursive' => 0,
+        'File::Spec' => 0,
         'Digest::MD5' => 0,
         'Exporter' => '5.57'
     },

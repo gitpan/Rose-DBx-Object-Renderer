@@ -166,3 +166,8 @@ Revision history for Rose-DBx-Object-Renderer
 0.41    14/01/2009
         Fixed a bug where non-unique columns inherits validation code from matching unique columns (Reported by Stewart Heckenberg).
         Updated the auto-generated unique key validation code to handle columns with 'for_filter' formatting methods.
+0.42    11/02/2009
+        Fixed a bug where copying objects with unique keys in render_as_form().
+        Fixed the empty HTML title in render_as_menu().
+        Update stringify_me() to use 'for_view' methods when available.
+        Minor code re-factoring.
