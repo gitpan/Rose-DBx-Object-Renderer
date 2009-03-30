@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.43;
-# 125.37
+our $VERSION = 0.44;
+# 127.37
 
 sub config
 {
@@ -750,7 +750,8 @@ sub render_as_form
 		}
 		else
 		{
-			$html_form .= qq(<div><h1>$form_title</h1><p>$args{description}</p>) . _touch_up($form->render, $cancel) . '</div>';
+			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
+			$html_form .= qq(<div><h1>$form_title</h1>$args{description}) . _touch_up($form->render, $cancel) . '</div>';
 			$html_form = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$form_title</title>$html_head</head><body>$html_form</body></html>) unless $args{no_head};
 			$html_form .= qq(<script type="text/javascript">$args{javascript_code}</script>) if $args{javascript_code};
 		}
@@ -1317,10 +1318,11 @@ sub render_as_table
 			});
 		}
 		else
-		{			
+		{
+			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
 			$html_table .= '<div>';			
 			$html_table .= qq(<div class="block"><form action="$url" method="get" id="$table_id\_search_form"><label for="$table_id\_search">Search </label><input type="text" name="$param_list->{q}" id="$table_id\_search" value="$q"/>$query_hidden_fields</form></div>) if $args{searchable};			
-			$html_table .= qq(<h2>$table_title</h2><p>$args{description}</p>);
+			$html_table .= qq(<h2>$table_title</h2>$args{description});
 			$html_table .= qq(<div class="block"><a href="$table->{create}->{link}">$table->{create}->{value}</a></div>) if exists $table->{create};
 			$html_table .= qq(<table id="$table_id">);
 
@@ -1540,6 +1542,7 @@ sub render_as_menu
 	{			
 		unless ($args{hide_menu})
 		{ 
+			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
 			$menu = '<div><div class="menu"><ul>';
 			foreach my $item (@{$item_order})
 			{
@@ -1547,7 +1550,7 @@ sub render_as_menu
 				$menu .= 'class="current" ' if $items->{$item}->{table} eq $current;
 				$menu .= 'href="'.$items->{$item}->{link}.'">'.$items->{$item}->{label}.'</a></li>';
 			}
-			$menu .= '</ul></div><p>'.$args{'description'}.'</p></div>';
+			$menu .= '</ul></div>'.$args{'description'}.'</div>';
 		}
 		$menu .= $output->{table}->{output};
 		$menu = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$menu_title</title>$html_head</head><body>$menu</body></html>) unless $args{no_head};		
@@ -1730,8 +1733,9 @@ sub render_as_chart
 			);		
 		}
 		else
-		{	
-			$chart = qq(<div><h1>$title</h1><p>$args{'description'}</p><img src="$chart_url" alt="$title"/></div>);
+		{
+			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};			
+			$chart = qq(<div><h1>$title</h1>$args{'description'}<img src="$chart_url" alt="$title"/></div>);
 			$chart = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$title</title>$html_head</head><body>$chart</body></html>) unless $args{no_head};
 		}
 	}

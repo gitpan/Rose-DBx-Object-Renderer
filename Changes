@@ -180,3 +180,5 @@ Revision history for Rose-DBx-Object-Renderer
         render_as_form now passes the [% form_submit %] variable to the template to utilise the custom 'Cancel' button.
         Fixed a bug in render_as_form() when updating columns using the ENUM data type in MySQL.
         Updated POD.
+0.44    30/03/2009
+        Removed useless <p> tags around undefined 'descriptions' in rendering methods when no template is used.
