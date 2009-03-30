@@ -1,8 +1,9 @@
-[% UNLESS no_head %][% html_head %][% END %]
-<div class="light_container">
-	<div class="light_title_container">
-		<h2>[% title %]</h2>
-		<p>[% description %]</p>
+[% IF no_head %][% PROCESS chart %][% ELSE %][% doctype %]<html xmlns="http://www.w3.org/1999/xhtml"><head><title>[% title %]</title>[% html_head %]</head><body>[% PROCESS chart %]</body></html>[% END %]
+
+[% BLOCK chart %]
+	<div>
+		<h1>[% title %]</h1>
+		[% IF description %]<p>[% description %]</p>[% END %]
+		<img src="[% chart %]" alt="[% title %]"/>
 	</div>
-	<img src="[% chart %]"/>
-</div>
+[% END %]

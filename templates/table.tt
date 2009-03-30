@@ -1,71 +1,49 @@
-[% UNLESS no_head %][% html_head %][% END %]
-<div class="light_container">
-	[% IF searchable %]	
-	<div class="light_table_searchable_container"><div class="light_table_searchable">
-		<form action="[% url %]" method="get" id="[% table_id %]_search_form"><label for="[% table_id %]_search">
-			<span class="light_table_searchable_span">Search</span><input type="search" name="[% param_list.q %]" id="[% table_id %]_search" accesskey="s" value ="[% q %]"></label>[% query_hidden_fields %]
-		</form>
-	</div></div>
-	[% END %]
-	<div class="light_title_container">
-	<h2>[% title %]</h2>
-	<p>[% description %]</p>
-	</div>
-	
-	<div class="light_table_actions_container"><div class="light_table_actions">
-		[% IF table.exists('create') %]<a href="[% table.create.link %]">[% table.create.value %]</a>[% END %]
-	</div>
-	
-	</div>
-	<table id="[% table_id %]" class="light_table">
-		<tr>
-		[% FOREACH head = table.head %]
-			<th scope="col">[% IF head.exists('link') %]<a href="[% head.link %]">[% head.value %]</a>[% ELSE %][% head.value %][% END %]</th>
-		[% END %]
-		</tr>
-		[% IF table.rows %]
-			[% FOREACH row = table.rows %]
-				<tr>
-					[% FOREACH column = row.columns %]
-						<td>
-						[% IF column.exists('link') %]
-							<a href="[% column.link %]">[% column.value %]</a>
-						[% ELSE %]
-							[% column.value %]
+[% IF no_head %][% PROCESS table %][% ELSE %][% doctype %]<html xmlns="http://www.w3.org/1999/xhtml"><head><title>[% title %]</title>[% html_head %]</head><body>[% PROCESS table %]</body></html>[% END %]
+
+[% BLOCK table %]
+	<div>
+		[% IF searchable %]<div class="block"><form action="[% url %]" method="get" id="[% table_id %]_search_form"><label for="[% table_id %]_search">Search </label><input type="text" name="[% param_list.q %]" id="[% table_id %]_search" value ="[% q %]"/>[% query_hidden_fields %]</form></div>[% END %]
+		<h1>[% title %]</h1>
+		[% IF description %]<p>[% description %]</p>[% END %]
+		[% IF table.exists('create') %]<div class="block"><a href="[% table.create.link %]">[% table.create.value %]</a></div>[% END %]
+		<table id="[% table_id %]">
+			<tr>
+			[% FOREACH head = table.head %]
+				<th scope="col">[% IF head.exists('link') %]<a href="[% head.link %]">[% head.value %]</a>[% ELSE %][% head.value %][% END %]</th>
+			[% END %]
+			</tr>
+			[% IF table.rows %]
+				[% FOREACH row = table.rows %]
+					<tr>
+						[% FOREACH column = row.columns %]
+							<td>[% IF column.exists('link') %]<a href="[% column.link %]">[% column.value %]</a>[% ELSE %][% column.value %][% END %]</td>
 						[% END %]
-						</td>
-					[% END %]
-				</tr>
-			[% END %]
-		[% ELSE %]
-			<tr><td colspan="[% table.total_columns %]"><p>No record found.</p></td></tr>
-		[% END %]
-	</table>
-	[% UNLESS no_pagination %]
-		<div class="light_container">
-		[% IF table.pager.current_page.value == table.pager.first_page.value %]
-			<<  <
-		[% ELSE %]
-			<a href="[% table.pager.first_page.link %]"><< </a>
-			<a href="[% table.pager.previous_page.link %]"><</a>
-		[% END %]
-		[% WHILE table.pager.start_page < table.pager.end_page %]
-			[% IF table.pager.start_page == table.pager.current_page.value %]
-				 [% table.pager.start_page %] 
+					</tr>
+				[% END %]
 			[% ELSE %]
-				<a href="[% url %]?[% query_string.page %][% param_list.page %]=[% table.pager.start_page %]"> [% table.pager.start_page %] </a>
+				<tr><td colspan="[% table.total_columns %]">No record found.</td></tr>
 			[% END %]
-			[% table.pager.start_page = table.pager.start_page + 1 %]
+		</table>
+		[% UNLESS no_pagination %]
+			<div>
+			[% IF table.pager.current_page.value == table.pager.first_page.value %]&lt;&lt;  &lt;[% ELSE %]<a href="[% table.pager.first_page.link %]">&lt;&lt; </a><a href="[% table.pager.previous_page.link %]">&lt;</a>[% END %]
+			
+			[% WHILE table.pager.start_page < table.pager.end_page %]
+				[% IF table.pager.start_page == table.pager.current_page.value %]
+					 [% table.pager.start_page %] 
+				[% ELSE %]
+					<a href="[% url %]?[% query_string.page %][% param_list.page %]=[% table.pager.start_page %]"> [% table.pager.start_page %] </a>
+				[% END %]
+				[% table.pager.start_page = table.pager.start_page + 1 %]
+			[% END %]
+			
+			[% IF table.pager.current_page.value == table.pager.last_page.value %]&gt; &gt;&gt;[% ELSE %]<a href="[% table.pager.next_page.link %]">&gt; </a><a href="[% table.pager.last_page.link %]">&gt;&gt;</a>[% END %]
+			</div>
 		[% END %]
-		[% IF table.pager.current_page.value == table.pager.last_page.value %]
-			> >>
-		[% ELSE %]
-			<a href="[% table.pager.next_page.link %]">> </a>
-			<a href="[% table.pager.last_page.link %]">>></a>
-		[% END %]
-		</div>
+	</div>
+	[% IF javascript_code %]
+		<script type="text/javascript">
+			[% javascript_code %]
+		</script>
 	[% END %]
-</div>
-<script type="text/javascript">						
-[% javascript_code %]
-</script>
+[% END %]

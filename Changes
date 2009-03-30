@@ -171,3 +171,12 @@ Revision history for Rose-DBx-Object-Renderer
         Fixed the empty HTML title in render_as_menu().
         Update stringify_me() to use 'for_view' methods when available.
         Minor code re-factoring.
+0.43    30/03/2009
+        Added the 'delimiter' form option to the default config for handling columns with multiple values.
+        Simplified the default CSS. Deprecated all built-in CSS classes except for: '.menu' (for render_as_menu), and '.block' (for <div>s in render_as_table).
+        Revised the generated HTML. Rendering methods now generate complete HTML unless the 'no_head' option is in use.
+        Added the 'doctype' option to the default config. Updated all sample TT templates.
+        Updated render_as_form to use Javascript 'history.back()' for the 'Cancel' button in order to fix the Javascript validation issue in Safari.
+        render_as_form now passes the [% form_submit %] variable to the template to utilise the custom 'Cancel' button.
+        Fixed a bug in render_as_form() when updating columns using the ENUM data type in MySQL.
+        Updated POD.

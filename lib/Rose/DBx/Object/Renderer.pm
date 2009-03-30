@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.42;
-# 118.35
+our $VERSION = 0.43;
+# 125.37
 
 sub config
 {
@@ -31,15 +31,15 @@ sub config
 			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
 			template => {path => 'templates', url => 'templates'},
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
-			form => {download_message => 'Download File', cancel => 'Cancel'},
-			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},
-			misc => {stringify_delimiter => ' ', html_head => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><head><title>[% title %]</title><style type="text/css">*{margin:0px;padding:0px;}body{font-family: "trebuchet ms", helvetica, sans-serif;font-size:small;color:#666666;}a{color:#1B80BB;text-decoration: none;}a:hover{color:#0D3247;text-decoration: none;}p{margin:10px 20px;line-height: 180%;}form table{width:100%;}form td{border:0px;text-align:left;padding: 5px 20px;}form input, form textarea, form select{color: #666666;border: 1px solid #dddddd;background-color:#fff;margin-right: 10px;}form input[type="submit"]{padding:2px 7px;font-size:100%;}form input[type="text"]{padding-top:4px;}h2{font-size:330%;color:#aaa;font-weight:normal;}img{border:0px;}.light_container{padding:10px 10px 0px 10px;}.light_title_container{padding:30px 10px 0px 10px;}.light_table_searchable_container{width:100%;}.light_table_searchable{float:right;padding-top:6px;}.light_table_searchable_span{padding-right:3px;}.light_table_actions_container{position:relative;height:20px;}.light_table_actions{float:right;font-size:110%;padding-right:6px;}.light_table{width:100%;border:0px;padding:5px 10px; border-collapse:collapse;border-spacing:0px;}.light_table th, .light_table td{text-align:left;padding: 6px 2px;border-bottom: 1px solid #dddddd;}.light_table th{color:#666666;font-size:110%;font-weight:normal;background-color: #eee;}.light_menu{float:left;width:100%;background-color:#ddd;line-height:normal;}.light_menu ul{margin:0px;padding:10px 6px 0px 6px;list-style-type:none;}.light_menu ul li{display:inline;padding:0px;margin:0px;}.light_menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.light_menu ul li a:hover{background-color:#eee;color:#0D3247;}.light_menu ul li a.light_menu_current,.light_menu ul li a.light_menu_current:hover{cursor:pointer;background-color:#fff;}</style></head>'},
+			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
+			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},		
+			misc => {stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form table{width:100%;}form td{border:0px;text-align:left;padding:5px 20px;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;background-color:#fff;border:1px solid #ddd;margin-right:10px;}input[type="button"],input[type="submit"]{font-size:108%;padding:2px 7px;}h1,h2{font-size:350%;padding:15px;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:6px 2px;border-bottom: 1px solid #ddd;font-size:93%;}th{color:#666666;font-size:108%;font-weight:normal;background-color:#eee;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#ddd;padding:0px;width:100%;height:37px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.menu ul li a:hover{background-color:#eee;color:#0D3247;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
 				'float' => {validate => 'FLOAT', sortopts => 'NUM', comment => 'e.g.: 2982.21'},
 				'text' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10', class => 'disable_editor'},
-				'address' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '3', class => 'disable_editor', format => {for_view => sub {_view_address(@_);}}},
+				'address' => {sortopts => 'LABELNAME', format => {for_view => sub {_view_address(@_);}}},
 				'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
 				'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
 				'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_view_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
@@ -508,9 +508,10 @@ sub render_as_form
 		}
 		elsif (exists $class->meta->{columns}->{$column}) #normal column
 		{	
-			if (exists $foreign_keys->{$column}) #create or edit
-			{				
-				unless (exists $field_def->{options} || $field_def->{type} eq 'hidden')
+						
+			unless (exists $field_def->{options} || $field_def->{type} eq 'hidden')
+			{					
+				if (exists $foreign_keys->{$column}) #create or edit
 				{
 					my $foreign_class = $foreign_keys->{$column}->{class};
 					my $foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
@@ -560,6 +561,10 @@ sub render_as_form
 						}
 					}
 				}
+				elsif (exists $class->meta->{columns}->{$column}->{check_in})
+				{
+					$field_def->{options} = $class->meta->{columns}->{$column}->{check_in};
+				}
 			}
 						
 			if (ref $self) #edit
@@ -578,6 +583,11 @@ sub render_as_form
 						if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
 						{
 							$field_def->{value} = $self->$column;
+						}
+						elsif ($field_def->{options} && $field_def->{multiple})
+						{
+							my $delimiter = '\\' . $renderer_config->{form}->{delimiter};
+							$field_def->{value} = [split /$delimiter/, $self->$column];
 						}
 						else
 						{
@@ -660,7 +670,6 @@ sub render_as_form
 	}
 	
 	$form->{submit} = $args{controller_order};
-	
 	$args{template_data} ||= {};
 	$form->template({
 						variable => 'form', 
@@ -669,8 +678,10 @@ sub render_as_form
 							javascript_code => $args{javascript_code},
 							field_order => $field_order,
 							form_id => $form_id,
+							form_submit => _touch_up($form->prepare->{submit}, $cancel),
 							title => $form_title,
 							description => $args{description},
+							doctype => $renderer_config->{misc}->{doctype},
 							html_head => $html_head,
 							no_head => $args{no_head},
 							self => $self,
@@ -739,12 +750,11 @@ sub render_as_form
 		}
 		else
 		{
-			$html_form = $html_head unless $args{no_head};
-			$html_form .= qq(<div class="light_container"><div class="light_title_container"><h2>$form_title</h2><p>$args{description}</p></div>) . $form->render . '</div>';			
+			$html_form .= qq(<div><h1>$form_title</h1><p>$args{description}</p>) . _touch_up($form->render, $cancel) . '</div>';
+			$html_form = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$form_title</title>$html_head</head><body>$html_form</body></html>) unless $args{no_head};
+			$html_form .= qq(<script type="text/javascript">$args{javascript_code}</script>) if $args{javascript_code};
 		}
 
-		$html_form .= qq(<script type="text/javascript">$args{javascript_code}</script>) unless $args{template};
-		
 		$args{output}?$output->{output} = $html_form:print $html_form;
 	}
 	
@@ -1084,16 +1094,16 @@ sub render_as_table
 		
 		if($query->param($param_list->{sort_by}))
 		{
-			$query_string->{page} .= $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&';
-			$query_string->{exclusive} = $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&';
+			$query_string->{page} .= $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;';
+			$query_string->{exclusive} = $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;';
 		}
 
 		$query_string->{complete} = $query_string->{page};
 		
 		if ($query->param($param_list->{page}))
 		{
-			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&';
-			$query_string->{exclusive} .= $param_list->{page}.'='.$args{get}->{page}.'&';
+			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;';
+			$query_string->{exclusive} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;';
 		}
 				
 		##Define Table
@@ -1220,7 +1230,7 @@ sub render_as_table
 				{
 					$controller_query_string = $query_string->{complete};
 				}
-				push @{$row->{columns}}, {name => $controller, value => $label, link => qq($url?$controller_query_string$param_list->{action}=$controller&$param_list->{object}=$object_id)};
+				push @{$row->{columns}}, {name => $controller, value => $label, link => qq($url?$controller_query_string$param_list->{action}=$controller&amp;$param_list->{object}=$object_id)};
 			}
 			push @{$table->{rows}}, $row;
 		}
@@ -1298,6 +1308,7 @@ sub render_as_table
 				title => $table_title,
 				description => $args{description},
 				class_label => _label($class->meta->table),
+				doctype => $renderer_config->{misc}->{doctype},
 				html_head => $html_head,
 				no_head => $args{no_head},
 				no_pagination => $table_config->{no_pagination},
@@ -1307,15 +1318,11 @@ sub render_as_table
 		}
 		else
 		{			
-			$html_table = $html_head;
-			$html_table .= '<div class="light_container">';
-			$html_table .= qq(<div class="light_table_searchable_container"><div class="light_table_searchable"><form action="$url" method="get" id="$table_id\_search_form"><label for="$table_id\_search"><span class="light_table_searchable_span">Search</span><input type="search" name="$param_list->{q}" id="$table_id\_search" accesskey="s" value="$q"></label>$query_hidden_fields</form></div></div>) if $args{searchable};			
-			$html_table .= qq(<div class="light_title_container"><h2>$table_title</h2><p>$args{description}</p></div>);
-			$html_table .= qq(<div class="light_table_actions_container"><div class="light_table_actions">);
-			$html_table .= qq(<a href="$table->{create}->{link}">$table->{create}->{value}</a>) if exists $table->{create};
-			$html_table .= '</div></div>';			
-			
-			$html_table .= '<table id="'.$table_id.'" class="light_table">';
+			$html_table .= '<div>';			
+			$html_table .= qq(<div class="block"><form action="$url" method="get" id="$table_id\_search_form"><label for="$table_id\_search">Search </label><input type="text" name="$param_list->{q}" id="$table_id\_search" value="$q"/>$query_hidden_fields</form></div>) if $args{searchable};			
+			$html_table .= qq(<h2>$table_title</h2><p>$args{description}</p>);
+			$html_table .= qq(<div class="block"><a href="$table->{create}->{link}">$table->{create}->{value}</a></div>) if exists $table->{create};
+			$html_table .= qq(<table id="$table_id">);
 
 			$html_table .= '<tr>';
 			foreach my $head (@{$table->{head}})
@@ -1353,22 +1360,22 @@ sub render_as_table
 			}
 			else
 			{
-				$html_table .= qq(<tr><td colspan="$table->{total_columns}"><p>$table_config->{empty_message}</p></td></tr>);
+				$html_table .= qq(<tr><td colspan="$table->{total_columns}">$table_config->{empty_message}</td></tr>);
 			}
 			
 			$html_table .= '</table>';
 			
 			unless ($table_config->{no_pagination})
 			{
-				$html_table .= '<div class="light_container">';
+				$html_table .= '<div>';
 				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value})
 				{
-					$html_table .= qq( <<  < );
+					$html_table .= qq( &lt;&lt;  &lt; );
 				}
 				else
 				{
-					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}"> << </a>);
-					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}"> < </a>);
+					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}"> &lt;&lt; </a>);
+					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}"> &lt; </a>);
 				}
 				
 				while ($table->{pager}->{start_page} < $table->{pager}->{end_page})
@@ -1386,17 +1393,21 @@ sub render_as_table
 
 				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value})
 				{
-					$html_table .= qq( >  >> );
+					$html_table .= qq( &gt;  &gt;&gt; );
 				}
 				else
 				{
-					$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}"> > </a>);
-					$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}"> >> </a>);
+					$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}"> &gt; </a>);
+					$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}"> &gt;&gt; </a>);
 				}
 				$html_table .= '</div>';
 			}
 			
-			$html_table .=qq(</div><script type="text/javascript">$args{javascript_code}</script>);
+			$html_table .= '</div>'; 
+			$html_table .= qq(<script type="text/javascript">$args{javascript_code}</script>) if $args{javascript_code};
+			$html_table = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$table_title</title>$html_head</head><body>$html_table</body></html>) unless $args{no_head};
+			
+			
 		}
 		
 		$args{output}?$output->{output} = $html_table:print $html_table;
@@ -1408,7 +1419,7 @@ sub render_as_table
 sub render_as_menu
 {
 	my ($self, %args) = (@_);
-	my($menu, $hide_menu_param, $current_param, $output, $content, $item_order, $items, $hide_menu, $current, $template);
+	my($menu, $hide_menu_param, $current_param, $output, $content, $item_order, $items, $current, $template);
 	my $class = $self->object_class();
 
 	my $menu_title = $args{title};
@@ -1435,8 +1446,8 @@ sub render_as_menu
 	
 	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
-	my $query_string = join ('&', map {"$_=$args{queries}->{$_}"} keys %{$args{queries}});
-	$query_string .= '&' if $query_string;
+	my $query_string = join ('&amp;', map {"$_=$args{queries}->{$_}"} keys %{$args{queries}});
+	$query_string .= '&amp;' if $query_string;
 	
 	if ($args{template} eq 1)
 	{
@@ -1479,7 +1490,7 @@ sub render_as_menu
 			if ($args{ajax})
 			{
 				my $valid_form_actions = {create => undef, edit => undef, copy => undef};
-				$hide_menu = 1 if $query->param($options->{prefix}.'_ajax') && ! exists $valid_form_actions->{$query->param($options->{prefix}.'_action')};
+				$args{hide_menu} = 1 if $query->param($options->{prefix}.'_ajax') && ! exists $valid_form_actions->{$query->param($options->{prefix}.'_action')};
 			}
 			
 			my $shortcuts = ['create', 'edit', 'copy', 'delete', 'template', 'ajax'];
@@ -1495,9 +1506,10 @@ sub render_as_menu
 		}
 	}
 	
-	$hide_menu = 1 if $query->param($hide_menu_param);
+	$args{hide_menu} = 1 if $query->param($hide_menu_param);
 	
-	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$menu_title/;
+	my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head};
+	
 	if ($args{template})
 	{
 		$args{template_data} ||= {};
@@ -1509,6 +1521,7 @@ sub render_as_menu
 			data => {
 				menu_id => $menu_id,
 				no_head => $args{no_head},
+				doctype => $renderer_config->{misc}->{doctype},
 				html_head => $html_head,
 				template_url => $template_url, 
 				items => $items,
@@ -1517,26 +1530,27 @@ sub render_as_menu
 				title => $menu_title,
 				description => $args{'description'},
 				content => $output->{table}->{output},
-				hide => $hide_menu,
+				hide => $args{hide_menu},
 				extra => $args{extra},
 				%{$args{template_data}}
 			}
 		);
 	}
 	else
-	{	
-		unless ($hide_menu)
-		{
-			$menu = $html_head.'<div class="light_container"><div class="light_menu"><ul>';
+	{			
+		unless ($args{hide_menu})
+		{ 
+			$menu = '<div><div class="menu"><ul>';
 			foreach my $item (@{$item_order})
 			{
 				$menu .= '<li><a ';
-				$menu .= 'class="light_menu_current" ' if $items->{$item}->{table} eq $current;
+				$menu .= 'class="current" ' if $items->{$item}->{table} eq $current;
 				$menu .= 'href="'.$items->{$item}->{link}.'">'.$items->{$item}->{label}.'</a></li>';
 			}
 			$menu .= '</ul></div><p>'.$args{'description'}.'</p></div>';
 		}
 		$menu .= $output->{table}->{output};
+		$menu = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$menu_title</title>$html_head</head><body>$menu</body></html>) unless $args{no_head};		
 	}
 		
 	$args{output}?$output->{output} = $menu:print $menu;
@@ -1559,18 +1573,20 @@ sub render_as_chart
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
 	my $chart_id = _identify($class, $args{prefix}, $ui_type);
 	
-	my $hide_chart;
+	my $hide_chart_param;
 	if ($args{prefix})
 	{
-		$hide_chart = $chart_id . '_hide_chart';
+		$hide_chart_param = $chart_id . '_hide_chart';
 	}
 	else
 	{
-		$hide_chart = 'hide_chart';
+		$hide_chart_param = 'hide_chart';
 	}
 	
 	my $query = $args{cgi} || CGI->new;
-	return if $query->param($hide_chart);
+	$args{hide_chart} ||= $query->param($hide_chart_param);
+	
+	return $args{output}?{}:undef if $args{hide_chart};
 	
 	my ($chart, $output, $template);
 	if (ref $args{engine} eq 'CODE')
@@ -1706,6 +1722,7 @@ sub render_as_chart
 					title => $title ,
 					description => $args{'description'},
 					no_head => $args{no_head},
+					doctype => $renderer_config->{misc}->{doctype},
 					html_head => $html_head,
 					extra => $args{extra},
 					%{$args{template_data}}
@@ -1713,8 +1730,9 @@ sub render_as_chart
 			);		
 		}
 		else
-		{
-			$chart = qq($html_head <div class="light_container"><div class="light_title_container"><h2>$title</h2><p>$args{description}</p></div><img src="$chart_url"/></div>);
+		{	
+			$chart = qq(<div><h1>$title</h1><p>$args{'description'}</p><img src="$chart_url" alt="$title"/></div>);
+			$chart = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$title</title>$html_head</head><body>$chart</body></html>) unless $args{no_head};
 		}
 	}
 	
@@ -1812,108 +1830,109 @@ sub _copy_object
 sub _update_object
 {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
-	
 	my $primary_key = $self->meta->primary_key_column_names->[0];
 	
 	foreach my $field (@{$field_order})
 	{
-		my $column = $field;
-		$column =~ s/$form_id\_// if $prefix;
-		my $field_value;
-		my @values = $form->field($field);
-		my $values_size = scalar @values;
+		if(defined $form->cgi_param($field))
+		{		
+			my $column = $field;
+			$column =~ s/$form_id\_// if $prefix;
+			my $field_value;
+			my @values = $form->field($field);
+			my $values_size = scalar @values;
 		
-		if($values_size > 1)
-		{
-			$field_value = join ',', @values;	
-		}
-		else
-		{
-			$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
-		}
-		
-		if (exists $relationships->{$column}) #one to many or many to many
-		{
-			my $foreign_class = $relationships->{$column}->{class};
-			my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
-			my $foreign_key;
-			
-			foreach my $fk (keys %{$foreign_class_foreign_keys})
+			if($values_size > 1)
 			{
-				if ($foreign_class_foreign_keys->{$fk}->{class} eq $class)
-				{
-					$foreign_key = $fk;
-					last;
-				}
+				$field_value = join _get_renderer_config($self)->{form}->{delimiter}, @values;
 			}
+			else
+			{
+				$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
+			}
+				
+			if (exists $relationships->{$column}) #one to many or many to many
+			{
+				my $foreign_class = $relationships->{$column}->{class};
+				my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
+				my $foreign_key;
+			
+				foreach my $fk (keys %{$foreign_class_foreign_keys})
+				{
+					if ($foreign_class_foreign_keys->{$fk}->{class} eq $class)
+					{
+						$foreign_key = $fk;
+						last;
+					}
+				}
 
-			my $default = undef;
-			$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
-			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
-			{ 
-				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
+				my $default = undef;
+				$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
+				if(length($form->cgi_param($field))) # $form->field($field) won't work
+				{ 
+					my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
+					my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 			
-				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
-			
-				foreach my $id (@values)
-				{
-					push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
-					$value_hash->{$id} = undef;
-					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
-				}
+					foreach my $id (@values)
+					{
+						push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
+						$value_hash->{$id} = undef;
+						push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
+					}
 		
-				foreach my $id (keys %{$relationship_object->{$column}})
-				{
-					push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
-				}
+					foreach my $id (keys %{$relationship_object->{$column}})
+					{
+						push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
+					}
 									
-				if ($relationships->{$column}->{type} eq 'one to many')
-				{
-					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
-					
-					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;						
+					if ($relationships->{$column}->{type} eq 'one to many')
+					{
+						Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
+						Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;						
+					}
+					else #many to many
+					{
+						$self->$column(@{$new_foreign_object_id_hash});
+					}
 				}
-				else #many to many
+				else
 				{
-					$self->$column(@{$new_foreign_object_id_hash});
+					if ($relationships->{$column}->{type} eq 'one to many')
+					{					
+						Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [$foreign_key => $self->$primary_key]);	
+					}
+					else #many to many
+					{
+						$self->$column([]); # cascade deletes foreign objects
+					}
 				}
 			}
 			else
 			{
-				if ($relationships->{$column}->{type} eq 'one to many')
-				{					
-					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [$foreign_key => $self->$primary_key]);	
-				}
-				else #many to many
+				my $update_method;
+				if ($class->can($column . '_for_update'))
 				{
-					$self->$column([]); # cascade deletes foreign objects
+					$update_method = $column . '_for_update';	
 				}
-			}
-		}
-		else
-		{
-			my $update_method;
-			if ($class->can($column . '_for_update'))
-			{
-				$update_method = $column . '_for_update';	
-			}
-			elsif ($class->can($column))
-			{
-				$update_method = $column;
-			}
+				elsif ($class->can($column))
+				{
+					$update_method = $column;
+				}
 			
-			if ($update_method)
-			{
-				if (defined $field_value)
+				if ($update_method)
 				{
-					$self->$update_method($field_value);
+					if (length($form->cgi_param($field)))
+					{
+						$self->$update_method($field_value);
+					}
+					else
+					{
+						$self->$update_method(undef);
+					}
 				}
-				else
-				{
-					$self->$update_method(undef);
-				}
-			}
-		}	
+			}	
+	
+		}
 	}
 	$self->save;
 	return $self;
@@ -1928,47 +1947,46 @@ sub _create_object
 	
 	foreach my $field (@{$field_order})
 	{
-		my $column = $field;
-		$column =~ s/$form_id\_// if $prefix;
-		
-		my @values = $form->field($field);	
-		
-		if (exists $relationships->{$column}) #one to many or many to many
+		if(defined $form->cgi_param($field) && length($form->cgi_param($field)))
 		{	
-			if($form->cgi_param($field)) #check if field submitted. Empty value fields are not submited by browser, $form->field($field) won't work
-			{ 
+			my $column = $field;
+			$column =~ s/$form_id\_// if $prefix;
+			my @values = $form->field($field);
+			
+			if (exists $relationships->{$column}) #one to many or many to many
+			{				
 				my $new_foreign_object_id_hash;
 				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
-				
+			
 				foreach my $id (@values)
 				{
 					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
 				}
-			
+		
 				$self->$column(@{$new_foreign_object_id_hash});
-			}
-		}
-		else
-		{
-			my $field_value;
-			my $values_size = scalar @values;
-			if($values_size > 1)
-			{
-				$field_value = join ',', @values;	
 			}
 			else
 			{
-				$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
-			}
+				my $field_value;
+				my $values_size = scalar @values;
+				if($values_size > 1)
+				{
+					$field_value = join _get_renderer_config($self)->{form}->{delimiter}, @values;	
+				}
+				else
+				{
+					$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
+				}
 			
-			if ($class->can($column . '_for_update'))
-			{
-				$custom_field_value->{$column . '_for_update'} = $field_value; #save it for later
-				$self->$column('0') if $self->meta->{columns}->{$column}->{not_null}; # zero fill not null columns
-			}
-			elsif ($class->can($column))
-			{
-				$self->$column($field_value) if defined $field_value;
+				if ($class->can($column . '_for_update'))
+				{
+					$custom_field_value->{$column . '_for_update'} = $field_value; #save it for later
+					$self->$column('0') if $self->meta->{columns}->{$column}->{not_null}; # zero fill not null columns
+				}
+				elsif ($class->can($column))
+				{
+					$self->$column($field_value);
+				}
 			}
 		}
 	}
@@ -2404,15 +2422,22 @@ sub _create_query_string
 		{
 			foreach my $value (@{$queries->{$query_key}})
 			{
-				$query_string .= $query_key.'='.CGI::escapeHTML($value).'&';
+				$query_string .= $query_key.'='.CGI::escapeHTML($value).'&amp;';
 			}
 		}
 		else
 		{
-			$query_string .= $query_key.'='.CGI::escapeHTML($queries->{$query_key}).'&';
+			$query_string .= $query_key.'='.CGI::escapeHTML($queries->{$query_key}).'&amp;';
 		}
 	}
 	return $query_string;
+}
+
+sub _touch_up
+{
+	my ($rendering, $cancel) = @_;
+	$rendering =~ s/onclick="this\.form\._submit\.value = this\.value;" type="submit" value="$cancel"/onclick="history.back();" type="button" value="$cancel"/;
+	return $rendering;
 }
 
 1;
@@ -2581,7 +2606,8 @@ The C<form> option defines the default behaviours of C<render_as_form>:
     ...
     form => {
       download_message => 'Get Current File',  # the name of the link for uploaded files
-      cancel => 'Back'  # the name of the built-in 'Cancel' controller
+      cancel => 'Back',  # the name of the built-in 'Cancel' controller
+      delimiter => ' '  # the delimiter for handling column with muliple values, defaulted to ','
     },
   });
 
@@ -2989,8 +3015,10 @@ C<render_as_form> passes the following list of variables to a template:
   [% form %] - CGI::FormBuilder's form object
   [% field_order %] - The order of the form fields
   [% form_id %] - the form id
+  [% form_submit %] - the form submit buttons with a custom 'Cancel' button that uses Javascript history.back()
   [% title %] - the form title
   [% description %] - the form description
+  [% doctype %] - the default html doctype
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
   [% cancel %] - the name of the 'Cancel' controller
@@ -3140,6 +3168,7 @@ C<render_as_table> passes the following list of variables to a template:
   [% param_list %] - a list of CGI param names with the table prefix, e.g. the name of the keyword search box is [% param_list.q %]
   [% searchable %] - the 'searchable' option
   [% sort_by_column %] - the column to be sorted 
+  [% doctype %] - the default html doctype
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
   [% javascript_code %] - javascript code
@@ -3195,6 +3224,7 @@ C<render_as_menu> passes the following list of variables to a template:
   [% current %] - the current menu item
   [% content %] - the output of the table
   [% hide %] - whether the menu should be hidden
+  [% doctype %] - the default html doctype
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
   [% extra %] - extra template variables
@@ -3235,6 +3265,7 @@ C<render_as_chart> passes the following list of variables to a template:
   [% description %] - the chart description
   [% chart %] - the chart
   [% options %] - the 'options' hash
+  [% doctype %] - the default html doctype
   [% html_head %] - the default html doctype and css
   [% no_head %] - the 'no_head' option
   [% extra %] - extra template variables
