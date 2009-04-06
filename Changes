@@ -182,3 +182,5 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.44    30/03/2009
         Removed useless <p> tags around undefined 'descriptions' in rendering methods when no template is used.
+0.45    06/04/2009
+        Fixed a bug (in 0.43+) where the Cancel button becomes useless when server-side validation is failed in render_as_form (Reported by Stewart Heckenberg). The 'Cancel' button now sets the value of a special hidden field named '[form_id]_submit_cancel' to 1 in order to bypass the generated Javascript form validation function.

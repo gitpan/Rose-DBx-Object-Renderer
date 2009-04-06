@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.44;
-# 127.37
+our $VERSION = 0.45;
+# 128.38
 
 sub config
 {
@@ -33,7 +33,7 @@ sub config
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
 			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},		
-			misc => {stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form table{width:100%;}form td{border:0px;text-align:left;padding:5px 20px;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;background-color:#fff;border:1px solid #ddd;margin-right:10px;}input[type="button"],input[type="submit"]{font-size:108%;padding:2px 7px;}h1,h2{font-size:350%;padding:15px;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:6px 2px;border-bottom: 1px solid #ddd;font-size:93%;}th{color:#666666;font-size:108%;font-weight:normal;background-color:#eee;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#ddd;padding:0px;width:100%;height:37px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.menu ul li a:hover{background-color:#eee;color:#0D3247;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}</style>'},
+			misc => {stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form table{width:100%;}form td{border:0px;text-align:left;padding:5px 20px;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;background-color:#fff;border:1px solid #ddd;margin-right:10px;}input[type="submit"]{font-size:108%;padding:2px 7px;}h1,h2{font-size:350%;padding:15px;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:6px 2px;border-bottom: 1px solid #ddd;font-size:93%;}th{color:#666666;font-size:108%;font-weight:normal;background-color:#eee;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#ddd;padding:0px;width:100%;height:37px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.menu ul li a:hover{background-color:#eee;color:#0D3247;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -452,7 +452,8 @@ sub render_as_form
 		$form_def->{messages}->{form_required_text} = '';
 	}
 	
-	$form_def->{jsfunc} ||= qq(if (form._submit.value == '$cancel') {return true;});
+	$form_def->{jsfunc} ||= qq(if (form._submit.value == '$cancel' || form.$form_id\_submit_cancel.value == 1) {return true;});
+		
 	my $form = CGI::FormBuilder->new($form_def);
 	foreach my $column (@{$column_order})
 	{		
@@ -657,6 +658,8 @@ sub render_as_form
 			$form->field(name => $query_key, value => CGI::escapeHTML($args{queries}->{$query_key}), type => 'hidden', force => 1);
 		}
 	}
+	
+	$form->field(name => $form_id . '_submit_cancel', type => 'hidden', force => 1);
 				
 	unless (defined $args{controller_order})
 	{
@@ -678,7 +681,7 @@ sub render_as_form
 							javascript_code => $args{javascript_code},
 							field_order => $field_order,
 							form_id => $form_id,
-							form_submit => _touch_up($form->prepare->{submit}, $cancel),
+							form_submit => _touch_up($form->prepare->{submit}, $cancel, $form_id),
 							title => $form_title,
 							description => $args{description},
 							doctype => $renderer_config->{misc}->{doctype},
@@ -751,7 +754,7 @@ sub render_as_form
 		else
 		{
 			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
-			$html_form .= qq(<div><h1>$form_title</h1>$args{description}) . _touch_up($form->render, $cancel) . '</div>';
+			$html_form .= qq(<div><h1>$form_title</h1>$args{description}) . _touch_up($form->render, $cancel, $form_id) . '</div>';
 			$html_form = qq($renderer_config->{misc}->{doctype}<html xmlns="http://www.w3.org/1999/xhtml"><head><title>$form_title</title>$html_head</head><body>$html_form</body></html>) unless $args{no_head};
 			$html_form .= qq(<script type="text/javascript">$args{javascript_code}</script>) if $args{javascript_code};
 		}
@@ -2439,8 +2442,8 @@ sub _create_query_string
 
 sub _touch_up
 {
-	my ($rendering, $cancel) = @_;
-	$rendering =~ s/onclick="this\.form\._submit\.value = this\.value;" type="submit" value="$cancel"/onclick="history.back();" type="button" value="$cancel"/;
+	my ($rendering, $cancel, $form_id) = @_;
+	$rendering =~ s/onclick="this\.form\._submit\.value = this\.value;" type="submit" value="$cancel"/onclick="this.form.$form_id\_submit_cancel.value = 1;" type="submit" value="$cancel"/;
 	return $rendering;
 }
 
@@ -3019,7 +3022,7 @@ C<render_as_form> passes the following list of variables to a template:
   [% form %] - CGI::FormBuilder's form object
   [% field_order %] - The order of the form fields
   [% form_id %] - the form id
-  [% form_submit %] - the form submit buttons with a custom 'Cancel' button that uses Javascript history.back()
+  [% form_submit %] - the form submit buttons with a custom 'Cancel' button
   [% title %] - the form title
   [% description %] - the form description
   [% doctype %] - the default html doctype
