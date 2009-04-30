@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.45;
-# 128.38
+our $VERSION = 0.46;
+# 130.38
 
 sub config
 {
@@ -42,10 +42,10 @@ sub config
 				'address' => {sortopts => 'LABELNAME', format => {for_view => sub {_view_address(@_);}}},
 				'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
 				'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
-				'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_view_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
-				'timestamp' => {readonly => 1, disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_create_timestamp();}, for_update => sub {_update_timestamp(@_);}, for_search => sub{_search_timestamp(@_);}, for_filter => sub{_search_timestamp(@_);}}},
+				'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_view_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
+				'timestamp' => {readonly => 1, disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_create_timestamp();}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
 				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
-				'time' => {validate => 'TIME', maxlength => 5, format => {for_update => sub {_udpate_time(@_)}, for_search => sub {_search_time(@_);}, for_filter => sub {_search_time(@_);}, for_edit => sub{_edit_time(@_);}, for_view => sub{_edit_time(@_);}}},
+				'time' => {validate => 'TIME', maxlength => 5, format => {for_update => sub {_udpate_time(@_)}, for_edit => sub{_edit_time(@_);}, for_view => sub{_edit_time(@_);}}},
 				'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
 				'weight' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' kg';}}},
 				'volume' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm<sup>3</sup>';}}},
@@ -66,7 +66,7 @@ sub config
 				'document' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
 				'image' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 				'media' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'ipv4' => {validate => 'IPV4', format => {for_search => sub {_search_ipv4(@_)}, for_filter => sub {_search_ipv4(@_)}}},
+				'ipv4' => {validate => 'IPV4'},
 				'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
 			}
 		};
@@ -841,10 +841,17 @@ sub render_as_table
 	if ($args{searchable})
 	{
 		$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries}, which get serialised later as query stings
-
-		$q = $args{q} || $query->param($param_list->{'q'});
 		
-		if ($q)
+		if (defined $args{q})
+		{
+			$q = $args{q};
+		}
+		elsif (length $query->param($param_list->{'q'}))
+		{
+			$q = $query->param($param_list->{'q'});
+		}
+		
+		if (defined $q)
 		{
 			my ($or, @raw_qs, @qs);
 			my $keyword_delimiter = $table_config->{keyword_delimiter};
@@ -857,10 +864,12 @@ sub render_as_table
 				@raw_qs = $q;
 			}
 			
+			my $like_search_values;
 			foreach my $raw_q (@raw_qs)
 			{
 				$raw_q =~ s/^\s+|\s+$//g;
 				push @qs, $raw_q;
+				push @{$like_search_values}, '%' . $raw_q . '%';
 			}
 						
 			foreach my $searchable_column (@{$args{searchable}})
@@ -884,30 +893,26 @@ sub render_as_table
 					foreach my $q (@qs)
 					{
 						my $search_result = $search_class->$search_method($q);
-						push @{$search_values},  $search_class->$search_method($q) if defined $search_result;
+						push @{$search_values}, '%' . $search_result . '%' if $search_result;
 					}
 				}
 				else
 				{
-					$search_values = \@qs;
+					$search_values = $like_search_values;
 				}
 				
-				if ($search_values)
+				if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && ! $class->meta->{columns}->{$searchable_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
 				{
-					if ($search_class && $search_method)
+					my $searchable_column_text = 'text(' . $searchable_column . ') ' . $like_operator . ' ?';
+					foreach my $search_value (@{$search_values})
 					{
-						push @{$or}, $searchable_column => $search_values;
-					}
-					else
-					{
-						my $like_search_values;
-						foreach my $search_value (@{$search_values})
-						{
-							push @{$like_search_values}, '%'. $search_value .'%' if defined $search_value;
-						}
-						push @{$or}, $searchable_column => {$like_operator => $like_search_values} if defined $like_search_values;
+						push @{$or}, [\$searchable_column_text => $search_value];
 					}
 				}
+				else
+				{
+					push @{$or}, $searchable_column => {$like_operator => $search_values}					
+				}			
 			}
 			
 			push @{$args{get}->{query}}, 'or' => $or;				
@@ -927,7 +932,7 @@ sub render_as_table
 			$cgi_column = $table_id.'_' if $args{prefix};
 			$cgi_column .= $column;
 
-			if ($query->param($cgi_column))
+			if (length $query->param($cgi_column))
 			{
 				my @cgi_column_values = $query->param($cgi_column);
 				my $formatted_values;
@@ -2306,53 +2311,42 @@ sub _view_datetime
 sub _search_boolean
 {
 	my ($self, $column, $value) = @_;
-	my $mapping = {'Yes' => 1, 'No' => 0, 'yes' => 1, 'no' => 0};
+	my $mapping;
+	if ($self->meta->isa('Rose::DB::Object::Metadata::Auto::Pg'))
+	{
+		$mapping = {'Yes' => 'true', 'No' => 'false', 'yes' => 'true', 'no' => 'false'};
+	}
+	else
+	{
+		$mapping = {'Yes' => 1, 'No' => 0, 'yes' => 1, 'no' => 0};
+	}
 	return $mapping->{$value};
 }
 
 sub _search_date
 {
 	my ($self, $column, $value) = @_;
-	my ($d, $m, $y) = ($value =~ /(\d+)\/(\d+)\/(\d+)/);
-	return unless $d && $m && $y;
-	$d =~ s/^(\d{1})$/0$1/;
-	$m =~ s/^(\d{1})$/0$1/;
-	$y =~ s/^(0\d{1})$/20$1/;
-	$y =~ s/^(9\d{1})$/19$1/;
-	return join '-', ($y, $m, $d);
-}
-
-sub _search_time
-{
-	my ($self, $column, $value) = @_;
-	my ($time) = ($value =~ /(\d{2}:\d{2}(:\d{2})?)/);
-	my ($h, $m, $s) = split ':', $time;
-	return unless $h && $m;
-	$s ||= '00';
-	return join ':', ($h, $m, $s);
+	$value =~ s/\//-/g;
+	my ($d, $m, $y) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])\-([0-9]{4})/);
+	if ($d && $m && $y)
+	{	
+		$value =~ s/$d\-$m\-$y/$y\-$m\-$d/;
+	}
+	else
+	{
+		($d, $m) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])/);
+		if ($d && $m)
+		{	
+			$value =~ s/$d\-$m/$m\-$d/;
+		}
+	}
+	return $value;
 }
 
 sub _search_percentage
 {
 	my ($self, $column, $value) = @_;
-	return unless $value;
 	return $value/100;
-}
-
-sub _search_timestamp
-{
-	my ($self, $column, $value) = @_;
-	my $date = _search_date($self, $column, $value);
-	my $time = _search_time($self, $column, $value);
-	return unless $date && $time;
-	return $date.' '.$time;
-}
-
-sub _search_ipv4
-{
-	my ($self, $column, $value) = @_;
-	return unless $value && $value =~ /^([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])\.([0-1]??\d{1,2}|2[0-4]\d|25[0-5])$/;
-	return $value;
 }
 
 #misc util
