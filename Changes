@@ -187,3 +187,5 @@ Revision history for Rose-DBx-Object-Renderer
 0.46    30/04/2009
         Added support for handling keyword searches in render_as_table() on PostgreSQL non-character based data types.
         Fixed render_as_table() where '0' values are ignored in column filtering and keyword searches.
+0.47    01/05/2009
+        Fixed a bug in 0.46's render_as_table() when performing keyword searching over foreign table columns on PostgreSQL non-character based data types.

@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.46;
-# 130.38
+our $VERSION = 0.47;
+# 132.38
 
 sub config
 {
@@ -871,23 +871,52 @@ sub render_as_table
 				push @qs, $raw_q;
 				push @{$like_search_values}, '%' . $raw_q . '%';
 			}
-						
+			
+			my $table_alias = {$class => 't1'};
+			my $table_to_class;
+			if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && $args{get})
+			{
+				my $with_require_objects = $args{get}->{with_objects} || $args{get}->{require_objects};
+				if ($with_require_objects)
+				{
+					my $counter = 1;
+					foreach my $with_require_object (@{$with_require_objects})
+					{
+						if (exists $class->meta->{relationships}->{$with_require_object})
+						{
+							if ($class->meta->{relationships}->{$with_require_object}->type eq 'many to many')
+							{
+								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{map_class}} = 't' . $counter++;								
+								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{map_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{map_class};
+								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}} = 't' . $counter++;								
+								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{foreign_class};
+							}
+							else
+							{
+								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{class}} = 't' . $counter++;								
+								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{class};
+							}
+						}
+					}
+				}
+			}
+			
 			foreach my $searchable_column (@{$args{searchable}})
 			{
 				my ($search_values, $search_class, $search_column, $search_method);
 				if ($searchable_column =~ /\./)
 				{
-					my $relationship_column;
-					($relationship_column, $search_column) = split /\./, $searchable_column;
-					$search_class = $relationships->{$relationship_column}->{class} if exists $relationships->{$relationship_column};
+					my $search_table;
+					($search_table, $search_column) = split /\./, $searchable_column;	
+					$search_class = $table_to_class->{$search_table};
 				}
 				else
 				{
 					$search_class = $class;
 					$search_column = $searchable_column;
 				}
-				
-				if ($search_class && $search_class->can($search_column . '_for_search'))
+								
+				if ($search_class->can($search_column . '_for_search'))
 				{
 					$search_method = $search_column.'_for_search';
 					foreach my $q (@qs)
@@ -901,9 +930,9 @@ sub render_as_table
 					$search_values = $like_search_values;
 				}
 				
-				if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && ! $class->meta->{columns}->{$searchable_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
-				{
-					my $searchable_column_text = 'text(' . $searchable_column . ') ' . $like_operator . ' ?';
+				if ($search_class && $search_class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
+				{					
+					my $searchable_column_text = 'text(' . $table_alias->{$search_class} . '.' . $search_column . ') ' . $like_operator . ' ?';
 					foreach my $search_value (@{$search_values})
 					{
 						push @{$or}, [\$searchable_column_text => $search_value];
@@ -911,8 +940,8 @@ sub render_as_table
 				}
 				else
 				{
-					push @{$or}, $searchable_column => {$like_operator => $search_values}					
-				}			
+					push @{$or}, $search_column => {$like_operator => $search_values}
+				}
 			}
 			
 			push @{$args{get}->{query}}, 'or' => $or;				
@@ -2072,7 +2101,7 @@ sub _get_relationships
 		elsif($relationship->type eq 'many to many')
 		{
 			$relationships->{$relationship->name}->{type} = $relationship->type;
-			$relationships->{$relationship->name}->{class} = $relationship->foreign_class;	
+			$relationships->{$relationship->name}->{class} = $relationship->foreign_class;
 		}
 	}
 	return $relationships;
