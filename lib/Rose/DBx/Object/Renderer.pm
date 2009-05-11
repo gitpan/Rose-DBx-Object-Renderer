@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.47;
-# 132.38
+our $VERSION = 0.48;
+# 133.38
 
 sub config
 {
@@ -646,17 +646,7 @@ sub render_as_form
 
 	foreach my $query_key (keys %{$args{queries}})
 	{
-		if (ref $args{queries}->{$query_key} eq 'ARRAY')
-		{
-			foreach my $value (@{$args{queries}->{$query_key}})
-			{				
-				$form->field(name => $query_key, value => CGI::escapeHTML($value), type => 'hidden', force => 1);	
-			}
-		}
-		else
-		{			
-			$form->field(name => $query_key, value => CGI::escapeHTML($args{queries}->{$query_key}), type => 'hidden', force => 1);
-		}
+		$form->field(name => $query_key, value => $args{queries}->{$query_key}, type => 'hidden', force => 1);
 	}
 	
 	$form->field(name => $form_id . '_submit_cancel', type => 'hidden', force => 1);
@@ -2168,7 +2158,7 @@ sub _get_file_url
 	my $value = $self->$column;
 	return unless $value;
 	my $primary_key = $self->meta->primary_key_column_names->[0];
-	return File::Spec->catfile(_get_renderer_config($self)->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, $value);
+	return File::Spec->catfile(_get_renderer_config($self)->{upload}->{url}, $self->stringify_class, $self->$primary_key, $column, CGI::escape($value));
 }
 
 # formatting methods
@@ -2452,12 +2442,12 @@ sub _create_query_string
 		{
 			foreach my $value (@{$queries->{$query_key}})
 			{
-				$query_string .= $query_key.'='.CGI::escapeHTML($value).'&amp;';
+				$query_string .= $query_key.'='.CGI::escape($value).'&amp;';
 			}
 		}
 		else
 		{
-			$query_string .= $query_key.'='.CGI::escapeHTML($queries->{$query_key}).'&amp;';
+			$query_string .= $query_key.'='.CGI::escape($queries->{$query_key}).'&amp;';
 		}
 	}
 	return $query_string;
