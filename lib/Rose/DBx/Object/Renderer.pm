@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.48;
-# 133.38
+our $VERSION = 0.49;
+# 134.39
 
 sub config
 {
@@ -205,7 +205,7 @@ sub load
 						$column_type = $column;
 					}
 					else
-					{						
+					{
 						DEF: foreach my $column_key (keys %{$config->{columns}})
 						{
 							if ($column =~ /$column_key/ && ! exists $custom_definitions->{$column_key}) # first match
@@ -876,14 +876,14 @@ sub render_as_table
 						{
 							if ($class->meta->{relationships}->{$with_require_object}->type eq 'many to many')
 							{
-								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{map_class}} = 't' . $counter++;								
+								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{map_class}} = 't' . ++$counter;
 								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{map_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{map_class};
-								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}} = 't' . $counter++;								
+								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}} = 't' . ++$counter;								
 								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{foreign_class};
 							}
 							else
 							{
-								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{class}} = 't' . $counter++;								
+								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{class}} = 't' . ++$counter;
 								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{class};
 							}
 						}
@@ -930,10 +930,10 @@ sub render_as_table
 				}
 				else
 				{
-					push @{$or}, $search_column => {$like_operator => $search_values}
+					push @{$or}, $searchable_column => {$like_operator => $search_values}
 				}
 			}
-			
+						
 			push @{$args{get}->{query}}, 'or' => $or;				
 			$args{queries}->{$param_list->{q}} = $q;
 			
@@ -2588,8 +2588,8 @@ The C<db> option is for configuring database related settings, for instance:
       port => '5432',
       username => 'admin',
       password => 'password',
-      tables_are_singular => 1,  # defines the database table name conventions
-      like_operator => 'ilike',  # to perform case-insensitive LIKE pattern matching
+      tables_are_singular => 1,  # defines table name conventions, defaulted to undef
+      like_operator => 'ilike',  # to perform case-insensitive LIKE pattern matching in PostgreSQL, defaulted to 'like'
     }
   });
 
@@ -3043,7 +3043,7 @@ C<render_as_form> passes the following list of variables to a template:
   [% no_head %] - the 'no_head' option
   [% cancel %] - the name of the 'Cancel' controller
   [% javascript_code %] - javascript code 
-  [% template_url %] - The default template URL[% extra %] - custom variables
+  [% template_url %] - The default template URL
   [% extra %] - extra template variables
 
 =head2 C<render_as_table>
