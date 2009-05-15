@@ -19,8 +19,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.49;
-# 134.39
+our $VERSION = 0.50;
+# 135.39
 
 sub config
 {
@@ -890,22 +890,22 @@ sub render_as_table
 					}
 				}
 			}
-			
+						
 			foreach my $searchable_column (@{$args{searchable}})
 			{
 				my ($search_values, $search_class, $search_column, $search_method);
 				if ($searchable_column =~ /\./)
 				{
 					my $search_table;
-					($search_table, $search_column) = split /\./, $searchable_column;	
-					$search_class = $table_to_class->{$search_table};
+					($search_table, $search_column) = split /\./, $searchable_column;
+					$search_class = $table_to_class->{$search_table} || $class;
 				}
 				else
 				{
 					$search_class = $class;
 					$search_column = $searchable_column;
 				}
-								
+							
 				if ($search_class->can($search_column . '_for_search'))
 				{
 					$search_method = $search_column.'_for_search';
@@ -933,7 +933,7 @@ sub render_as_table
 					push @{$or}, $searchable_column => {$like_operator => $search_values}
 				}
 			}
-						
+									
 			push @{$args{get}->{query}}, 'or' => $or;				
 			$args{queries}->{$param_list->{q}} = $q;
 			

@@ -194,3 +194,5 @@ Revision history for Rose-DBx-Object-Renderer
 0.49    14/05/2009
         Fixed a table alias issue that affects keyword searches in render_as_table() on PostgreSQL non-character based data types.
         Updated POD.
+0.50    15/05/2009
+        Fixed a foreign class name resolution issue related to keyword searches in render_as_table() for non-PostgreSQL databases.
