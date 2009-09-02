@@ -26,18 +26,18 @@
 		</table>
 		[% UNLESS no_pagination %]
 			<div>
-			[% IF table.pager.current_page.value == table.pager.first_page.value %]&lt;&lt;  &lt;[% ELSE %]<a href="[% table.pager.first_page.link %]">&lt;&lt; </a><a href="[% table.pager.previous_page.link %]">&lt;</a>[% END %]
+			[% IF table.pager.current_page.value == table.pager.first_page.value %]<span class="pager">&laquo;</span><span class="pager">&lsaquo;</span>[% ELSE %]<a href="[% table.pager.first_page.link %]" class="pager">&laquo;</a><a href="[% table.pager.previous_page.link %]" class="pager">&lsaquo;</a>[% END %]
 			
 			[% WHILE table.pager.start_page < table.pager.end_page %]
 				[% IF table.pager.start_page == table.pager.current_page.value %]
-					 [% table.pager.start_page %] 
+					 <span class="pager">[% table.pager.start_page %]</span>
 				[% ELSE %]
-					<a href="[% url %]?[% query_string.page %][% param_list.page %]=[% table.pager.start_page %]"> [% table.pager.start_page %] </a>
+					<a href="[% url %]?[% query_string.page %][% param_list.page %]=[% table.pager.start_page %]" class="pager">[% table.pager.start_page %]</a>
 				[% END %]
 				[% table.pager.start_page = table.pager.start_page + 1 %]
 			[% END %]
 			
-			[% IF table.pager.current_page.value == table.pager.last_page.value %]&gt; &gt;&gt;[% ELSE %]<a href="[% table.pager.next_page.link %]">&gt; </a><a href="[% table.pager.last_page.link %]">&gt;&gt;</a>[% END %]
+			[% IF table.pager.current_page.value == table.pager.last_page.value %]<span class="pager">&rsaquo;</span><span class="pager">&raquo;</span>[% ELSE %]<a href="[% table.pager.next_page.link %]" class="pager">&rsaquo;</a><a href="[% table.pager.last_page.link %]" class="pager">&raquo;</a>[% END %]
 			</div>
 		[% END %]
 	</div>

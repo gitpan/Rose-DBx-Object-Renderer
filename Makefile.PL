@@ -14,6 +14,7 @@ WriteMakefile(
         'DateTime' => 0,
         'Rose::DB::Object::Loader' => 0,
     	'Rose::DB::Object::Helpers' => 0,
+        'CGI' => 0,
         'CGI::FormBuilder' => '3.05',
         'Template' => 0,
         'File::Path' => 0,

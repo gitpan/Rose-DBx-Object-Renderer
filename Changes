@@ -196,3 +196,10 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.50    15/05/2009
         Fixed a foreign class name resolution issue related to keyword searches in render_as_table() for non-PostgreSQL databases.
+0.51    02/09/2009
+        Updated render_as_menu() to pass 'template_data' to the underlying table.
+        Improved auto table aliasing for keyword searching in render_as_table() under PostgreSQL.
+        Updated the default CSS class and the image icon tag of the 'media' column definition.
+        Updated the Google Gadget URI of the 'address' column definition.
+        Updated the default CSS style for menu, table, and form. Updated the sample 'table.tt' accordingly.
+        Updated POD.

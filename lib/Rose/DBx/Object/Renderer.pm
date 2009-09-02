@@ -11,6 +11,7 @@ use Lingua::EN::Inflect qw (PL);
 use DateTime;
 use Rose::DB::Object::Loader;
 use Rose::DB::Object::Helpers 'clone_and_reset';
+use CGI;
 use CGI::FormBuilder;
 use Template;
 use File::Path;
@@ -19,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.50;
-# 135.39
+our $VERSION = 0.51;
+# 138.40
 
 sub config
 {
@@ -33,7 +34,7 @@ sub config
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
 			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},		
-			misc => {stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form table{width:100%;}form td{border:0px;text-align:left;padding:5px 20px;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande","Lucida Sans Unicode",Arial,Verdana,sans-serif;color:#666;background-color:#fff;border:1px solid #ddd;margin-right:10px;}input[type="submit"]{font-size:108%;padding:2px 7px;}h1,h2{font-size:350%;padding:15px;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:6px 2px;border-bottom: 1px solid #ddd;font-size:93%;}th{color:#666666;font-size:108%;font-weight:normal;background-color:#eee;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#ddd;padding:0px;width:100%;height:37px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{float:left;display:block;color:#555;background:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;}.menu ul li a:hover{background-color:#eee;color:#0D3247;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}</style>'},
+			misc => {stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:#fff;border:1px solid #ddd;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;cursor:pointer;background:#f0f0f0;background:-webkit-gradient(linear, left top, left bottom, from(#fffff), to(#ddd), color-stop(0.3, #eee));-webkit-transition:-webkit-box-shadow 0.1s linear;text-shadow:0px 1px 1px #fff;}input:hover[type="submit"]{background:#d0d0d0;color:#0D3247;background:-webkit-gradient(linear, left top, left bottom, from(#f0f0f0), to(#ddd), color-stop(0.3, #eee));}input:active[type="submit"]{-webkit-box-shadow:0 0 5px #333;-moz-box-shadow:0 0 5px #333;}h1,h2{font-size:350%;padding:15px;text-shadow: 0px 1px 2px #aaa;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom: 1px dotted #ddd;font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0px;background-color:#ddd;background:-webkit-gradient(linear,left top,left bottom,from(#f0f0f0),to(#ccc),color-stop(0.8, #ddd));text-shadow: 0px 1px 1px #fff;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#e0e0e0;padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow: 0px 1px 1px #fff;float:left;display:block;color:#555;background-color:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;-webkit-transition:background-color 0.2s linear;}.menu ul li a:hover{background-color:#eee;color:#0D3247;}.menu ul li a:active{background-color:#fff;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #d0d0d0;margin-right:1px;-moz-border-radius:2px;-webkit-border-radius:2px;-webkit-transition: border 0.5s linear;}a.pager:hover{border:1px solid #0D3247;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -442,6 +443,7 @@ sub render_as_form
 	$form_def->{enctype} ||= 'multipart/form-data';
 	$form_def->{method} ||= 'post';
 	$form_def->{params} ||= $args{cgi} if exists $args{cgi};
+	$form_def->{td} ||= {valign => 'middle'};
 	
 	if($args{template})
 	{
@@ -602,7 +604,7 @@ sub render_as_form
 				{							
 					my $value = $form->cgi_param($form_id.'_'.$column) || $form->cgi_param($column) || $self->$column;
 					my $file_location = _get_file_url($self, $column, $value);
-					$field_def->{comment} = '<br/><a href="'.$file_location.'">'.$download_message.'</a>' if $file_location;
+					$field_def->{comment} = '<a class="download_message" href="'.$file_location.'">'.$download_message.'</a>' if $file_location;
 				}
 			}
 			else
@@ -866,29 +868,9 @@ sub render_as_table
 			my $table_to_class;
 			if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && $args{get})
 			{
-				my $with_require_objects = $args{get}->{with_objects} || $args{get}->{require_objects};
-				if ($with_require_objects)
-				{
-					my $counter = 1;
-					foreach my $with_require_object (@{$with_require_objects})
-					{
-						if (exists $class->meta->{relationships}->{$with_require_object})
-						{
-							if ($class->meta->{relationships}->{$with_require_object}->type eq 'many to many')
-							{
-								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{map_class}} = 't' . ++$counter;
-								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{map_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{map_class};
-								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}} = 't' . ++$counter;								
-								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{foreign_class};
-							}
-							else
-							{
-								$table_alias->{$class->meta->{relationships}->{$with_require_object}->{class}} = 't' . ++$counter;
-								$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{class};
-							}
-						}
-					}
-				}
+				my $counter = 1;
+				($table_alias, $table_to_class) = _alias_table($args{get}->{with_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{with_objects};
+				($table_alias, $table_to_class) = _alias_table($args{get}->{require_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{require_objects};
 			}
 						
 			foreach my $searchable_column (@{$args{searchable}})
@@ -920,7 +902,7 @@ sub render_as_table
 					$search_values = $like_search_values;
 				}
 				
-				if ($search_class && $search_class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
+				if ($search_class && $search_class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && exists $search_class->meta->{columns}->{$search_column} && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
 				{					
 					my $searchable_column_text = 'text(' . $table_alias->{$search_class} . '.' . $search_column . ') ' . $like_operator . ' ?';
 					foreach my $search_value (@{$search_values})
@@ -1399,35 +1381,35 @@ sub render_as_table
 				$html_table .= '<div>';
 				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value})
 				{
-					$html_table .= qq( &lt;&lt;  &lt; );
+					$html_table .= qq(<span class="pager">&laquo;</span><span class="pager">&lsaquo;</span>);
 				}
 				else
 				{
-					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}"> &lt;&lt; </a>);
-					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}"> &lt; </a>);
+					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}" class="pager">&laquo;</a>);
+					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}" class="pager">&lsaquo;</a>);
 				}
 				
 				while ($table->{pager}->{start_page} < $table->{pager}->{end_page})
 				{
 					if ($table->{pager}->{start_page} == $table->{pager}->{current_page}->{value})
 					{
-						$html_table .= qq( $table->{pager}->{start_page} );
+						$html_table .= qq(<span class="pager">$table->{pager}->{start_page}</span>);
 					}
 					else
 					{
-						$html_table .= qq(<a href="$url?$query_string->{page}$param_list->{page}=$table->{pager}->{start_page}"> $table->{pager}->{start_page} </a>);
+						$html_table .= qq(<a href="$url?$query_string->{page}$param_list->{page}=$table->{pager}->{start_page}" class="pager">$table->{pager}->{start_page}</a>);
 					}
 					$table->{pager}->{start_page}++;
 				}				
 
 				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value})
 				{
-					$html_table .= qq( &gt;  &gt;&gt; );
+					$html_table .= qq(<span class="pager">&rsaquo;</span><span class="pager">&raquo;</span>);
 				}
 				else
 				{
-					$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}"> &gt; </a>);
-					$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}"> &gt;&gt; </a>);
+					$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}" class="pager">&rsaquo;</a>);
+					$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}" class="pager">&raquo;</a>);
 				}
 				$html_table .= '</div>';
 			}
@@ -1489,6 +1471,7 @@ sub render_as_menu
 	
 	$current = $query->param($current_param) || $class->meta->table;	
 	$item_order = $args{order} || [$class];
+	$args{template_data} ||= {};
 	
 	foreach my $item (@{$item_order})
 	{
@@ -1515,7 +1498,9 @@ sub render_as_menu
 			$options->{queries}->{$current_param} = $table;	
 			$options->{prefix} ||= $menu_id.'_table';
 			$options->{url} ||= $url;
-						
+			
+			$options->{template_data} = $args{template_data} unless exists $options->{template_data};
+			
 			if ($args{ajax})
 			{
 				my $valid_form_actions = {create => undef, edit => undef, copy => undef};
@@ -1541,7 +1526,6 @@ sub render_as_menu
 	
 	if ($args{template})
 	{
-		$args{template_data} ||= {};
 	 	$menu = _render_template(
 			options => $args{template_options},
 			template_path => $template_path,
@@ -2296,7 +2280,7 @@ sub _view_media
 	my ($self, $column) = @_;
 	my $url = _get_file_url($self, $column);
 	return unless $url;
-	return qq(<a href="$url" class="light_media"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAABGdBTUEAAK/INwWK6QAAABl0RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAASlSURBVHjaYmxpaZlhYmLixcjI+Ovf//8MMPAfic3wH42PJv+fAcJmYmRk+vHjx/+mpqZWgABi3LVr10tXV1exb58/Mfz99Y2BgZERroERgwG2A8H9DzMSaCgzEwMTKw8DKzs7Q4C//zaAAGL58+fvz+9fPjIUt05jePiDl4GDjZXh/7//YBf9/wd1zz+EC8Hi/5Fc/R/kFhaGj2+fM6R5azBEhAUx/P37lwkggFhAEv/+/GJ49ZubwTU+h4GXhYHh+w8Ght+/GRj+/AHi3/8Zfv+BsP/+/Q+k/0PZEP5foKWsbCwMZ88cY3jx9hIDCzPYP/8BArA8RikAwzAItdTRFXb/y7bUvYV9iISQF3V0qs49rKcHNWpxTGqYWvhOQ5/zoHaqGW7JsKa7fPlvFL0CiAXkG0ZQqAEVA8MdKMkIpP+BXfkbaBLY5b//gV0J4oNcCvYJlA1yNfNfVoafP/+Dwx5kKDAhMAAEEAsokGDx9QekkPE/mP7zB2EAxFCQBQxQuf+IoAHyWf5Dggw5kgECiAXOA3kLpAFoC0wjDP+GWvAbySJw2COFM8hSRrhZ/xkAAogFkR4ZwZK/GZBcC9QMNuA31ODfSD74DbUAaCjTX0hkM0K9DjITIIBYGGApkfE/xHYmaDhCvQlLESCN8OBACZr/wMiG8CHmgtMfA0AAsYDNBImAYh7kNSaI4n9/ERGE4n0QG2rJb6g4IzSIgDkP7EyQiwECiOU/Uj779w8SXv+gkff3DyTcYbGPHO5/fv+HpxRwxP9GyfEMAAEECWNGsLMhhkIN/wulwb74C7Xk3394hoG59s8voO8Y/0NdzAAPWYAAYkGUAEzAHMTKwMoKTD5/mBn+gXLkf2jkgLI2MBwZ/0Johr/gkIOoAcK/oGD8xwZKuPACCSCAWEDlAjMzK8PXD28Ydu3ew8DHwQLOKH/hSQuUk5gg4Q1y6a+/UNf+hwfT///MDG+eXAXayQ9OcqBQAAggFhYWZub/zOwMxTH2DE9fvQPmdVDWZAZ6iwnqmX8MHz6+A5Ynf8FZloebC5p1GcGGgCLsFyjJ/FNh0FRXYfgJzKXMQDMAAojl/fv3P0HBbGNlwcDIxAQ26A8w8H7//gU2l5mZheHVq9fAsP8HDn9hYUEGNjY2sANAReXzN88ZxIUkGJhZWIE+/cHw7t07hi9fvjADBBCjvLy8j7q6epaMjIySmpqaiJKSEi8nJycryFZBQUFGISEhYLizMgC9BnTlP6Dmn6BiEZhy/jG8//D+/7U71xj+/fj36+7du1+A+M39+/cfX7t2bT1AADGCNABdyA10nCgQiwGxJNAgqaysrHI3Nzd5kCtABn///h3sRXZgQQ5ig9I+sPY5f/3a9aW/fv96AtT3AohfAfE7EAYIIBaowV+BHBB+APK+uLi4jIuLS52pqSncQFBQgAxjBJclfxi4ubkZtm7dynDx4sWFQC1vGNAAQAAxoQvo6ekxBAYGOigoKEiADAG5lgkY9iAaZAFMDOQgc3NzfSDfmAELAAggFmQOSMPPnz8Ztm3bdvLEiRPzgAZJ/gM5FZY3GRnhVRTQMiZgxH+D+hQDAAQYAFDky9BqyKhOAAAAAElFTkSuQmCC"/></a>);
+	return qq(<a href="$url" class="media"><img alt="media" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAABGdBTUEAAK/INwWK6QAAABl0RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAASlSURBVHjaYmxpaZlhYmLixcjI+Ovf//8MMPAfic3wH42PJv+fAcJmYmRk+vHjx/+mpqZWgABi3LVr10tXV1exb58/Mfz99Y2BgZERroERgwG2A8H9DzMSaCgzEwMTKw8DKzs7Q4C//zaAAGL58+fvz+9fPjIUt05jePiDl4GDjZXh/7//YBf9/wd1zz+EC8Hi/5Fc/R/kFhaGj2+fM6R5azBEhAUx/P37lwkggFhAEv/+/GJ49ZubwTU+h4GXhYHh+w8Ght+/GRj+/AHi3/8Zfv+BsP/+/Q+k/0PZEP5foKWsbCwMZ88cY3jx9hIDCzPYP/8BArA8RikAwzAItdTRFXb/y7bUvYV9iISQF3V0qs49rKcHNWpxTGqYWvhOQ5/zoHaqGW7JsKa7fPlvFL0CiAXkG0ZQqAEVA8MdKMkIpP+BXfkbaBLY5b//gV0J4oNcCvYJlA1yNfNfVoafP/+Dwx5kKDAhMAAEEAsokGDx9QekkPE/mP7zB2EAxFCQBQxQuf+IoAHyWf5Dggw5kgECiAXOA3kLpAFoC0wjDP+GWvAbySJw2COFM8hSRrhZ/xkAAogFkR4ZwZK/GZBcC9QMNuA31ODfSD74DbUAaCjTX0hkM0K9DjITIIBYGGApkfE/xHYmaDhCvQlLESCN8OBACZr/wMiG8CHmgtMfA0AAsYDNBImAYh7kNSaI4n9/ERGE4n0QG2rJb6g4IzSIgDkP7EyQiwECiOU/Uj779w8SXv+gkff3DyTcYbGPHO5/fv+HpxRwxP9GyfEMAAEECWNGsLMhhkIN/wulwb74C7Xk3394hoG59s8voO8Y/0NdzAAPWYAAYkGUAEzAHMTKwMoKTD5/mBn+gXLkf2jkgLI2MBwZ/0Johr/gkIOoAcK/oGD8xwZKuPACCSCAWEDlAjMzK8PXD28Ydu3ew8DHwQLOKH/hSQuUk5gg4Q1y6a+/UNf+hwfT///MDG+eXAXayQ9OcqBQAAggFhYWZub/zOwMxTH2DE9fvQPmdVDWZAZ6iwnqmX8MHz6+A5Ynf8FZloebC5p1GcGGgCLsFyjJ/FNh0FRXYfgJzKXMQDMAAojl/fv3P0HBbGNlwcDIxAQ26A8w8H7//gU2l5mZheHVq9fAsP8HDn9hYUEGNjY2sANAReXzN88ZxIUkGJhZWIE+/cHw7t07hi9fvjADBBCjvLy8j7q6epaMjIySmpqaiJKSEi8nJycryFZBQUFGISEhYLizMgC9BnTlP6Dmn6BiEZhy/jG8//D+/7U71xj+/fj36+7du1+A+M39+/cfX7t2bT1AADGCNABdyA10nCgQiwGxJNAgqaysrHI3Nzd5kCtABn///h3sRXZgQQ5ig9I+sPY5f/3a9aW/fv96AtT3AohfAfE7EAYIIBaowV+BHBB+APK+uLi4jIuLS52pqSncQFBQgAxjBJclfxi4ubkZtm7dynDx4sWFQC1vGNAAQAAxoQvo6ekxBAYGOigoKEiADAG5lgkY9iAaZAFMDOQgc3NzfSDfmAELAAggFmQOSMPPnz8Ztm3bdvLEiRPzgAZJ/gM5FZY3GRnhVRTQMiZgxH+D+hQDAAQYAFDky9BqyKhOAAAAAElFTkSuQmCC"/></a>);
 }
 
 sub _view_address
@@ -2306,8 +2290,7 @@ sub _view_address
 	return unless $value;
 	my $a = $value; 
 	$a =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
-	#add output=js for inline map
-	return qq(<a href="http://gmodules.com/ig/ifr?url=http://ralph.feedback.googlepages.com/googlemap.xml&amp;up_locname=%20&amp;up_loc=$a\&amp;up_zoom=Street&amp;up_view=Map&amp;synd=open&amp;w=600&amp;h=340&amp;title=+&amp;border=%23ffffff%7C3px%2C1px+solid+%23999999&amp;" class="light_address">$value</a>);
+	return qq(<a href="http://www.gmodules.com/ig/ifr?synd=open&amp;url=http%3A%2F%2Fralph.feedback.googlepages.com%2Fgooglemap.xml&amp;up_loc=$a&amp;up_zoom=Street&amp;up_view=Map" class="address">$value</a>); # output=js for inline map
 }
 
 sub _view_timestamp
@@ -2458,6 +2441,33 @@ sub _touch_up
 	my ($rendering, $cancel, $form_id) = @_;
 	$rendering =~ s/onclick="this\.form\._submit\.value = this\.value;" type="submit" value="$cancel"/onclick="this.form.$form_id\_submit_cancel.value = 1;" type="submit" value="$cancel"/;
 	return $rendering;
+}
+
+
+sub _alias_table
+{
+	my ($with_require_objects, $class, $counter, $table_alias, $table_to_class) = @_;
+
+	foreach my $with_require_object (@{$with_require_objects})
+	{
+		if (exists $class->meta->{relationships}->{$with_require_object})
+		{
+			if ($class->meta->{relationships}->{$with_require_object}->type eq 'many to many')
+			{
+				$table_alias->{$class->meta->{relationships}->{$with_require_object}->{map_class}} = 't' . ++$$counter;
+				$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{map_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{map_class};
+				$table_alias->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}} = 't' . ++$$counter;								
+				$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{foreign_class};
+			}
+			else
+			{
+				$table_alias->{$class->meta->{relationships}->{$with_require_object}->{class}} = 't' . ++$$counter;
+				$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{class};
+			}
+		}
+	}
+	
+	return ($table_alias, $table_to_class);
 }
 
 1;
@@ -3093,7 +3103,9 @@ The C<searchable> option allows keyword search in multiple columns, including th
     searchable => ['first_name', 'last_name', 'position.title'],
   );
 
-This option adds a text field named 'q' in the rendered table. C<render_as_table()> grabs the value of the C<q> parameter if it is defined, otherwise pulls 'q' value from CGI, to produce the rearch results.
+This option adds a text field named 'q' in the rendered table for entering keywords. C<render_as_table()> grabs the value of the C<q> parameter if it exists, otherwise it pulls the 'q' value from querystring. The C<searchable> option constructs SQL queries using the 'LIKE' operator (configurable via C<like_operator>). 
+
+Since PostgreSQL does not like mixing table aliases with real table names in queries, and disabled auto type casting in 8.3, C<render_as_table()> tries to perform basic table aliasing and type casting for non-character based columns automatically for PostgreSQL. Please note that the corresponding tables in chained relationships defined via 'with_objects' and 'require_objects', such as 'vendor.region', will require manual table aliasing they are specified in the C<searchable> array.
 
 By default, comma is the delimiter for seperating multiple keywords. This is configurable via C<config()>.
 
