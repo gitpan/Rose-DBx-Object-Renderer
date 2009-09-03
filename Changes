@@ -203,3 +203,5 @@ Revision history for Rose-DBx-Object-Renderer
         Updated the Google Gadget URI of the 'address' column definition.
         Updated the default CSS style for menu, table, and form. Updated the sample 'table.tt' accordingly.
         Updated POD.
+0.52    03/09/2009
+        Minor CSS Updates.
