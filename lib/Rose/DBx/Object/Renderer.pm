@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.52;
-# 139.40
+our $VERSION = 0.53;
+# 140.41
 
 sub config
 {
@@ -813,7 +813,7 @@ sub render_as_table
 		my $sort_by_column_definition;
 		$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
 		
-		unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable})))
+		unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || exists $args{columns}->{$sort_by_column}->{accessor} || $args{columns}->{$sort_by_column}->{unsortable})))
 		{
 			if ($sort_by_column eq $primary_key)
 			{
@@ -1145,7 +1145,7 @@ sub render_as_table
 				$head->{value} = $column_definition->{label} || _label($column);				
 			}
 					
-			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || $args{columns}->{$column}->{unsortable})))
+			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || exists $args{columns}->{$column}->{accessor} || $args{columns}->{$column}->{unsortable})))
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -1185,6 +1185,11 @@ sub render_as_table
 				if(exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{value}) #custom column value
 				{
 					$value = $args{columns}->{$column}->{value}->{$object_id} if exists $args{columns}->{$column}->{value}->{$object_id};
+				}
+				elsif(exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{accessor}) #custom column accessor
+				{
+					my $accessor = $args{columns}->{$column}->{accessor};
+					$value = $object->$accessor($column) if $object->can($accessor);
 				}
 				elsif (exists $relationships->{$column})
 				{					
@@ -3089,6 +3094,19 @@ The C<columns> parameter can be used set the label and value of a column, as wel
       }
     }
   );
+
+We can also nominate a custom C<accessor>, such that the table column values are populated via the nominated accessor, as opposed to the default column one. For example:
+
+  Company::Employee::Manager->render_as_table(
+    order => ['first_name', 'salary'],
+    columns => {
+      'salary' => {
+         accessor => 'salary_with_bonus' 
+      },
+    }
+  );
+
+In this case, the values of the 'salary' column in the table are populated by calling C<salary_with_bonus>, instead of C<salary>.
 
 =item C<order>
 

@@ -205,3 +205,6 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.52    03/09/2009
         Minor CSS Updates.
+0.53    09/10/2009
+        Added the ability to nominate a custom accessor to populate the table column values in render_as_table().
+        Updated POD.
