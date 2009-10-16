@@ -208,3 +208,5 @@ Revision history for Rose-DBx-Object-Renderer
 0.53    09/10/2009
         Added the ability to nominate a custom accessor to populate the table column values in render_as_table().
         Updated POD.
+0.54    16/10/2009
+        Fixed a bug in render_as_form() where fields with multiple values can not be emptied.

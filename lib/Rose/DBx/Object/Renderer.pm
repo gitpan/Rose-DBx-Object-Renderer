@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.53;
-# 140.41
+our $VERSION = 0.54;
+# 141.41
 
 sub config
 {
@@ -1854,105 +1854,101 @@ sub _update_object
 	
 	foreach my $field (@{$field_order})
 	{
-		if(defined $form->cgi_param($field))
-		{		
-			my $column = $field;
-			$column =~ s/$form_id\_// if $prefix;
-			my $field_value;
-			my @values = $form->field($field);
-			my $values_size = scalar @values;
+		my $column = $field;
+		$column =~ s/$form_id\_// if $prefix;
+		my $field_value;
+		my @values = $form->field($field);
+		my $values_size = scalar @values;
+	
+		if($values_size > 1)
+		{
+			$field_value = join _get_renderer_config($self)->{form}->{delimiter}, @values;
+		}
+		else
+		{
+			$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
+		}
+			
+		if (exists $relationships->{$column}) #one to many or many to many
+		{
+			my $foreign_class = $relationships->{$column}->{class};
+			my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
+			my $foreign_key;
 		
-			if($values_size > 1)
+			foreach my $fk (keys %{$foreign_class_foreign_keys})
 			{
-				$field_value = join _get_renderer_config($self)->{form}->{delimiter}, @values;
+				if ($foreign_class_foreign_keys->{$fk}->{class} eq $class)
+				{
+					$foreign_key = $fk;
+					last;
+				}
+			}
+
+			my $default = undef;
+			$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
+			if(length($form->cgi_param($field))) # $form->field($field) won't work
+			{ 
+				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
+				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
+		
+				foreach my $id (@values)
+				{
+					push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
+					$value_hash->{$id} = undef;
+					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
+				}
+	
+				foreach my $id (keys %{$relationship_object->{$column}})
+				{
+					push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
+				}
+								
+				if ($relationships->{$column}->{type} eq 'one to many')
+				{
+					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
+					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;						
+				}
+				else #many to many
+				{
+					$self->$column(@{$new_foreign_object_id_hash});
+				}
 			}
 			else
 			{
-				$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
-			}
-				
-			if (exists $relationships->{$column}) #one to many or many to many
-			{
-				my $foreign_class = $relationships->{$column}->{class};
-				my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
-				my $foreign_key;
-			
-				foreach my $fk (keys %{$foreign_class_foreign_keys})
-				{
-					if ($foreign_class_foreign_keys->{$fk}->{class} eq $class)
-					{
-						$foreign_key = $fk;
-						last;
-					}
+				if ($relationships->{$column}->{type} eq 'one to many')
+				{					
+					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [$foreign_key => $self->$primary_key]);	
 				}
-
-				my $default = undef;
-				$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
-				if(length($form->cgi_param($field))) # $form->field($field) won't work
-				{ 
-					my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
-					my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
-			
-					foreach my $id (@values)
-					{
-						push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
-						$value_hash->{$id} = undef;
-						push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
-					}
+				else #many to many
+				{
+					$self->$column([]); # cascade deletes foreign objects
+				}
+			}
+		}
+		else
+		{
+			my $update_method;
+			if ($class->can($column . '_for_update'))
+			{
+				$update_method = $column . '_for_update';	
+			}
+			elsif ($class->can($column))
+			{
+				$update_method = $column;
+			}
 		
-					foreach my $id (keys %{$relationship_object->{$column}})
-					{
-						push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
-					}
-									
-					if ($relationships->{$column}->{type} eq 'one to many')
-					{
-						Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
-						Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;						
-					}
-					else #many to many
-					{
-						$self->$column(@{$new_foreign_object_id_hash});
-					}
+			if ($update_method)
+			{
+				if (length($form->cgi_param($field)))
+				{
+					$self->$update_method($field_value);
 				}
 				else
 				{
-					if ($relationships->{$column}->{type} eq 'one to many')
-					{					
-						Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [$foreign_key => $self->$primary_key]);	
-					}
-					else #many to many
-					{
-						$self->$column([]); # cascade deletes foreign objects
-					}
+					$self->$update_method(undef);
 				}
 			}
-			else
-			{
-				my $update_method;
-				if ($class->can($column . '_for_update'))
-				{
-					$update_method = $column . '_for_update';	
-				}
-				elsif ($class->can($column))
-				{
-					$update_method = $column;
-				}
-			
-				if ($update_method)
-				{
-					if (length($form->cgi_param($field)))
-					{
-						$self->$update_method($field_value);
-					}
-					else
-					{
-						$self->$update_method(undef);
-					}
-				}
-			}	
-	
-		}
+		}	
 	}
 	$self->save;
 	return $self;
