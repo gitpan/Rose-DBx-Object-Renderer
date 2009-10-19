@@ -210,3 +210,5 @@ Revision history for Rose-DBx-Object-Renderer
         Updated POD.
 0.54    16/10/2009
         Fixed a bug in render_as_form() where fields with multiple values can not be emptied.
+0.55    20/10/2009
+        Fixed typos in POD (Patched by Gary Ashton-Jones)

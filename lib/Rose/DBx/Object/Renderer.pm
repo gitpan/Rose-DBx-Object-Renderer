@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.54;
-# 141.41
+our $VERSION = 0.55;
+# 141.42
 
 sub config
 {
@@ -2662,7 +2662,7 @@ The C<table> option defines the default behaviours of C<render_as_table>:
 
 =head3 C<columns>
 
-Renderer has a built-in list of column definitions that encapsulate web-oriented conventions and behaviours. A column definition is a collection of column options. Column definitions are used by the rendering methods to generate web UIs. The built-in column definitions are store inside C<columns>:
+Renderer has a built-in list of column definitions that encapsulate web-oriented conventions and behaviours. A column definition is a collection of column options. Column definitions are used by the rendering methods to generate web UIs. The built-in column definitions are stored inside C<columns>:
 
   my $config = $renderer->config();
   print join (', ', keys %{$config->{columns}});
@@ -2785,7 +2785,7 @@ Other miscellaneous options are defined in C<misc>:
 
 =head2 C<load>
 
-C<load> uses L<Rose::DB::Object::Loader> to load L<Rose::DB::Object> classes dynamically. In order to take advantages of the built-in column definitions, C<load> employs the following logic to auto-assign column definitions to database columns:
+C<load> uses L<Rose::DB::Object::Loader> to load L<Rose::DB::Object> classes dynamically. In order to take advantage of the built-in column definitions, C<load> employs the following logic to auto-assign column definitions to database columns:
 
   Column name exists in the Renderer object's config?
     Yes: Use that column definition.
@@ -2804,7 +2804,7 @@ C<load> accepts a hashref to pass parameters to the C<new> and C<make_classes> m
 
 =item C<loader>
 
-The C<loader> option is a hashref that gets to passed to the C<new> method in L<Rose::DB::Object::Loader>.
+The C<loader> option is a hashref that gets passed to the C<new> method in L<Rose::DB::Object::Loader>.
 
   $renderer->load({
     loader => {
@@ -2826,7 +2826,7 @@ Similarly, the C<make_classes> option is passed to the C<make_classes> method.
 
 C<load> returns an array of the loaded classes via the C<make_classes> method in L<Rose::DB::Object::Loader>. However, if the L<Rose::DB::Object> C<base_class> for the particular database already exists, which most likely happens in a persistent environment, C<load> will simply skip the loading process and return undef.
 
-C<load> generates L<CGI::FormBuilder> validation subrefs to validate unique keys in forms. However, since column definitions are identified by column names, custom validation subrefs are required when there are multiple unique keys with the same table column name accross different tables loaded via Renderer.
+C<load> generates L<CGI::FormBuilder> validation subrefs to validate unique keys in forms. However, since column definitions are identified by column names, custom validation subrefs are required when there are multiple unique keys with the same table column name across different tables loaded via Renderer.
 
 =head1 RENDERING METHODS
 
@@ -2842,7 +2842,7 @@ Rendering methods are exported for L<Rose::DB::Object> subclasses to generate we
   use Rose::DBx::Object::Renderer qw(:manager);
   ...
 
-Obviously, the rendering methods in the custom subclasses does not take advantages of the built-in column definitions and formatting methods. However, you can still replicate those behaviours by using the C<fields> option in C<render_as_form>, or the C<columns> option in C<render_as_table>, as well as hand crafting the formatting methods.
+Obviously, the rendering methods in the custom subclasses do not take advantages of the built-in column definitions and formatting methods. However, you can still replicate those behaviours by using the C<fields> option in C<render_as_form>, or the C<columns> option in C<render_as_table>, as well as hand crafting the formatting methods.
 
 The following is a list of common parameters for the rendering methods:
 
@@ -2922,7 +2922,7 @@ A hashref of additional template variables. For example:
 
 =head2 C<render_as_form>
 
-C<render_as_form> renders forms and handles its submission.
+C<render_as_form> renders forms and handles their submission.
 
   # Render a form for creating a new object
   Company::Employee->render_as_form();
@@ -2940,7 +2940,7 @@ C<order> is an arrayref for the order of the form fields.
 
 =item C<fields>
 
-A hashref to specify the L<CGI::FormBuilder> field definitions for this particular C<render_as_form> call. Any custom fields must be included to the C<order> arrayref in order to be shown.
+A hashref to specify the L<CGI::FormBuilder> field definitions for this particular C<render_as_form> call. Any custom fields must be included in the C<order> arrayref in order to be shown.
 
   Company::Employee->render_as_form(
     order => ['username', 'favourite_cuisine'],
@@ -3044,7 +3044,7 @@ C<render_as_form> passes the following list of variables to a template:
   
   [% self %] - the calling object instance or class
   [% form %] - CGI::FormBuilder's form object
-  [% field_order %] - The order of the form fields
+  [% field_order %] - the order of the form fields
   [% form_id %] - the form id
   [% form_submit %] - the form submit buttons with a custom 'Cancel' button
   [% title %] - the form title
@@ -3054,7 +3054,7 @@ C<render_as_form> passes the following list of variables to a template:
   [% no_head %] - the 'no_head' option
   [% cancel %] - the name of the 'Cancel' controller
   [% javascript_code %] - javascript code 
-  [% template_url %] - The default template URL
+  [% template_url %] - the default template URL
   [% extra %] - extra template variables
 
 =head2 C<render_as_table>
@@ -3073,7 +3073,7 @@ returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By
 
 =item C<columns>
 
-The C<columns> parameter can be used set the label and value of a column, as well as whether the column is sortable. It can also be used to create custom columns, which do not exist in the underlying database.
+The C<columns> parameter can be used to set the label and value of a column, as well as whether the column is sortable. It can also be used to create custom columns, which do not exist in the underlying database.
 
   Company::Employee::Manager->render_as_table(
     order => ['first_name', 'custom_column'],
@@ -3119,7 +3119,7 @@ The C<searchable> option allows keyword search in multiple columns, including th
 
 This option adds a text field named 'q' in the rendered table for entering keywords. C<render_as_table()> grabs the value of the C<q> parameter if it exists, otherwise it pulls the 'q' value from querystring. The C<searchable> option constructs SQL queries using the 'LIKE' operator (configurable via C<like_operator>). 
 
-Since PostgreSQL does not like mixing table aliases with real table names in queries, and disabled auto type casting in 8.3, C<render_as_table()> tries to perform basic table aliasing and type casting for non-character based columns automatically for PostgreSQL. Please note that the corresponding tables in chained relationships defined via 'with_objects' and 'require_objects', such as 'vendor.region', will require manual table aliasing they are specified in the C<searchable> array.
+Since PostgreSQL does not like mixing table aliases with real table names in queries, and disabled auto type casting in 8.3, C<render_as_table()> tries to perform basic table aliasing and type casting for non-character based columns automatically for PostgreSQL. Please note that the corresponding tables in chained relationships defined via 'with_objects' and 'require_objects', such as 'vendor.region', will require manual table aliasing if they are specified in the C<searchable> array.
 
 By default, comma is the delimiter for seperating multiple keywords. This is configurable via C<config()>.
 
@@ -3191,7 +3191,7 @@ A string with javascript code to be added to the template
 
 =item C<ajax> and C<ajax_template>
 
-These two parameters are designed for rendering Ajax-enabled tables. When C<ajax> is set to 1, C<render_as_table> tries to use the template 'table_ajax.tt' for rendering, unless it is defined via C<ajax_template>. C<render_as_table> also passes a variable called 'ajax' to the template and sets it to 1 when a CGI param named 'ajax' (assuming no prefix is in used) is found, indicating the current request is an ajax request.
+These two parameters are designed for rendering Ajax-enabled tables. When C<ajax> is set to 1, C<render_as_table> tries to use the template 'table_ajax.tt' for rendering, unless it is defined via C<ajax_template>. C<render_as_table> also passes a variable called 'ajax' to the template and sets it to 1 when a CGI param named 'ajax' (assuming no prefix is in use) is found, indicating the current request is an ajax request.
 
 =back
 
@@ -3202,7 +3202,7 @@ C<render_as_table> passes the following list of variables to a template:
   [% table %] - the hash for the formatted table, see the sample template 'table.tt' 
   [% objects %] - the raw objects returned by the 'get_object' method
   [% column_order %] - the order of the columns
-  [% template_url %] - The default template URL
+  [% template_url %] - the default template URL
   [% table_id %] - the table id
   [% title %] - the table title
   [% description %] - the table description
@@ -3261,7 +3261,7 @@ These parameters are shortcuts which get passed to all the underlying tables ren
 
 C<render_as_menu> passes the following list of variables to a template:
 
-  [% template_url %] - The default template URL
+  [% template_url %] - the default template URL
   [% menu_id %] - the menu id
   [% title %] - the menu title
   [% description %] - the menu description
@@ -3305,7 +3305,7 @@ Accepts a coderef to plug in your own charting engine.
 
 C<render_as_chart> passes the following list of variables to a template:
 
-  [% template_url %] - The default template URL
+  [% template_url %] - the default template URL
   [% chart_id %] - the chart id
   [% title %] - the chart title
   [% description %] - the chart description
