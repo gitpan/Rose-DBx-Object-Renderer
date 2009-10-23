@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.55;
-# 141.42
+our $VERSION = 0.56;
+# 142.43
 
 sub config
 {
@@ -34,7 +34,7 @@ sub config
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
 			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},		
-			misc => {stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:#fff;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:#fcfcfc;border:1px solid #ddd;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;cursor:pointer;background:#eee;background:-webkit-gradient(linear, left top, left bottom, from(#fff), to(#ddd), color-stop(0.3, #eee));-webkit-transition:-webkit-box-shadow 0.1s linear;text-shadow:0px 1px 1px #fff;}input:hover[type="submit"]{background:#d0d0d0;color:#0D3247;background:-webkit-gradient(linear, left top, left bottom, from(#eee), to(#ddd), color-stop(0.3, #eee));}input:active[type="submit"]{-webkit-box-shadow:0 0 5px #333;-moz-box-shadow:0 0 5px #333;}h1,h2{font-size:350%;padding:15px;text-shadow: 0px 1px 2px #aaa;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom: 1px dotted #ddd;font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0px;background-color:#e0e0e0;background:-webkit-gradient(linear,left top,left bottom,from(#f0f0f0),to(#cfcfcf),color-stop(0.8, #d0d0d0));text-shadow: 0px 1px 1px #fff;}tr{background-color:#fff;-webkit-transition:background-color 0.3s linear}tr:hover{background-color:#F5F9FA;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background:-webkit-gradient(linear,left top,left bottom,from(#efefef),to(#ddd),color-stop(0.8, #e0e0e0));background-color:#e0e0e0;padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow: 0px 1px 1px #fff;float:left;display:block;color:#555;background-color:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;-webkit-transition:background-color 0.2s linear;}.menu ul li a:hover{background-color:#f0f0f0;color:#0D3247;}.menu ul li a:active{background-color:#fff;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #d0d0d0;margin-right:1px;-moz-border-radius:2px;-webkit-border-radius:2px;-webkit-transition: border 0.5s linear;}a.pager:hover{border:1px solid #0D3247;}</style>'},
+			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:#fff;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:#fcfcfc;border:1px solid #ddd;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;cursor:pointer;background:#eee;background:-webkit-gradient(linear, left top, left bottom, from(#fff), to(#ddd), color-stop(0.3, #eee));-webkit-transition:-webkit-box-shadow 0.1s linear;text-shadow:0px 1px 1px #fff;}input:hover[type="submit"]{background:#d0d0d0;color:#0D3247;background:-webkit-gradient(linear, left top, left bottom, from(#eee), to(#ddd), color-stop(0.3, #eee));}input:active[type="submit"]{-webkit-box-shadow:0 0 5px #333;-moz-box-shadow:0 0 5px #333;}h1,h2{font-size:350%;padding:15px;text-shadow: 0px 1px 2px #aaa;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom: 1px dotted #ddd;font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0px;background-color:#e0e0e0;background:-webkit-gradient(linear,left top,left bottom,from(#f0f0f0),to(#cfcfcf),color-stop(0.8, #d0d0d0));text-shadow: 0px 1px 1px #fff;}tr{background-color:#fff;-webkit-transition:background-color 0.3s linear}tr:hover{background-color:#F5F9FA;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background:-webkit-gradient(linear,left top,left bottom,from(#efefef),to(#ddd),color-stop(0.8, #e0e0e0));background-color:#e0e0e0;padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow: 0px 1px 1px #fff;float:left;display:block;color:#555;background-color:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;-webkit-transition:background-color 0.2s linear;}.menu ul li a:hover{background-color:#f0f0f0;color:#0D3247;}.menu ul li a:active{background-color:#fff;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #d0d0d0;margin-right:1px;-moz-border-radius:2px;-webkit-border-radius:2px;-webkit-transition: border 0.5s linear;}a.pager:hover{border:1px solid #0D3247;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -44,7 +44,7 @@ sub config
 				'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
 				'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub {_edit_date(@_);}}},
 				'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_view_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
-				'timestamp' => {readonly => 1, disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp();}, for_edit => sub {_create_timestamp();}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
+				'timestamp' => {readonly => 1, disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_create_timestamp(@_);}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
 				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
 				'time' => {validate => 'TIME', maxlength => 5, format => {for_update => sub {_udpate_time(@_)}, for_edit => sub{_edit_time(@_);}, for_view => sub{_edit_time(@_);}}},
 				'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
@@ -2150,7 +2150,8 @@ sub _get_file_url
 
 sub _create_timestamp
 {
-	my $dt = DateTime->now->set_time_zone( 'Australia/Sydney');
+	my ($self, $column) = @_;
+	my $dt = DateTime->now->set_time_zone(_get_renderer_config($self)->{misc}->{time_zone});
 	return $dt->dmy('/').' '.$dt->hms;
 }
 
@@ -2158,7 +2159,7 @@ sub _edit_date
 {
 	my ($self, $column) = @_;
 	return $self->$column unless ref $self->$column eq 'DateTime';
-	$self->$column->set_time_zone('Australia/Sydney');
+	$self->$column->set_time_zone(_get_renderer_config($self)->{misc}->{time_zone});
 	return $self->$column->dmy('/') if $self->$column;
 }
 
@@ -2175,7 +2176,7 @@ sub _update_date
 	return unless $value;
 	my ($d, $m, $y) = split '/', $value;
 	my $dt;
-	eval {$dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => 'Australia/Sydney')};
+	eval {$dt = DateTime->new(year => $y, month => $m, day => $d, time_zone => _get_renderer_config($self)->{misc}->{time_zone})};
 	return if $@;
 	return $self->$column($dt->ymd);
 }
@@ -2240,7 +2241,7 @@ sub _update_file
 sub _update_timestamp
 {
 	my ($self, $column) = @_;
-	return $self->$column(DateTime->now->set_time_zone('Australia/Sydney'));
+	return $self->$column(DateTime->now->set_time_zone(_get_renderer_config($self)->{misc}->{time_zone}));
 }
 
 sub _update_datetime
@@ -2253,7 +2254,7 @@ sub _update_datetime
 	my ($hour, $minute) = split ':', $time;
 	
 	my $dt;
-	eval {$dt = DateTime->new(year => $y, month => $m, day => $d, hour => $hour, minute => $minute, time_zone => 'Australia/Sydney')};
+	eval {$dt = DateTime->new(year => $y, month => $m, day => $d, hour => $hour, minute => $minute, time_zone => _get_renderer_config($self)->{misc}->{time_zone})};
 	return if $@;
 	return $self->$column($dt);
 }
@@ -2298,17 +2299,14 @@ sub _view_timestamp
 {
 	my ($self, $column) = @_;
 	return unless $self->$column && ref $self->$column eq 'DateTime';
-	$self->$column->set_time_zone('Australia/Sydney');
-	return $self->$column->dmy('/').' '.$self->$column->hms;
+	return $self->$column->strftime('%d/%m/%Y %H:%M:%S');
 }
 
 sub _view_datetime
 {
 	my ($self, $column) = @_;
 	return unless $self->$column && ref $self->$column eq 'DateTime';
-	$self->$column->set_time_zone('Australia/Sydney');
-	my $t = $self->$column->hms; 
-	return $self->$column->dmy('/').' '.$self->$column->hour.':'.$self->$column->minute;
+	return $self->$column->strftime('%d/%m/%Y %H:%M');
 }
 
 sub _search_boolean
@@ -2779,6 +2777,9 @@ Other miscellaneous options are defined in C<misc>:
 
   # Change the object stringify delimiter
   $custom_config->{misc}->{stringify_delimiter} = ', '; # defaulted to space
+
+  # Change time zone
+  $custom_config->{misc}->{time_zone} = 'Asia/Hong_Kong'; # defaulted to Australia/Sydney
 
   $renderer->config($custom_config);
   $renderer->load();

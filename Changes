@@ -212,3 +212,6 @@ Revision history for Rose-DBx-Object-Renderer
         Fixed a bug in render_as_form() where fields with multiple values can not be emptied.
 0.55    20/10/2009
         Fixed typos in POD (Patched by Gary Ashton-Jones)
+0.56    23/10/2009
+        Added 'time_zone' as a 'misc' option in the config hash. Updated date, datetime, and timestamp column formatting methods to utilise the new option.
+        Updated POD.
