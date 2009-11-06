@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.56;
-# 142.43
+our $VERSION = 0.57;
+# 146.43
 
 sub config
 {
@@ -34,7 +34,7 @@ sub config
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
 			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ','},		
-			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:#fff;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:#fcfcfc;border:1px solid #ddd;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;cursor:pointer;background:#eee;background:-webkit-gradient(linear, left top, left bottom, from(#fff), to(#ddd), color-stop(0.3, #eee));-webkit-transition:-webkit-box-shadow 0.1s linear;text-shadow:0px 1px 1px #fff;}input:hover[type="submit"]{background:#d0d0d0;color:#0D3247;background:-webkit-gradient(linear, left top, left bottom, from(#eee), to(#ddd), color-stop(0.3, #eee));}input:active[type="submit"]{-webkit-box-shadow:0 0 5px #333;-moz-box-shadow:0 0 5px #333;}h1,h2{font-size:350%;padding:15px;text-shadow: 0px 1px 2px #aaa;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom: 1px dotted #ddd;font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0px;background-color:#e0e0e0;background:-webkit-gradient(linear,left top,left bottom,from(#f0f0f0),to(#cfcfcf),color-stop(0.8, #d0d0d0));text-shadow: 0px 1px 1px #fff;}tr{background-color:#fff;-webkit-transition:background-color 0.3s linear}tr:hover{background-color:#F5F9FA;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background:-webkit-gradient(linear,left top,left bottom,from(#efefef),to(#ddd),color-stop(0.8, #e0e0e0));background-color:#e0e0e0;padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow: 0px 1px 1px #fff;float:left;display:block;color:#555;background-color:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;-webkit-transition:background-color 0.2s linear;}.menu ul li a:hover{background-color:#f0f0f0;color:#0D3247;}.menu ul li a:active{background-color:#fff;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #d0d0d0;margin-right:1px;-moz-border-radius:2px;-webkit-border-radius:2px;-webkit-transition: border 0.5s linear;}a.pager:hover{border:1px solid #0D3247;}</style>'},
+			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:#fff;}form table td span,label span{color:red;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:#fcfcfc;border:1px solid #ddd;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;cursor:pointer;background-color:#eee;background:-moz-linear-gradient(top, bottom, from(#fff), to(#ddd), color-stop(0.3, #eee));background:-webkit-gradient(linear, left top, left bottom, from(#fff), to(#ddd), color-stop(0.3, #eee));-webkit-transition:-webkit-box-shadow 0.1s linear;text-shadow:0px 1px 1px #fff;}input:hover[type="submit"]{background:#d0d0d0;color:#0D3247;background:-moz-linear-gradient(top,bottom,from(#f0f0f0),to(#c0c0c0));background:-webkit-gradient(linear,left top,left bottom,from(#f0f0f0), to(#c0c0c0));}input:active[type="submit"]{-webkit-box-shadow:0 0 5px #333;-moz-box-shadow:0 0 5px #333;}h1,h2{font-size:350%;padding:15px;text-shadow: 0px 1px 2px #aaa;}p{padding:10px 20px;}div{padding:10px 10px 0px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom: 1px dotted #ddd;font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#e0e0e0;background:-moz-linear-gradient(top,bottom,from(#f0f0f0),to(#cfcfcf),color-stop(0.8, #d0d0d0));background:-webkit-gradient(linear,left top,left bottom,from(#f3f3f3),to(#cfcfcf),color-stop(0.8, #d0d0d0));text-shadow: 0px 1px 1px #fff;}tr{background-color:#fff;-webkit-transition:background-color 0.3s linear}tr:hover{background-color:#F5F9FA;}.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#e3e3e3;background:-moz-linear-gradient(top,bottom,from(#f0f0f0),to(#ddd),color-stop(0.6, #e0e0e0));background:-webkit-gradient(linear,left top,left bottom,from(#f0f0f0),to(#ddd),color-stop(0.6,#e0e0e0));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow: 0px 1px 1px #fff;float:left;display:block;color:#555;background-color:#d0d0d0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;-webkit-transition:background-color 0.2s linear;}.menu ul li a:hover{background-color:#f0f0f0;color:#0D3247;}.menu ul li a:active{background-color:#fff;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#fff;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #d0d0d0;margin-right:1px;-moz-border-radius:2px;-webkit-border-radius:2px;-webkit-transition: border 0.5s linear;}a.pager:hover{border:1px solid #0D3247;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -230,13 +230,17 @@ sub load
 								my $custom_definition;
 								$custom_definition->{required} = 1 if $class->meta->{columns}->{$column}->{not_null};
 								$custom_definition->{maxlength} = $class->meta->{columns}->{$column}->{length} if defined $class->meta->{columns}->{$column}->{length};
-								$custom_definition->{multiple} = 1 if ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
-								$custom_definition->{options} = $class->meta->{columns}->{$column}->{check_in} if defined $class->meta->{columns}->{$column}->{check_in};
+								
+								if (defined $class->meta->{columns}->{$column}->{check_in})
+								{
+									$custom_definition->{options} = $class->meta->{columns}->{$column}->{check_in};
+									$custom_definition->{multiple} = 1 if ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
+								}
 								
 								$config->{columns}->{$column} = $custom_definition;
 								$column_type = $column;
 								$custom_definitions->{$column} = undef;
-							}						
+							}					
 						}						
 					}
 										
@@ -567,6 +571,13 @@ sub render_as_form
 				elsif (exists $class->meta->{columns}->{$column}->{check_in})
 				{
 					$field_def->{options} = $class->meta->{columns}->{$column}->{check_in};
+					$field_def->{multiple} = 1 if ! exists $field_def->{multiple} && ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
+				}
+				elsif (! exists $field_def->{type} && ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Text')
+				{
+					$field_def->{type} = 'textarea';
+					$field_def->{cols} ||= '55';
+					$field_def->{rows} ||= '10';
 				}
 			}
 						
@@ -925,7 +936,8 @@ sub render_as_table
 	}
 	
 	my $filtered_columns;
-	foreach my $column (@{$column_order})
+	my $filterable = $args{filterable} || $column_order;
+	foreach my $column (@{$filterable})
 	{
 		unless (exists $relationships->{$column})
 		{
@@ -3064,14 +3076,6 @@ C<render_as_table> renders tables for CRUD operations.
 
 =over
 
-=item C<or_filter>
-
-C<render_as_table> allows columns to be filtered via URL. For example:
-
-  http://www.yoursite.com/yourscript.pl?first_name=Danny&last_name=Liang
-
-returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
-
 =item C<columns>
 
 The C<columns> parameter can be used to set the label and value of a column, as well as whether the column is sortable. It can also be used to create custom columns, which do not exist in the underlying database.
@@ -3107,7 +3111,24 @@ In this case, the values of the 'salary' column in the table are populated by ca
 
 =item C<order>
 
-C<order> accepts an arrayref to define the order of the columns to be shown. The C<order> parameter also determines which columns are allowed to be filtered via url.
+C<order> accepts an arrayref to define the order of the columns to be shown. The C<order> parameter also determines which columns are allowed to be filtered via URL when C<filterable> is not defined.
+
+=item C<or_filter>
+
+C<render_as_table> allows columns to be filtered via URL. For example:
+
+  http://www.yoursite.com/yourscript.pl?first_name=Danny&last_name=Liang
+
+returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
+
+=item C<filterable>
+
+This specifies an arrayref of columns that are filterable via URL. This can be used to filter data in columns that are not shown, e.g.:
+
+  Company::Employee::Manager->render_as_table(
+    order => ['first_name', 'last_name', 'email'],
+    filterable => ['first_name', 'last_name', 'email', 'state'],
+  );
 
 =item C<searchable>
 

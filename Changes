@@ -215,3 +215,8 @@ Revision history for Rose-DBx-Object-Renderer
 0.56    23/10/2009
         Added 'time_zone' as a 'misc' option in the config hash. Updated date, datetime, and timestamp column formatting methods to utilise the new option.
         Updated POD.
+0.57    05/11/2009
+        Added the 'filterable' parameter to render_as_table().
+        Preserve the textarea field type when appropriate in render_as_form().
+        Added gradient background support to the default CSS for the upcoming Firefox 3.6.
+        Updated POD.
