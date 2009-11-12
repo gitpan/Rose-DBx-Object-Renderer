@@ -220,3 +220,10 @@ Revision history for Rose-DBx-Object-Renderer
         Preserve the textarea field type when appropriate in render_as_form().
         Added gradient background support to the default CSS for the upcoming Firefox 3.6.
         Updated POD.
+0.58    12/11/2009
+        Added the 'table_prefix' parameter to improve labelling titles, columns, and form fields in the generated UIs.
+        Removed disabling sorting for columns with custom accessor (0.53+) in render_as_table().
+        Deprecated the 'class_label' template variable in render_as_table().
+        Improved form field order derivation in render_as_table().
+        Improved performance for rendering pie charts in render_as_chart().
+        Updated POD.

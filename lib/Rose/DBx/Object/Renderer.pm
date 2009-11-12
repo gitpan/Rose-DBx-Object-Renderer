@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.57;
-# 146.43
+our $VERSION = 0.58;
+# 147.44
 
 sub config
 {
@@ -29,7 +29,7 @@ sub config
 	unless ($self && defined $self->{CONFIG})
 	{		
 		$self->{CONFIG} = {
-			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like'},
+			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like', table_prefix => undef},
 			template => {path => 'templates', url => 'templates'},
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
@@ -396,7 +396,9 @@ sub render_as_form
 	my ($class, $form_action, $field_order, $output, $relationship_object);
 	my $table = $self->meta->table;
 	my $form_title = $args{title};
-
+	my $class = ref $self || $self;
+	my $renderer_config = _get_renderer_config($class);
+	
 	if (ref $self)
 	{
 		$class = ref $self;
@@ -408,16 +410,15 @@ sub render_as_form
 		{
 			$form_action = 'update';
 		}
-		$form_title ||= _label($form_action.' '.$self->stringify_me);
+		$form_title ||= _label($form_action . ' ' . $self->stringify_me);
 	}
 	else
 	{
 		$class = $self;
 		$form_action = 'create';
-		$form_title ||= _label($form_action.' '.$table);
+		$form_title ||= _label($form_action . ' ' . _title($table, $renderer_config->{db}->{table_prefix}));
 	}
 	
-	my $renderer_config = _get_renderer_config($class);
 	my $download_message = $args{download_message} || $renderer_config->{form}->{download_message};
 	my $cancel = $args{cancel} || $renderer_config->{form}->{cancel};
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
@@ -638,7 +639,7 @@ sub render_as_form
 		
 		delete $field_def->{value} if $field_def->{multiple} && $form->submitted && not $form->cgi_param($column) && not $form->cgi_param($form_id.'_'.$column);
 		
-		$field_def->{label} ||= _label($column);
+		$field_def->{label} ||= _label(_title($column, $renderer_config->{db}->{table_prefix}));
 		
 		unless (exists $field_def->{name})
 		{
@@ -789,7 +790,7 @@ sub render_as_table
 		}
 	}
 	
-	my $table_title = $args{title} || _label($class->meta->table);
+	my $table_title = $args{title} || _label(_title($class->meta->table, $renderer_config->{db}->{table_prefix}));
 	
 	my $like_operator = $args{like_operator} || $renderer_config->{db}->{like_operator};
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
@@ -824,7 +825,7 @@ sub render_as_table
 		my $sort_by_column_definition;
 		$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
 		
-		unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || exists $args{columns}->{$sort_by_column}->{accessor} || $args{columns}->{$sort_by_column}->{unsortable})))
+		unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable})))
 		{
 			if ($sort_by_column eq $primary_key)
 			{
@@ -1003,7 +1004,19 @@ sub render_as_table
 			$args{$action} = {} if $args{$action} eq 1;
 			$args{$action}->{output} = 1;
 			$args{$action}->{no_head} ||= 1 if $args{no_head};
-			$args{$action}->{order} ||= $args{order} if $args{order};			
+			
+			unless (exists $args{$action}->{order}) # inherit form field order from other form definitions
+			{
+				foreach my $other_form_action ('create', 'edit', 'copy')
+				{
+					next if $other_form_action eq $action || ! exists $args{$other_form_action} || ref $args{$other_form_action} ne 'HASH' || ! exists $args{$other_form_action}->{order};
+					$args{$action}->{order} = $args{$other_form_action}->{order};
+					last;
+				}
+			}
+			
+			$args{$action}->{order} ||= $args{order} if $args{order};
+			
 			$args{$action}->{template} ||= 1 if $args{template};
 			@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};						
 			$args{$action}->{queries}->{$param_list->{action}} = $action;
@@ -1154,10 +1167,10 @@ sub render_as_table
 			}
 			else
 			{
-				$head->{value} = $column_definition->{label} || _label($column);				
+				$head->{value} = $column_definition->{label} || _label(_title($column, $renderer_config->{db}->{table_prefix}));
 			}
 					
-			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || exists $args{columns}->{$column}->{accessor} || $args{columns}->{$column}->{unsortable})))
+			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || $args{columns}->{$column}->{unsortable})))
 			{
 				if ($query->param($param_list->{'sort_by'}) eq $column)
 				{
@@ -1334,7 +1347,6 @@ sub render_as_table
 				table_id => $table_id,
 				title => $table_title,
 				description => $args{description},
-				class_label => _label($class->meta->table),
 				doctype => $renderer_config->{misc}->{doctype},
 				html_head => $html_head,
 				no_head => $args{no_head},
@@ -1501,7 +1513,7 @@ sub render_as_menu
 		}
 		else
 		{
-			$items->{$item}->{label} = _label($table);
+			$items->{$item}->{label} = _label(_title($table, $renderer_config->{db}->{table_prefix}));
 		}
 		
 		$items->{$item}->{link} = qq($url?$query_string$current_param=$table);
@@ -1592,10 +1604,9 @@ sub render_as_chart
 {
 	my ($self, %args) = (@_);
 	my $class = $self->object_class();
-	
-	my $title = $args{title} || _label($class->meta->table);
-	
 	my $renderer_config = _get_renderer_config($class);
+	my $title = $args{title} || _label(_title($class->meta->table, $renderer_config->{db}->{table_prefix}));
+	
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};	
 	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$title/;
@@ -1645,27 +1656,46 @@ sub render_as_chart
 				unless (exists $args{options}->{chd})
 				{
 					my (@values, @labels);
-					if ($args{type} eq 'pie' && $args{column} && $args{values})
+					if ($args{type} eq 'pie' && $args{column})
 					{
-						my $foreign_keys = _get_foreign_keys($class);
-						foreach my $value (@{$args{values}})
+						my $column = $args{column};
+						my $filtered_values;
+						if ($args{values})
 						{
-							push @values, $self->get_objects_count(query => [ $args{column} => $value ]);
-														
-							if (exists $foreign_keys->{$args{column}})
+							foreach my $value (@{$args{values}})
 							{
-								my $foreign_class = $foreign_keys->{$args{column}}->{class};
-								my $foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
-								my $foreign_object = $foreign_class->new($foreign_class_primary_key => $value);
-
-								if($foreign_object->load(speculative => 1))
-								{
-									push @labels, $foreign_object->stringify_me;
-								}
+								$filtered_values->{$value} = undef;
 							}
-							else
+						}
+						
+						my $foreign_keys = _get_foreign_keys($class);
+						my ($foreign_class, $foreign_class_primary_key);
+						if (exists $foreign_keys->{$args{column}})
+						{
+							$foreign_class = $foreign_keys->{$args{column}}->{class};
+							$foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
+						}
+						
+						my $primary_key = $class->meta->primary_key_column_names->[0]; # borrow the primary key column
+						foreach my $object (@{$self->get_objects_from_sql(sql => 'SELECT ' . $column . ', COUNT('. $column .') AS ' . $primary_key . ' FROM ' . $class->meta->table . ' GROUP BY ' . $column . ' ORDER BY '. $column)})
+						{
+							if (! $filtered_values || exists $filtered_values->{$object->$column})
 							{
-								push @labels, $value; 
+								push @values, $object->$primary_key;								
+								
+								if (exists $foreign_keys->{$args{column}})
+								{
+									my $foreign_object = $foreign_class->new($foreign_class_primary_key => $object->$column);
+							
+									if($foreign_object->load(speculative => 1))
+									{
+										push @labels, $foreign_object->stringify_me;
+									}
+								}
+								else
+								{
+									push @labels, $object->$column;
+								}
 							}
 						}
 						
@@ -2397,6 +2427,14 @@ sub _identify
 	return $prefix;	
 }
 
+sub _title
+{
+	my ($table_name, $prefix) = @_;
+	return $table_name unless $prefix;
+	$table_name =~ s/^$prefix//;
+	return $table_name;
+}
+
 sub _label
 {
 	my $string = shift;
@@ -2611,6 +2649,7 @@ The C<db> option is for configuring database related settings, for instance:
       password => 'password',
       tables_are_singular => 1,  # defines table name conventions, defaulted to undef
       like_operator => 'ilike',  # to perform case-insensitive LIKE pattern matching in PostgreSQL, defaulted to 'like'
+      table_prefix => 'app_', # specificies the prefix used in your table names if any, defaulted to undef
     }
   });
 
@@ -3228,7 +3267,6 @@ C<render_as_table> passes the following list of variables to a template:
   [% table_id %] - the table id
   [% title %] - the table title
   [% description %] - the table description
-  [% class_label %] - title case of the calling package name
   [% no_pagination %] - the 'no_pagination' option
   [% q %] - the keyword query for search
   [% query_string %] - a hash of URL encoded query strings
