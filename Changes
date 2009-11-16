@@ -227,3 +227,7 @@ Revision history for Rose-DBx-Object-Renderer
         Improved form field order derivation in render_as_table().
         Improved performance for rendering pie charts in render_as_chart().
         Updated POD.
+0.59    16/11/2009
+        Updated CSS based on Firefox 3.6 beta 2.
+        Updated column definition matching logic to match the longest string first.
+        Minor bug fix.
