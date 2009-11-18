@@ -231,3 +231,6 @@ Revision history for Rose-DBx-Object-Renderer
         Updated CSS based on Firefox 3.6 beta 2.
         Updated column definition matching logic to match the longest string first.
         Minor bug fix.
+0.60    18/11/2009
+        Added the 'get_from_sql' parameter to render_as_table() in order to provide primitive support for the 'get_objects_from_sql' method from Rose::DB::Object::Manager.
+        Updated POD.

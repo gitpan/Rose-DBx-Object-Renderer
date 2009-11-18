@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.59;
-# 148.44
+our $VERSION = 0.60;
+# 149.45
 
 sub config
 {
@@ -807,299 +807,318 @@ sub render_as_table
 	my $column_order = $args{order} || _get_column_order($class, $relationships);	
 	my $foreign_keys = _get_foreign_keys($class);
 	
-	my $param_list = {'sort_by' => 'sort_by', 'per_page' => 'per_page', 'page' => 'page', 'q' => 'q', 'ajax' => 'ajax', 'action' => 'action', 'object' => 'object', 'hide_table'};
+	my ($objects, $previous_page, $next_page, $last_page, $total);
 	
+	my $param_list = {'sort_by' => 'sort_by', 'per_page' => 'per_page', 'page' => 'page', 'q' => 'q', 'ajax' => 'ajax', 'action' => 'action', 'object' => 'object', 'hide_table'};
+
 	if ($args{prefix})
 	{
 		foreach my $param (keys %{$param_list})
 		{
 			$param_list->{$param} = $table_id.'_'.$param;
 		}
-	}	
-		
-	my $sort_by = $query->param($param_list->{'sort_by'});
-	if ($sort_by)
-	{
-		my $sort_by_column = $sort_by;
-		$sort_by_column =~ s/\sdesc$//;
-		my $sort_by_column_definition_method = $sort_by_column . '_definition';
-		my $sort_by_column_definition;
-		$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
-		
-		unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable})))
-		{
-			if ($sort_by_column eq $primary_key)
-			{
-				$args{get}->{sort_by} = 't1.' . $sort_by;
-			}
-			else
-			{
-				$args{get}->{sort_by} = 't1.' . $sort_by . ', '. $class->meta->table . '.' . $primary_key; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
-			}
-		}
-	}
-	else
-	{
-		$args{get}->{sort_by} ||= $primary_key; # always sort by primary key by default to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 	}
 	
-	if ($args{searchable})
+	if ($args{get_from_sql})
 	{
-		$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries}, which get serialised later as query stings
-		
-		if (defined $args{q})
+		if (ref $args{get_from_sql} eq 'HASH')
 		{
-			$q = $args{q};
-		}
-		elsif (length $query->param($param_list->{'q'}))
-		{
-			$q = $query->param($param_list->{'q'});
-		}
-		
-		if (defined $q)
-		{
-			my ($or, @raw_qs, @qs);
-			my $keyword_delimiter = $table_config->{keyword_delimiter};
-			if ($keyword_delimiter)
-			{
-				@raw_qs = split /$keyword_delimiter/, $q;
-			}
-			else
-			{
-				@raw_qs = $q;
-			}
-			
-			my $like_search_values;
-			foreach my $raw_q (@raw_qs)
-			{
-				$raw_q =~ s/^\s+|\s+$//g;
-				push @qs, $raw_q;
-				push @{$like_search_values}, '%' . $raw_q . '%';
-			}
-			
-			my $table_alias = {$class => 't1'};
-			my $table_to_class;
-			if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && $args{get})
-			{
-				my $counter = 1;
-				($table_alias, $table_to_class) = _alias_table($args{get}->{with_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{with_objects};
-				($table_alias, $table_to_class) = _alias_table($args{get}->{require_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{require_objects};
-			}
-						
-			foreach my $searchable_column (@{$args{searchable}})
-			{
-				my ($search_values, $search_class, $search_column, $search_method);
-				if ($searchable_column =~ /\./)
-				{
-					my $search_table;
-					($search_table, $search_column) = split /\./, $searchable_column;
-					$search_class = $table_to_class->{$search_table} || $class;
-				}
-				else
-				{
-					$search_class = $class;
-					$search_column = $searchable_column;
-				}
-							
-				if ($search_class->can($search_column . '_for_search'))
-				{
-					$search_method = $search_column.'_for_search';
-					foreach my $q (@qs)
-					{
-						my $search_result = $search_class->$search_method($q);
-						push @{$search_values}, '%' . $search_result . '%' if $search_result;
-					}
-				}
-				else
-				{
-					$search_values = $like_search_values;
-				}
-				
-				if ($search_class && $search_class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && exists $search_class->meta->{columns}->{$search_column} && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
-				{					
-					my $searchable_column_text = 'text(' . $table_alias->{$search_class} . '.' . $search_column . ') ' . $like_operator . ' ?';
-					foreach my $search_value (@{$search_values})
-					{
-						push @{$or}, [\$searchable_column_text => $search_value];
-					}
-				}
-				else
-				{
-					push @{$or}, $searchable_column => {$like_operator => $search_values}
-				}
-			}
-									
-			push @{$args{get}->{query}}, 'or' => $or;				
-			$args{queries}->{$param_list->{q}} = $q;
-			
-			$table_title = $args{search_result_title} || $table_config->{search_result_title};
-			$table_title =~ s/\[%\s*q\s*%\]/$q/;
-		}
-	}
-	
-	my $filtered_columns;
-	my $filterable = $args{filterable} || $column_order;
-	foreach my $column (@{$filterable})
-	{
-		unless (exists $relationships->{$column})
-		{
-			my $cgi_column;
-			$cgi_column = $table_id.'_' if $args{prefix};
-			$cgi_column .= $column;
-
-			if (length $query->param($cgi_column))
-			{
-				my @cgi_column_values = $query->param($cgi_column);
-				my $formatted_values;
-				if ($class->can($column . '_for_filter'))
-				{
-					my $filter_method = $column . '_for_filter';
-					foreach my $cgi_column_value (@cgi_column_values)
-					{
-						my $filter_result = $class->$filter_method($cgi_column_value);
-						push @{$formatted_values}, $filter_result if $filter_result;
-					}
-				}
-				elsif ($class->can($column))
-				{
-					$formatted_values = \@cgi_column_values;
-				}
-				
-				if ($formatted_values)
-				{
-					push @{$filtered_columns}, $column => $formatted_values;
-				}
-			}
-		}
-	}
-	
-	if ($filtered_columns)
-	{
-		if($table_config->{or_filter})
-		{
-			push @{$args{get}->{query}}, 'or' => $filtered_columns;						
+			$objects = $self->get_objects_from_sql(%{$args{get_from_sql}});
 		}
 		else
 		{
-			foreach my $filtered_column (@{$filtered_columns})
-			{
-				push @{$args{get}->{query}}, $filtered_column; 
-			}
+			$objects = $self->get_objects_from_sql($args{get_from_sql});
 		}
+		$table_config->{no_pagination} = 1;
 	}
-		
-	$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
-	$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
-		
-	my $objects = $self->get_objects(%{$args{get}});
-
-	##Handle Submission
-	my $reload_object;
-	if ($query->param($param_list->{action}))
-	{
-		my $valid_form_actions = {create => undef, edit => undef, copy => undef};
-		my $action = $query->param($param_list->{action});
-		
-		if (exists $valid_form_actions->{$action} && $args{$action})
+	else
+	{	
+		my $sort_by = $query->param($param_list->{'sort_by'});
+		if ($sort_by)
 		{
-			$args{$action} = {} if $args{$action} eq 1;
-			$args{$action}->{output} = 1;
-			$args{$action}->{no_head} ||= 1 if $args{no_head};
-			
-			unless (exists $args{$action}->{order}) # inherit form field order from other form definitions
+			my $sort_by_column = $sort_by;
+			$sort_by_column =~ s/\sdesc$//;
+			my $sort_by_column_definition_method = $sort_by_column . '_definition';
+			my $sort_by_column_definition;
+			$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
+		
+			unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable})))
 			{
-				foreach my $other_form_action ('create', 'edit', 'copy')
+				if ($sort_by_column eq $primary_key)
 				{
-					next if $other_form_action eq $action || ! exists $args{$other_form_action} || ref $args{$other_form_action} ne 'HASH' || ! exists $args{$other_form_action}->{order};
-					$args{$action}->{order} = $args{$other_form_action}->{order};
-					last;
+					$args{get}->{sort_by} = 't1.' . $sort_by;
+				}
+				else
+				{
+					$args{get}->{sort_by} = 't1.' . $sort_by . ', '. $class->meta->table . '.' . $primary_key; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 				}
 			}
-			
-			$args{$action}->{order} ||= $args{order} if $args{order};
-			
-			$args{$action}->{template} ||= 1 if $args{template};
-			@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};						
-			$args{$action}->{queries}->{$param_list->{action}} = $action;
-			$args{$action}->{queries}->{$param_list->{sort_by}} = $query->param($param_list->{sort_by}) if $query->param($param_list->{sort_by});
-			$args{$action}->{queries}->{$param_list->{page}} = $query->param($param_list->{page}) if $query->param($param_list->{page});	
-			$args{$action}->{prefix} ||= $table_id.'_form';
-			
-			my $form;
-			if ($action eq 'create')
-			{
-				$form = $class->render_as_form(%{$args{$action}});
-			}
-			elsif ($query->param($param_list->{object}))
-			{
-				$args{$action}->{queries}->{$param_list->{object}} = $query->param($param_list->{object});
-					
-			    $args{$action}->{copy} = 1 if $action eq 'copy';
-					
-				foreach my $object (@{$objects})
-				{
-					if ($object->$primary_key eq $query->param($param_list->{object}))
-					{
-						$form = $object->render_as_form(%{$args{$action}});
-						last;
-					}
-				}
-			}
-			
-			$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
-			$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
 		}
-		elsif ($query->param($param_list->{object}))
+		else
 		{
-			$reload_object = 1;
-			my @object_ids = $query->param($param_list->{object});
-			my (%valid_object_ids, @action_objects);
-			@valid_object_ids{@object_ids} = ();
-								
-			foreach my $object (@{$objects})
+			$args{get}->{sort_by} ||= $primary_key; # always sort by primary key by default to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
+		}
+	
+		if ($args{searchable})
+		{
+			$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries}, which get serialised later as query stings
+		
+			if (defined $args{q})
 			{
-				push @action_objects, $object if exists $valid_object_ids{$object->$primary_key};
+				$q = $args{q};
 			}
-			
-			if ($query->param($param_list->{action}) eq 'delete' && $args{delete})
+			elsif (length $query->param($param_list->{'q'}))
 			{
-				foreach my $action_object (@action_objects)
+				$q = $query->param($param_list->{'q'});
+			}
+		
+			if (defined $q)
+			{
+				my ($or, @raw_qs, @qs);
+				my $keyword_delimiter = $table_config->{keyword_delimiter};
+				if ($keyword_delimiter)
 				{
-					$action_object->delete_with_file;
+					@raw_qs = split /$keyword_delimiter/, $q;
 				}
-			}
-			elsif (exists $args{controllers} && exists $args{controllers}->{$query->param($param_list->{action})})
-			{
-				no strict 'refs';
-				foreach my $action_object (@action_objects)
+				else
 				{
-					if (ref $args{controllers}->{$query->param($param_list->{action})} eq 'HASH')
-					{									
-						$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->{callback}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})}->{callback} eq 'CODE';
-						$args{hide_table} = 1 if exists $args{controllers}->{$query->param($param_list->{action})}->{hide_table};
+					@raw_qs = $q;
+				}
+			
+				my $like_search_values;
+				foreach my $raw_q (@raw_qs)
+				{
+					$raw_q =~ s/^\s+|\s+$//g;
+					push @qs, $raw_q;
+					push @{$like_search_values}, '%' . $raw_q . '%';
+				}
+			
+				my $table_alias = {$class => 't1'};
+				my $table_to_class;
+				if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && $args{get})
+				{
+					my $counter = 1;
+					($table_alias, $table_to_class) = _alias_table($args{get}->{with_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{with_objects};
+					($table_alias, $table_to_class) = _alias_table($args{get}->{require_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{require_objects};
+				}
+						
+				foreach my $searchable_column (@{$args{searchable}})
+				{
+					my ($search_values, $search_class, $search_column, $search_method);
+					if ($searchable_column =~ /\./)
+					{
+						my $search_table;
+						($search_table, $search_column) = split /\./, $searchable_column;
+						$search_class = $table_to_class->{$search_table} || $class;
 					}
 					else
 					{
-						$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})} eq 'CODE';
+						$search_class = $class;
+						$search_column = $searchable_column;
+					}
+							
+					if ($search_class->can($search_column . '_for_search'))
+					{
+						$search_method = $search_column.'_for_search';
+						foreach my $q (@qs)
+						{
+							my $search_result = $search_class->$search_method($q);
+							push @{$search_values}, '%' . $search_result . '%' if $search_result;
+						}
+					}
+					else
+					{
+						$search_values = $like_search_values;
+					}
+				
+					if ($search_class && $search_class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && exists $search_class->meta->{columns}->{$search_column} && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
+					{					
+						my $searchable_column_text = 'text(' . $table_alias->{$search_class} . '.' . $search_column . ') ' . $like_operator . ' ?';
+						foreach my $search_value (@{$search_values})
+						{
+							push @{$or}, [\$searchable_column_text => $search_value];
+						}
+					}
+					else
+					{
+						push @{$or}, $searchable_column => {$like_operator => $search_values}
 					}
 				}
-			}			
+									
+				push @{$args{get}->{query}}, 'or' => $or;				
+				$args{queries}->{$param_list->{q}} = $q;
+			
+				$table_title = $args{search_result_title} || $table_config->{search_result_title};
+				$table_title =~ s/\[%\s*q\s*%\]/$q/;
+			}
+		}
+	
+		my $filtered_columns;
+		my $filterable = $args{filterable} || $column_order;
+		foreach my $column (@{$filterable})
+		{
+			unless (exists $relationships->{$column})
+			{
+				my $cgi_column;
+				$cgi_column = $table_id.'_' if $args{prefix};
+				$cgi_column .= $column;
+
+				if (length $query->param($cgi_column))
+				{
+					my @cgi_column_values = $query->param($cgi_column);
+					my $formatted_values;
+					if ($class->can($column . '_for_filter'))
+					{
+						my $filter_method = $column . '_for_filter';
+						foreach my $cgi_column_value (@cgi_column_values)
+						{
+							my $filter_result = $class->$filter_method($cgi_column_value);
+							push @{$formatted_values}, $filter_result if $filter_result;
+						}
+					}
+					elsif ($class->can($column))
+					{
+						$formatted_values = \@cgi_column_values;
+					}
+				
+					if ($formatted_values)
+					{
+						push @{$filtered_columns}, $column => $formatted_values;
+					}
+				}
+			}
+		}
+	
+		if ($filtered_columns)
+		{
+			if($table_config->{or_filter})
+			{
+				push @{$args{get}->{query}}, 'or' => $filtered_columns;						
+			}
+			else
+			{
+				foreach my $filtered_column (@{$filtered_columns})
+				{
+					push @{$args{get}->{query}}, $filtered_column; 
+				}
+			}
 		}
 		
-		if(defined $output->{output})
-		{
-			return $output if $args{output};
-			print $output->{output};
-			return;
-		}
-	}
-
-	my ($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get});
-	if($reload_object)
-	{
-		$args{get}->{page} = $last_page if $args{get}->{page} > $last_page;
+		$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
+		$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
+			
 		$objects = $self->get_objects(%{$args{get}});
-	}
+	
+
+		##Handle Submission
+		my $reload_object;
+		if ($query->param($param_list->{action}))
+		{
+			my $valid_form_actions = {create => undef, edit => undef, copy => undef};
+			my $action = $query->param($param_list->{action});
+		
+			if (exists $valid_form_actions->{$action} && $args{$action})
+			{
+				$args{$action} = {} if $args{$action} eq 1;
+				$args{$action}->{output} = 1;
+				$args{$action}->{no_head} ||= 1 if $args{no_head};
+			
+				unless (exists $args{$action}->{order}) # inherit form field order from other form definitions
+				{
+					foreach my $other_form_action ('create', 'edit', 'copy')
+					{
+						next if $other_form_action eq $action || ! exists $args{$other_form_action} || ref $args{$other_form_action} ne 'HASH' || ! exists $args{$other_form_action}->{order};
+						$args{$action}->{order} = $args{$other_form_action}->{order};
+						last;
+					}
+				}
+			
+				$args{$action}->{order} ||= $args{order} if $args{order};
+			
+				$args{$action}->{template} ||= 1 if $args{template};
+				@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};						
+				$args{$action}->{queries}->{$param_list->{action}} = $action;
+				$args{$action}->{queries}->{$param_list->{sort_by}} = $query->param($param_list->{sort_by}) if $query->param($param_list->{sort_by});
+				$args{$action}->{queries}->{$param_list->{page}} = $query->param($param_list->{page}) if $query->param($param_list->{page});	
+				$args{$action}->{prefix} ||= $table_id.'_form';
+			
+				my $form;
+				if ($action eq 'create')
+				{
+					$form = $class->render_as_form(%{$args{$action}});
+				}
+				elsif ($query->param($param_list->{object}))
+				{
+					$args{$action}->{queries}->{$param_list->{object}} = $query->param($param_list->{object});
+					
+				    $args{$action}->{copy} = 1 if $action eq 'copy';
+					
+					foreach my $object (@{$objects})
+					{
+						if ($object->$primary_key eq $query->param($param_list->{object}))
+						{
+							$form = $object->render_as_form(%{$args{$action}});
+							last;
+						}
+					}
+				}
+			
+				$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
+				$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
+			}
+			elsif ($query->param($param_list->{object}))
+			{
+				$reload_object = 1;
+				my @object_ids = $query->param($param_list->{object});
+				my (%valid_object_ids, @action_objects);
+				@valid_object_ids{@object_ids} = ();
+								
+				foreach my $object (@{$objects})
+				{
+					push @action_objects, $object if exists $valid_object_ids{$object->$primary_key};
+				}
+			
+				if ($query->param($param_list->{action}) eq 'delete' && $args{delete})
+				{
+					foreach my $action_object (@action_objects)
+					{
+						$action_object->delete_with_file;
+					}
+				}
+				elsif (exists $args{controllers} && exists $args{controllers}->{$query->param($param_list->{action})})
+				{
+					no strict 'refs';
+					foreach my $action_object (@action_objects)
+					{
+						if (ref $args{controllers}->{$query->param($param_list->{action})} eq 'HASH')
+						{									
+							$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->{callback}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})}->{callback} eq 'CODE';
+							$args{hide_table} = 1 if exists $args{controllers}->{$query->param($param_list->{action})}->{hide_table};
+						}
+						else
+						{
+							$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})} eq 'CODE';
+						}
+					}
+				}			
+			}
+		
+			if(defined $output->{output})
+			{
+				return $output if $args{output};
+				print $output->{output};
+				return;
+			}
+		}
+
+		($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get});
+		if($reload_object)
+		{
+			$args{get}->{page} = $last_page if $args{get}->{page} > $last_page;
+			$objects = $self->get_objects(%{$args{get}});
+		}	
+	}	
+	
 	
 	##Render Table
 	
@@ -3194,7 +3213,18 @@ C<get> accepts a hashref to construct database queries. C<get> is directly passe
 	  per_page = 5,
       require_objects => [ 'position' ],
       query => ['position.title' => 'Manager'],
-    });
+  });
+
+=item C<get_from_sql>
+
+C<get_from_sql> accepts arguments, such as an SQL statement, for the C<get_objects_from_sql> method from L<Rose::DB::Object::Manager>.
+
+  Company::Employee::Manager->render_as_table(
+    order => ['id', 'first_name', 'email'],
+    get_from_sql => 'SELECT id, first_name, email FROM employee WHERE id % 2 = 0 ORDER BY id',
+  );
+
+C<get_from_sql> takes precedence over C<get>. The default table pagination will be also disabled.
 
 =item C<controllers> and C<controller_order>
 
