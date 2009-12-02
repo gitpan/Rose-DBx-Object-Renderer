@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.60;
-# 149.45
+our $VERSION = 0.61;
+# 150.45
 
 sub config
 {
@@ -1004,8 +1004,11 @@ sub render_as_table
 			}
 		}
 		
-		$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
-		$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
+		unless (exists $args{get} && (exists $args{get}->{limit} || exists $args{get}->{offset}))
+		{
+			$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
+			$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
+		}
 			
 		$objects = $self->get_objects(%{$args{get}});
 	
@@ -1111,13 +1114,14 @@ sub render_as_table
 			}
 		}
 
-		($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get});
+		($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get}) unless $table_config->{no_pagination};
+		
 		if($reload_object)
 		{
 			$args{get}->{page} = $last_page if $args{get}->{page} > $last_page;
 			$objects = $self->get_objects(%{$args{get}});
-		}	
-	}	
+		}
+	}
 	
 	
 	##Render Table
@@ -1856,7 +1860,8 @@ sub _pagination
 {
 	my ($self, $class, $get) = @_;	
 	my $total = $self->get_objects_count(%{$get});
-	my ($last_page, $next_page, $previous_page);		
+	return (1, 1, 1, $total) unless $get->{per_page} && $get->{page};
+	my ($last_page, $next_page, $previous_page);
 	if ($total < $get->{per_page})
 	{
 		$last_page = 1;
