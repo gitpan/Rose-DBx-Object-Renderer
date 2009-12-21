@@ -235,4 +235,6 @@ Revision history for Rose-DBx-Object-Renderer
         Added the 'get_from_sql' parameter to render_as_table() in order to provide primitive support for the 'get_objects_from_sql' method from Rose::DB::Object::Manager.
         Updated POD.
 0.61    02/12/2009
-        Fixed the incompatibility using 'limit' and 'offset' in the 'get' parameter in render_as_table() (Reported by Gary Ashton-Jones)
+        Fixed the incompatibility using 'limit' and 'offset' in the 'get' parameter in render_as_table() (Reported by Gary Ashton-Jones).
+0.62    21/12/2009
+        Updated the default CSS to better work with background image.
