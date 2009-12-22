@@ -238,3 +238,5 @@ Revision history for Rose-DBx-Object-Renderer
         Fixed the incompatibility using 'limit' and 'offset' in the 'get' parameter in render_as_table() (Reported by Gary Ashton-Jones).
 0.62    21/12/2009
         Updated the default CSS to better work with background image.
+0.63    22/12/2009
+        Minor CSS changes.
