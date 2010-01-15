@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.64;
-# 153.45
+our $VERSION = 0.65;
+# 157.46
 
 sub config
 {
@@ -29,7 +29,7 @@ sub config
 	unless ($self && defined $self->{CONFIG})
 	{		
 		$self->{CONFIG} = {
-			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like', table_prefix => undef},
+			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like', table_prefix => undef, new_or_cached => 1, check_class => undef},
 			template => {path => 'templates', url => 'templates'},
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
@@ -149,9 +149,9 @@ sub load
 		$args->{loader}->{class_prefix} =~ s/[^\w:]/_/g;
 		$args->{loader}->{class_prefix} =~ s/\b(\w)/\u$1/g;		
 	}
-	return if "$args->{loader}->{class_prefix}::DB::Object::AutoBase1"->isa('Rose::DB::Object');
+	return if (defined $config->{db}->{check_class} && "$config->{db}->{check_class}"->isa('Rose::DB::Object')) || "$args->{loader}->{class_prefix}::DB::Object::AutoBase1"->isa('Rose::DB::Object');
 
-	unless (defined $args->{loader}->{db})
+	unless (defined $args->{loader}->{db} || defined $args->{loader}->{db_class})
 	{
 		unless (defined $args->{loader}->{db_dsn})
 		{
@@ -170,9 +170,10 @@ sub load
 	my $loader = Rose::DB::Object::Loader->new(%{$args->{loader}});
 	$loader->convention_manager->tables_are_singular(1) if $config->{db}->{tables_are_singular};
 	
-	my (@loaded, $custom_definitions, $validated_unique_keys);
+	my ($custom_definitions, $validated_unique_keys);
 	my @sorted_column_definition_keys = sort { length $b <=> length $a } keys %{$config->{columns}};
-	foreach my $class ($loader->make_classes(%{$args->{make_classes}}))
+	my @loaded = $loader->make_classes(%{$args->{make_classes}});
+	foreach my $class (@loaded)
 	{
 		my $package = qq(package $class;);
 			
@@ -182,7 +183,8 @@ sub load
 			my $unique_keys = _get_unique_keys($class);
 						
 			$package .= 'use Rose::DBx::Object::Renderer qw(:object);';
-
+			$package .= 'sub init_db {' . $args->{loader}->{class_prefix} . '::DB::AutoBase1->new_or_cached }' if ! (defined $args->{loader}->{db_class} || defined $args->{loader}->{base_class} || defined $args->{loader}->{base_classes}) && $config->{db}->{new_or_cached};
+			
 			foreach my $column (@{$class->meta->columns})
 			{
 				my $column_type;	
@@ -366,14 +368,13 @@ sub load
 		{
 			$package .= 'use Rose::DBx::Object::Renderer qw(:manager);';
 		}
-		
+				
 		$package .= '1;';
 		eval $package;
 		die "Can't load $class: $@" if $@;
-		push @loaded, $class;
 	}
 	
-	return @loaded;
+	return wantarray ? @loaded : \@loaded;
 }
 
 sub _generate_methods
@@ -2675,6 +2676,8 @@ The C<db> option is for configuring database related settings, for instance:
       tables_are_singular => 1,  # defines table name conventions, defaulted to undef
       like_operator => 'ilike',  # to perform case-insensitive LIKE pattern matching in PostgreSQL, defaulted to 'like'
       table_prefix => 'app_', # specificies the prefix used in your table names if any, defaulted to undef
+	  new_or_cached => 0, # whether to use Rose::DB's new_or_cached() method, defaulted to 1
+	  check_class => 'Company::DB', # skip loading classes if the given class is already loaded (for persistent environments)
     }
   });
 
