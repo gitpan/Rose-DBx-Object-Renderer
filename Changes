@@ -1,5 +1,7 @@
 Revision history for Rose-DBx-Object-Renderer
 
+0.66    25/01/2010
+        Fixed a glitch in render_as_table() that leads to duplicated 'sort_by' and 'page' query parameters.
 0.65    14/01/2010
         Updated load() to use Rose::DB's new_or_cached() method for all the generated classes by default (Suggested by Cees Hek).
         Added the 'new_or_cached' and 'check_class' parameter to the default config.

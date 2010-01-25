@@ -20,8 +20,8 @@ use File::Copy::Recursive 'dircopy';
 use File::Spec;
 use Digest::MD5 qw(md5_hex);
 
-our $VERSION = 0.65;
-# 157.46
+our $VERSION = 0.66;
+# 158.46
 
 sub config
 {
@@ -1152,7 +1152,7 @@ sub render_as_table
 			$query_string->{page} = _create_query_string($args{queries});	
 		}
 		
-		if($query->param($param_list->{sort_by}))
+		if($query->param($param_list->{sort_by}) && ! $query_string->{base} =~ /$param_list->{sort_by}=/)
 		{
 			$query_string->{page} .= $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;';
 			$query_string->{exclusive} = $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;';
@@ -1160,7 +1160,7 @@ sub render_as_table
 
 		$query_string->{complete} = $query_string->{page};
 		
-		if ($query->param($param_list->{page}))
+		if ($query->param($param_list->{page}) && ! $query_string->{base} =~ /$param_list->{page}=/)
 		{
 			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;';
 			$query_string->{exclusive} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;';
