@@ -1,5 +1,16 @@
 Revision history for Rose-DBx-Object-Renderer
 
+0.68    01/04/2010
+        Rendering methods are now in compliance with HTML 5. Updated all sample TT templates accordingly.
+        Turned on the 'stylesheet' option in CGI::FormBuilder as default in render_as_form() to eliminate obsolete HTML elements.
+        Updated the 'for_view' formatting methods for 'date', 'datetime', 'time', 'timestamp', 'address', 'audio', 'video', and 'media' column definitions to take advantages of new HTML 5 elements.
+        Updated the column definitions for 'text', 'phone', 'fax', 'mobile', 'float', and 'email'.
+        Improved support for the 'other' form field option in render_as_form().
+        Added the 'before' callback to all rendering methods.
+        Added the 'inherit_form_options' option to the default config() hash and to render_as_table(), allowing a form to inherit options from another inside render_as_table().
+        Improved title generation in render_as_form() and render_as_table().
+        Updated the default CSS.
+        Updated POD.
 0.67    26/01/2010
         Fixed a query string bug introduced in 0.66.
 0.66    25/01/2010

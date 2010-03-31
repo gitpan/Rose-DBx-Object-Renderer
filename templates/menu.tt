@@ -1,4 +1,4 @@
-[% IF no_head %][% PROCESS menu %][% ELSE %][% doctype %]<html xmlns="http://www.w3.org/1999/xhtml"><head><title>[% title %]</title>[% html_head %]</head><body>[% PROCESS menu %]</body></html>[% END %]
+[% IF no_head %][% PROCESS menu %][% ELSE %][% doctype %]<html><head><title>[% title %]</title>[% html_head %]</head><body>[% PROCESS menu %]</body></html>[% END %]
 
 [% BLOCK menu %]
 	[% UNLESS hide %]

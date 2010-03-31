@@ -1,4 +1,4 @@
-[% IF no_head %][% PROCESS chart %][% ELSE %][% doctype %]<html xmlns="http://www.w3.org/1999/xhtml"><head><title>[% title %]</title>[% html_head %]</head><body>[% PROCESS chart %]</body></html>[% END %]
+[% IF no_head %][% PROCESS chart %][% ELSE %][% doctype %]<html><head><title>[% title %]</title>[% html_head %]</head><body>[% PROCESS chart %]</body></html>[% END %]
 
 [% BLOCK chart %]
 	<div>
