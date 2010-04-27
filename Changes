@@ -1,5 +1,11 @@
 Revision history for Rose-DBx-Object-Renderer
 
+0.69    27/04/2010
+        Fixed a circular reference problem in load().
+        render_as_menu() and render_as_table() now accept a hash ref of template names.
+        Updated render_as_form() and render_as_table() to return the relevant Rose DB objects.
+        Updated the default CSS.
+        Updated POD.
 0.68    01/04/2010
         Rendering methods are now in compliance with HTML 5. Updated all sample TT templates accordingly.
         Turned on the 'stylesheet' option in CGI::FormBuilder as default in render_as_form() to eliminate obsolete HTML elements.

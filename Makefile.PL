@@ -22,6 +22,7 @@ WriteMakefile(
         'File::Copy::Recursive' => 0,
         'File::Spec' => 0,
         'Digest::MD5' => 0,
+        'Scalar::Util' => 0,
         'Exporter' => '5.57'
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

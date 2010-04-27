@@ -7,21 +7,22 @@ our @EXPORT = qw(config load);
 our @EXPORT_OK = qw(config load render_as_form render_as_table render_as_menu render_as_chart stringify_me stringify_class delete_with_file);
 our %EXPORT_TAGS = (object => [qw(render_as_form stringify_me stringify_class delete_with_file)], manager => [qw(render_as_table render_as_menu render_as_chart)]);
 
-use Lingua::EN::Inflect qw (PL);
+use Lingua::EN::Inflect ();
 use DateTime;
 use Rose::DB::Object::Loader;
-use Rose::DB::Object::Helpers 'clone_and_reset';
+use Rose::DB::Object::Helpers ();
 use CGI;
 use CGI::FormBuilder;
 use Template;
 use File::Path;
 use File::Copy;
-use File::Copy::Recursive 'dircopy';
+use File::Copy::Recursive ();
 use File::Spec;
-use Digest::MD5 qw(md5_hex);
+use Digest::MD5 ();
+use Scalar::Util ();
 
-our $VERSION = 0.68;
-# 177.49
+our $VERSION = 0.69;
+# 189.51
 
 sub config
 {
@@ -34,7 +35,7 @@ sub config
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
 			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ',', inherit_form_options => ['before', 'order', 'fields', 'template']},
-			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>'},
+			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -59,7 +60,7 @@ sub config
 				'mobile' => {validate => '/^[\+\d\s\-\(\)]+$/'},
 				'phone' => {validate => '/^[\+\d\s\-\(\)]+$/'},
 				'username' => {validate => '/^[a-zA-Z0-9]{4,}$/', sortopts => 'LABELNAME', required => 1},
-				'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
+				'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(Digest::MD5::md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
 				'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}},
 				'abn' => {label => 'ABN', validate => '/^(\d{2}\s*\d{3}\s*\d{3}\s*\d{3})$/', comment => 'e.g. 12 234 456 678'},
 				'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('%.02f', $self->$column);}}},
@@ -257,12 +258,26 @@ sub load
 								$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
 							}
 						}
-
-						if (exists $config->{columns}->{$column_type}->{validate})
+                        
+                        my ($column_config, $column_type_config); 
+                        
+                        if (exists $config->{columns}->{$column})
+                        {
+                            $column_config = $config->{columns}->{$column};
+                            Scalar::Util::weaken($column_config);
+                        }
+                        
+                        if (exists $config->{columns}->{$column_type})
+                        {
+                            $column_type_config = $config->{columns}->{$column_type};
+                            Scalar::Util::weaken($column_type_config);
+                        }
+                                                
+						if (exists $column_type_config->{validate})
 						{
-							if (ref $config->{columns}->{$column_type}->{validate} eq 'HASH')
+							if (ref $column_type_config->{validate} eq 'HASH')
 							{
-								$validated_unique_keys->{$column} = $config->{columns}->{$column_type}->{validate}->{javascript};
+								$validated_unique_keys->{$column} = $column_type_config->{validate}->{javascript};
 							}
 							else
 							{
@@ -271,25 +286,25 @@ sub load
 									$validated_unique_keys->{$column} = undef;
 								}
 								else
-								{
+								{								    
 									if (ref $validated_unique_keys->{$column} eq 'ARRAY')
 									{
-										$validated_unique_keys->{$column} = $config->{columns}->{$column_type}->{validate};
-
+										$validated_unique_keys->{$column} = $column_type_config->{validate};
+                                        
 										$config->{columns}->{$column}->{validate} = {
 											javascript => $validated_unique_keys->{$column},
-											perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validated_unique_keys->{$column}}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($config, $class, $column, $value, $form);}
+											perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validated_unique_keys->{$column}}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($column_config, $class, $column, $value, $form);}
 										};
 									}
 									else
 									{
-										if (exists $CGI::FormBuilder::Field::VALIDATE{$config->{columns}->{$column_type}->{validate}})
+										if (exists $CGI::FormBuilder::Field::VALIDATE{$column_type_config->{validate}})
 										{
-											$validated_unique_keys->{$column} =  $CGI::FormBuilder::Field::VALIDATE{$config->{columns}->{$column_type}->{validate}};
+											$validated_unique_keys->{$column} =  $CGI::FormBuilder::Field::VALIDATE{$column_type_config->{validate}};
 										}
 										else
 										{
-											$validated_unique_keys->{$column} = $config->{columns}->{$column_type}->{validate};
+											$validated_unique_keys->{$column} = $column_type_config->{validate};
 										}
 
 										if ($validated_unique_keys->{$column} =~ /^m(\S)(.*)\1$/ || $validated_unique_keys->{$column} =~ /^(\/)(.*)\1$/)
@@ -298,14 +313,14 @@ sub load
 										    $regex =~ s#/#\\/#g;
 											$config->{columns}->{$column}->{validate} = {
 												javascript => $validated_unique_keys->{$column},
-												perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($config, $class, $column, $value, $form);}
+												perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($column_config, $class, $column, $value, $form);}
 											};
 										}
 										else
 										{
 											$config->{columns}->{$column}->{validate} = {
 												javascript => $validated_unique_keys->{$column},
-												perl => sub {my ($value, $form) = @_;return if $value ne $validated_unique_keys->{$column};return _unique($config, $class, $column, $value, $form);}
+												perl => sub {my ($value, $form) = @_;return if $value ne $validated_unique_keys->{$column};return _unique($column_config, $class, $column, $value, $form);}
 											};
 										}
 									}
@@ -315,7 +330,7 @@ sub load
 						else
 						{
 							$validated_unique_keys->{$column} = undef;
-							$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($config, $class, $column, $value, $form);};
+							$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($column_config, $class, $column, $value, $form);};
 						}
 
 						$column_type = $column;
@@ -764,6 +779,7 @@ sub render_as_form
 							unless (ref $args{controllers}->{$form->submitted}->{$form_action} eq 'CODE' && ! $args{controllers}->{$form->submitted}->{$form_action}->($self))
 							{
 								$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
+								$output->{self} = $self;
 							}
 						}
 
@@ -779,6 +795,7 @@ sub render_as_form
 				elsif($form->submitted eq ucfirst ($form_action))
 				{
 					$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
+					$output->{self} = $self;
 				}
 				$output->{validate} = $form_validate;
 			}
@@ -987,11 +1004,12 @@ sub render_as_table
 					}
 					else
 					{
-						push @{$or}, $searchable_column => {$like_operator => $search_values}
+						push @{$or}, $searchable_column => {$like_operator => $search_values};
 					}
 				}
 
 				push @{$args{get}->{query}}, 'or' => $or;
+
 				$args{queries}->{$param_list->{q}} = $q;
 
 				$table_title = $args{search_result_title} || $table_config->{search_result_title};
@@ -1055,9 +1073,8 @@ sub render_as_table
 			$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
 			$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
 		}
-
 		$objects = $self->get_objects(%{$args{get}});
-
+		$output->{objects} = $objects;
 
 		##Handle Submission
 		my $reload_object;
@@ -1080,9 +1097,9 @@ sub render_as_table
 					}
 				}
 
-				$args{$action}->{order} ||= $args{order} if $args{order};
-
-				$args{$action}->{template} ||= 1 if $args{template};
+				$args{$action}->{order} ||= $args{order} if $args{order};				
+				$args{$action}->{template} ||= _template($args{template}, 'form', 1) if $args{template};
+				
 				@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};
 				$args{$action}->{queries}->{$param_list->{action}} = $action;
 				$args{$action}->{queries}->{$param_list->{sort_by}} = $query->param($param_list->{sort_by}) if $query->param($param_list->{sort_by});
@@ -1105,12 +1122,12 @@ sub render_as_table
 						if ($object->$primary_key eq $query->param($param_list->{object}))
 						{
 							$form = $object->render_as_form(%{$args{$action}});
+							$output->{form} = $form;
 							last;
 						}
 					}
 				}
 
-				$output->{form}->{controller} = $form->{controller} if exists $form->{controller};
 				$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
 			}
 			elsif ($query->param($param_list->{object}))
@@ -1164,6 +1181,7 @@ sub render_as_table
 		{
 			$args{get}->{page} = $last_page if $args{get}->{page} > $last_page;
 			$objects = $self->get_objects(%{$args{get}});
+			$output->{objects} = $objects;
 		}
 	}
 
@@ -1388,13 +1406,9 @@ sub render_as_table
 				$template = $args{ajax_template} || $ui_type . '_ajax.tt';
 				$ajax = 1 if $query->param($param_list->{ajax});
 			}
-			elsif($args{template} eq 1)
-			{
-				$template = $ui_type . '.tt';
-			}
 			else
 			{
-				$template = $args{template};
+				$template = _template($args{template}, $ui_type);
 			}
 
 			$args{template_data} ||= {};
@@ -1568,14 +1582,7 @@ sub render_as_menu
 	my $query_string = join ('&amp;', map {"$_=$args{queries}->{$_}"} keys %{$args{queries}});
 	$query_string .= '&amp;' if $query_string;
 
-	if ($args{template} eq 1)
-	{
-		$template = $ui_type . '.tt';
-	}
-	else
-	{
-		$template = $args{template};
-	}
+	$template = _template($args{template}, $ui_type) if $args{template};
 
 	$current = $query->param($current_param) || $class->meta->table;
 	$item_order = $args{order} || [$class];
@@ -1615,8 +1622,20 @@ sub render_as_menu
 				$args{hide_menu} = 1 if $query->param($options->{prefix}.'_ajax') && ! exists $valid_form_actions->{$query->param($options->{prefix}.'_action')};
 			}
 
-			my $shortcuts = ['create', 'edit', 'copy', 'delete', 'template', 'ajax'];
+			if ($args{template} && ! exists $options->{template})
+			{
+				if (ref $args{template} eq 'HASH')
+				{
+					$options->{template} = $args{template};
+				}
+				else
+				{
+					$options->{template} = 1;
+				}
+			}
 
+			my $shortcuts = ['create', 'edit', 'copy', 'delete', 'ajax'];
+			
 			foreach my $shortcut (@{$shortcuts})
 			{
 				$options->{$shortcut} = 1 if $args{$shortcut} && ! exists $options->{$shortcut};
@@ -2528,12 +2547,12 @@ sub _inherit_form_option
 
 sub _unique
 {
-	my ($config, $class, $column, $value, $form) = @_;
+	my ($column_config, $class, $column, $value, $form) = @_;
 
 	my $existing;
-	if (exists $config->{columns}->{$column} && exists $config->{columns}->{$column}->{format} && exists $config->{columns}->{$column}->{format}->{for_filter})
+	if ($column_config && exists $column_config->{format} && exists $column_config->{format}->{for_filter})
 	{
-		$existing = $class->new($column => $config->{columns}->{$column}->{format}->{for_filter}->($class, $column, $value))->load(speculative => 1);
+		$existing = $class->new($column => $column_config->{format}->{for_filter}->($class, $column, $value))->load(speculative => 1);
 	}
 	else
 	{
@@ -2569,7 +2588,7 @@ sub _singularise_table
 sub _pluralise_table
 {
 	my ($table, $tables_are_singular) = @_;
-	return PL($table) if $tables_are_singular;
+	return Lingua::EN::Inflect::PL($table) if $tables_are_singular;
 	return $table;
 }
 
@@ -2674,6 +2693,18 @@ sub _alias_table
 	return ($table_alias, $table_to_class);
 }
 
+sub _template
+{
+	my ($template, $ui_type, $default) = @_;
+ 	if (ref $template eq 'HASH')
+	{
+		return $template->{$ui_type} if exists $template->{$ui_type} && $template->{$ui_type} ne 1;
+		return $ui_type . '.tt';
+	}
+	return $ui_type . '.tt' if $template eq 1 || $default;
+	return $template;
+}
+
 1;
 
 __END__
@@ -2748,7 +2779,7 @@ Rose::DBx::Object::Renderer - Web UI Rendering for Rose::DB::Object
     description => 'A useful bar chart.',
     columns => ['salary', 'tax'],
     objects => [1, 2, 3],
-	options => {chco => 'ff6600,ffcc00'}  # the color for each bar
+    options => {chco => 'ff6600,ffcc00'}  # the color for each bar
   );
 
 
@@ -2805,8 +2836,8 @@ The C<db> option is for configuring database related settings, for instance:
       tables_are_singular => 1,  # defines table name conventions, defaulted to undef
       like_operator => 'ilike',  # to perform case-insensitive LIKE pattern matching in PostgreSQL, defaulted to 'like'
       table_prefix => 'app_', # specificies the prefix used in your table names if any, defaulted to undef
-	  new_or_cached => 0, # whether to use Rose::DB's new_or_cached() method, defaulted to 1
-	  check_class => 'Company::DB', # skip loading classes if the given class is already loaded (for persistent environments)
+      new_or_cached => 0, # whether to use Rose::DB's new_or_cached() method, defaulted to 1
+      check_class => 'Company::DB', # skip loading classes if the given class is already loaded (for persistent environments)
     }
   });
 
@@ -3067,6 +3098,12 @@ The template file name. When it is set to 1, rendering methods will try to find 
 
   Company::Employee::Manager->render_as_table(template => 1);
   # tries to use the template 'table.tt'
+
+In C<render_as_table> or C<render_as_menu>, a hash ref can be used as a shortcut to specify the default templates for all the forms and tables. For example:
+
+  Company::Employee::Manager->render_as_menu(
+    template => {menu => 'custom_menu.tt', table => 'custom_table.tt', form => 'custom_form.tt'}
+  );
 
 =item C<template_path>
 
@@ -3365,7 +3402,7 @@ C<get> accepts a hashref to construct database queries. C<get> is directly passe
 
   Company::Employee::Manager->render_as_table(
     get => {
-	  per_page = 5,
+      per_page = 5,
       require_objects => [ 'position' ],
       query => ['position.title' => 'Manager'],
   });
@@ -3386,11 +3423,11 @@ C<get_from_sql> takes precedence over C<get>. The default table pagination will 
 The C<controllers> parameter works very similar to C<render_as_form>. C<controller_order> defines the order of the controllers.
 
   Company::Employee::Manager->render_as_table(
-	controller_order => ['edit', 'Review', 'approve'],
+    controller_order => ['edit', 'Review', 'approve'],
     controllers => {
       'Review' => sub{my $self = shift; do_something_with($self);}
       'approve' => {
-	    label => 'Approve',
+        label => 'Approve',
         hide_table => 1,
         queries => {approve => '1'}, 
         callback => sub {my $self = shift; do_something_else_with($self);
@@ -3496,15 +3533,15 @@ C<render_as_menu> generates a menu with the given list of classes and renders a 
   Company::Employee::Manager->render_as_menu (
     order => ['Company::Employee', 'Company::Position'],
     items => {
-    'Company::Employee' => {
-      create => {
-	    fields => {date_of_birth => {required => 1}}
-	  }
-    }
-    'Company::Position' => {
-	  title => 'Current Positions',
-      description => 'important positions in the company'
-    }},
+      'Company::Employee' => {
+        create => {
+          fields => {date_of_birth => {required => 1}}
+        }
+      },
+      'Company::Position' => {
+        title => 'Current Positions',
+      }
+    },
     create => 1,
     edit => 1,
     delete => 1,
