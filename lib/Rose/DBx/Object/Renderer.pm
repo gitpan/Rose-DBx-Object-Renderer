@@ -21,8 +21,8 @@ use File::Spec;
 use Digest::MD5 ();
 use Scalar::Util ();
 
-our $VERSION = 0.69;
-# 189.51
+our $VERSION = 0.70;
+# 194.52
 
 sub config
 {
@@ -35,7 +35,7 @@ sub config
 			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
 			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
 			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ',', inherit_form_options => ['before', 'order', 'fields', 'template']},
-			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>'},
+			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{white-space:nowrap;background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>'},
 			columns => {
 				'integer' => {validate => 'INT', sortopts => 'NUM'},
 				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -418,9 +418,14 @@ sub render_as_form
 	$class = ref $self || $self;
 	my $renderer_config = _get_renderer_config($class);
 
+	my $ui_type = (caller(0))[3];
+	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
+	my $form_id = _identify($class, $args{prefix}, $ui_type);
+	my $field_prefix = '';
+	$field_prefix = $form_id . '_' if defined $args{prefix};
+	
 	if (ref $self)
 	{
-		$class = ref $self;
 		if ($args{copy})
 		{
 			$form_action = 'copy';
@@ -428,12 +433,19 @@ sub render_as_form
 		else
 		{
 			$form_action = 'update';
+			(my $action_object_prefix = $form_id) =~ s/_form$//;
+			
+			unless (exists $args{queries} && $args{queries}->{$action_object_prefix . '_action'})  # in table
+			{
+				my $primary_key = $class->meta->primary_key_column_names->[0];
+				$args{queries}->{action} ||= 'edit';
+				$args{queries}->{object} ||= $self->$primary_key;
+			}
 		}
 		$form_title ||= _label($form_action . ' ' . $self->stringify_me);
 	}
 	else
 	{
-		$class = $self;
 		$form_action = 'create';
 		$form_title ||= _label($form_action . ' ' . _singularise_table(_title($table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
 	}
@@ -447,10 +459,6 @@ sub render_as_form
 	my $foreign_keys = _get_foreign_keys($class);
 	my $relationships = _get_relationships($class);
 	my $column_order = $args{order} || _get_column_order($class, $relationships);
-
-	my $ui_type = (caller(0))[3];
-	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
-	my $form_id = _identify($class, $args{prefix}, $ui_type);
 
 	my $form_template;
 	if ($args{template} eq 1)
@@ -704,16 +712,8 @@ sub render_as_form
 
 		unless (exists $field_def->{name})
 		{
-			if ($args{prefix})
-			{
-				push @{$field_order}, $form_id.'_'.$column;
-				$field_def->{name} = $form_id.'_'.$column;
-			}
-			else
-			{
-				push @{$field_order}, $column;
-				$field_def->{name} = $column;
-			}
+			push @{$field_order}, $field_prefix . $column;
+			$field_def->{name} = $field_prefix . $column;
 		}
 		$form->field(%{$field_def});
 	}
@@ -1583,8 +1583,21 @@ sub render_as_menu
 	$query_string .= '&amp;' if $query_string;
 
 	$template = _template($args{template}, $ui_type) if $args{template};
+	
+	
+	$current = $query->param($current_param);
+	unless ($current) 
+	{
+		if ($args{current})
+		{
+			$current = $args{current}->meta->table;
+		}
+		else
+		{
+			$current = $class->meta->table;
+		}
+	}
 
-	$current = $query->param($current_param) || $class->meta->table;
 	$item_order = $args{order} || [$class];
 	$args{template_data} ||= {};
 
@@ -2561,7 +2574,7 @@ sub _unique
 	return 1 unless $existing;
 
 	(my $prefix = $form->name) =~ s/_form$//;
-	return unless $form->field('action') eq 'edit' ||  $form->field($prefix.'_action') eq 'edit';
+	return unless $form->field('action') eq 'edit' || $form->field($prefix.'_action') eq 'edit';
 	my $primary_key = $class->meta->primary_key_column_names->[0];
 	return 1 if $existing->$primary_key == $form->field('object') || $existing->$primary_key == $form->field($prefix.'_object');
 	return;
@@ -2570,12 +2583,9 @@ sub _unique
 sub _identify
 {
 	my ($class, $prefix, $ui_type) = @_;
-	unless ($prefix)
-	{
-		($prefix = lc $class) =~ s/::/_/g;
-		$prefix .= '_'. $ui_type;
-	}
-	return $prefix;
+	return $prefix if defined $prefix;
+	($prefix = lc $class) =~ s/::/_/g;
+	$prefix .= '_'. $ui_type;
 }
 
 sub _singularise_table
@@ -3560,6 +3570,10 @@ The C<items> parameter is a hashref of parameters to control each table within t
 =item C<create>, C<copy>, C<edit>, C<delete>, C<template>, and C<ajax>
 
 These parameters are shortcuts which get passed to all the underlying tables rendered by the menu.
+
+=item C<current>
+
+The class name for the current tab. By default, the caller class is the current tab.
 
 =back
 
