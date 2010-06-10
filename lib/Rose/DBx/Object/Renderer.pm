@@ -4,8 +4,8 @@ use Exporter 'import';
 
 use base qw(Rose::Object);
 our @EXPORT = qw(config load);
-our @EXPORT_OK = qw(config load render_as_form render_as_table render_as_menu render_as_chart stringify_me stringify_class delete_with_file);
-our %EXPORT_TAGS = (object => [qw(render_as_form stringify_me stringify_class delete_with_file)], manager => [qw(render_as_table render_as_menu render_as_chart)]);
+our @EXPORT_OK = qw(config load render_as_form render_as_table render_as_menu render_as_chart stringify_me stringify_class delete_with_file prepare_renderer);
+our %EXPORT_TAGS = (object => [qw(render_as_form stringify_me stringify_class delete_with_file prepare_renderer)], manager => [qw(render_as_table render_as_menu render_as_chart)]);
 
 use Lingua::EN::Inflect ();
 use DateTime;
@@ -21,114 +21,107 @@ use File::Spec;
 use Digest::MD5 ();
 use Scalar::Util ();
 
-our $VERSION = 0.70;
-# 194.52
+our $VERSION = 0.71;
+# 205.57
 
-sub config
-{
+sub _config {
+	my $config = {
+		db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, table_prefix => undef, new_or_cached => 1, check_class => undef},
+		template => {path => 'templates', url => 'templates'},
+		upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
+		form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
+		table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ',', inherit_form_options => ['before', 'order', 'fields', 'template']},
+		misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{white-space:nowrap;background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>'},
+		columns => {
+			'integer' => {validate => 'INT', sortopts => 'NUM'},
+			'numeric' => {validate => 'NUM', sortopts => 'NUM'},
+			'float' => {validate => 'FLOAT', sortopts => 'NUM'},
+			'text' => {type => 'textarea', cols => '55', rows => '10'},
+			'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
+			'address' => {format => {for_view => sub {_view_address(@_);}}},
+			'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub{_view_date(@_);}}},
+			'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_edit_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
+			'timestamp' => {readonly => "readonly", disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_create_timestamp(@_);}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
+			'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
+			'time' => {validate => '/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/', maxlength => 5, format => {for_update => sub {_udpate_time(@_)}, for_edit => sub{_edit_time(@_);}, for_view => sub{_view_time(@_);}}},
+			'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
+			'weight' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' kg';}}},
+			'volume' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm<sup>3</sup>';}}},
+			'gender' => {options => ['Male', 'Female']},
+			'name' => {sortopts => 'LABELNAME', required => 1, stringify => 1},
+			'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
+			'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
+			'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="mailto:$value">$value</a>);}}},
+			'url' => {sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="$value">$value</a>);}}},
+			'mobile' => {validate => '/^[\+\d\s\-\(\)]+$/'},
+			'phone' => {validate => '/^[\+\d\s\-\(\)]+$/'},
+			'username' => {validate => '/^[a-zA-Z0-9]{4,}$/', sortopts => 'LABELNAME', required => 1},
+			'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(Digest::MD5::md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
+			'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}},
+			'abn' => {label => 'ABN', validate => '/^(\d{2}\s*\d{3}\s*\d{3}\s*\d{3})$/', comment => 'e.g. 12 234 456 678'},
+			'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('%.02f', $self->$column);}}},
+			'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column) = @_;my $value = $self->$column;return unless defined $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
+			'document' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
+			'image' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+			'media' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+			'video' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_video(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+			'audio' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_audio(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+			'ipv4' => {validate => 'IPV4'},
+			'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
+		}
+	};
+
+	$config->{columns}->{'doubleprecision'} = $config->{columns}->{'numeric'};
+	$config->{columns}->{'decimal'} = $config->{columns}->{'numeric'};
+	$config->{columns}->{'bigint'} = $config->{columns}->{'integer'};
+	$config->{columns}->{'serial'} = $config->{columns}->{'integer'};
+	$config->{columns}->{'bigserial'} = $config->{columns}->{'integer'};
+	$config->{columns}->{'quantity'} = $config->{columns}->{'integer'};
+	$config->{columns}->{'height'} = $config->{columns}->{'length'};
+	$config->{columns}->{'width'} = $config->{columns}->{'length'};
+	$config->{columns}->{'depth'} = $config->{columns}->{'length'};
+	$config->{columns}->{'title'} = $config->{columns}->{'name'};
+	$config->{columns}->{'birth'} = $config->{columns}->{'date'};
+	$config->{columns}->{'fax'} = $config->{columns}->{'phone'};
+	$config->{columns}->{'cost'} = $config->{columns}->{'money'};
+	$config->{columns}->{'price'} = $config->{columns}->{'money'};
+	$config->{columns}->{'blob'} = $config->{columns}->{'text'};
+	$config->{columns}->{'comment'} = $config->{columns}->{'text'};
+	$config->{columns}->{'file'} = $config->{columns}->{'document'};
+	$config->{columns}->{'report'} = $config->{columns}->{'document'};
+	$config->{columns}->{'photo'} = $config->{columns}->{'image'};
+	$config->{columns}->{'logo'} = $config->{columns}->{'image'};
+	$config->{columns}->{'sound'} = $config->{columns}->{'audio'};
+	$config->{columns}->{'voice'} = $config->{columns}->{'audio'};
+	$config->{columns}->{'movie'} = $config->{columns}->{'video'};
+	return $config;
+}
+
+sub config {
 	my $self = shift;
-	unless ($self && defined $self->{CONFIG})
-	{
-		$self->{CONFIG} = {
-			db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, like_operator => 'like', table_prefix => undef, new_or_cached => 1, check_class => undef},
-			template => {path => 'templates', url => 'templates'},
-			upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
-			form => {download_message => 'Download File', cancel => 'Cancel', delimiter => ','},
-			table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ',', inherit_form_options => ['before', 'order', 'fields', 'template']},
-			misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{white-space:nowrap;background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}input[type="radio"],input[type="checkbox"]{border:0px;background:transparent;}input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>'},
-			columns => {
-				'integer' => {validate => 'INT', sortopts => 'NUM'},
-				'numeric' => {validate => 'NUM', sortopts => 'NUM'},
-				'float' => {validate => 'FLOAT', sortopts => 'NUM'},
-				'text' => {type => 'textarea', cols => '55', rows => '10'},
-				'postcode' => {sortopts => 'NUM', validate => '/^\d{3,4}$/', maxlength => 4},
-				'address' => {format => {for_view => sub {_view_address(@_);}}},
-				'date' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub{_view_date(@_);}}},
-				'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_edit_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
-				'timestamp' => {readonly => "readonly", disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_create_timestamp(@_);}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
-				'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
-				'time' => {validate => '/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/', maxlength => 5, format => {for_update => sub {_udpate_time(@_)}, for_edit => sub{_edit_time(@_);}, for_view => sub{_view_time(@_);}}},
-				'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
-				'weight' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' kg';}}},
-				'volume' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm<sup>3</sup>';}}},
-				'gender' => {options => ['Male', 'Female']},
-				'name' => {sortopts => 'LABELNAME', required => 1, stringify => 1},
-				'first_name' => {validate => 'FNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
-				'last_name' => {validate => 'LNAME', sortopts => 'LABELNAME', required => 1, stringify => 1},
-				'email' => {required => 1, validate => 'EMAIL', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="mailto:$value">$value</a>);}}},
-				'url' => {sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return qq(<a href="$value">$value</a>);}}},
-				'mobile' => {validate => '/^[\+\d\s\-\(\)]+$/'},
-				'phone' => {validate => '/^[\+\d\s\-\(\)]+$/'},
-				'username' => {validate => '/^[a-zA-Z0-9]{4,}$/', sortopts => 'LABELNAME', required => 1},
-				'password' => {validate => '/^[\w.!?@#$%&*]{5,}$/', type => 'password', format => {for_view => sub {return '****';}, for_edit => sub {return;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column(Digest::MD5::md5_hex($value)) if $value;}}, comment => 'Minimum 5 characters', unsortable => 1},
-				'confirm_password' => {required => 1, type => 'password', validate => {javascript => "!= form.elements['password'].value"}},
-				'abn' => {label => 'ABN', validate => '/^(\d{2}\s*\d{3}\s*\d{3}\s*\d{3})$/', comment => 'e.g. 12 234 456 678'},
-				'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless $self->$column;return sprintf ('%.02f', $self->$column);}}},
-				'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column) = @_;my $value = $self->$column;return unless defined $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
-				'document' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
-				'image' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'media' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'video' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_video(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'audio' => {validate => '/^\S+[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]{1,255}$/', format => {path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_audio(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
-				'ipv4' => {validate => 'IPV4'},
-				'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
-			}
-		};
-
-		$self->{CONFIG}->{columns}->{'doubleprecision'} = $self->{CONFIG}->{columns}->{'numeric'};
-		$self->{CONFIG}->{columns}->{'decimal'} = $self->{CONFIG}->{columns}->{'numeric'};
-		$self->{CONFIG}->{columns}->{'bigint'} = $self->{CONFIG}->{columns}->{'integer'};
-		$self->{CONFIG}->{columns}->{'serial'} = $self->{CONFIG}->{columns}->{'integer'};
-		$self->{CONFIG}->{columns}->{'bigserial'} = $self->{CONFIG}->{columns}->{'integer'};
-		$self->{CONFIG}->{columns}->{'quantity'} = $self->{CONFIG}->{columns}->{'integer'};
-		$self->{CONFIG}->{columns}->{'height'} = $self->{CONFIG}->{columns}->{'length'};
-		$self->{CONFIG}->{columns}->{'width'} = $self->{CONFIG}->{columns}->{'length'};
-		$self->{CONFIG}->{columns}->{'depth'} = $self->{CONFIG}->{columns}->{'length'};
-		$self->{CONFIG}->{columns}->{'title'} = $self->{CONFIG}->{columns}->{'name'};
-		$self->{CONFIG}->{columns}->{'birth'} = $self->{CONFIG}->{columns}->{'date'};
-		$self->{CONFIG}->{columns}->{'fax'} = $self->{CONFIG}->{columns}->{'phone'};
-		$self->{CONFIG}->{columns}->{'cost'} = $self->{CONFIG}->{columns}->{'money'};
-		$self->{CONFIG}->{columns}->{'price'} = $self->{CONFIG}->{columns}->{'money'};
-		$self->{CONFIG}->{columns}->{'blob'} = $self->{CONFIG}->{columns}->{'text'};
-		$self->{CONFIG}->{columns}->{'comment'} = $self->{CONFIG}->{columns}->{'text'};
-		$self->{CONFIG}->{columns}->{'file'} = $self->{CONFIG}->{columns}->{'document'};
-		$self->{CONFIG}->{columns}->{'report'} = $self->{CONFIG}->{columns}->{'document'};
-		$self->{CONFIG}->{columns}->{'photo'} = $self->{CONFIG}->{columns}->{'image'};
-		$self->{CONFIG}->{columns}->{'logo'} = $self->{CONFIG}->{columns}->{'image'};
-		$self->{CONFIG}->{columns}->{'sound'} = $self->{CONFIG}->{columns}->{'audio'};
-		$self->{CONFIG}->{columns}->{'voice'} = $self->{CONFIG}->{columns}->{'audio'};
-		$self->{CONFIG}->{columns}->{'movie'} = $self->{CONFIG}->{columns}->{'video'};
+	unless ($self && defined $self->{CONFIG}) {
+		$self->{CONFIG} = _config();
 	}
 
-	if (@_)
-	{
+	if (@_) {
 		my $config = shift;
-		foreach my $hash (keys %{$config})
-		{
-			if ($hash eq 'columns')
-			{
-				foreach my $column (keys %{$config->{columns}})
-				{
-					foreach my $key (keys %{$config->{columns}->{$column}})
-					{
-						if ($key eq 'format')
-						{
-							foreach my $method (keys %{$config->{columns}->{$column}->{format}})
-							{
+		foreach my $hash (keys %{$config}) {
+			if ($hash eq 'columns') {
+				foreach my $column (keys %{$config->{columns}}) {
+					foreach my $key (keys %{$config->{columns}->{$column}}) {
+						if ($key eq 'format') {
+							foreach my $method (keys %{$config->{columns}->{$column}->{format}}) {
 								$self->{CONFIG}->{columns}->{$column}->{format}->{$method} = $config->{columns}->{$column}->{format}->{$method};
 							}
 						}
-						else
-						{
+						else {
 							$self->{CONFIG}->{columns}->{$column}->{$key} = $config->{columns}->{$column}->{$key};
 						}
 					}
 				}
 			}
-			else
-			{
-				foreach my $key (keys %{$config->{$hash}})
-				{
+			else {
+				foreach my $key (keys %{$config->{$hash}}) {
 					$self->{CONFIG}->{$hash}->{$key} = $config->{$hash}->{$key};
 				}
 			}
@@ -138,13 +131,11 @@ sub config
 	return $self->{CONFIG};
 }
 
-sub load
-{
+sub load {
 	my ($self, $args) = @_;
 	$args = {} unless ref $args eq 'HASH';
 	my $config = $self->config;
-	unless (exists $args->{loader} && defined $args->{loader}->{class_prefix})
-	{
+	unless (exists $args->{loader} && defined $args->{loader}->{class_prefix}) {
 		return unless $config->{db}->{name};
 		$args->{loader}->{class_prefix} = $config->{db}->{name};
 		$args->{loader}->{class_prefix} =~ s/_(.)/\U$1/g;
@@ -153,10 +144,8 @@ sub load
 	}
 	return if (defined $config->{db}->{check_class} && "$config->{db}->{check_class}"->isa('Rose::DB::Object')) || "$args->{loader}->{class_prefix}::DB::Object::AutoBase1"->isa('Rose::DB::Object');
 
-	unless (defined $args->{loader}->{db} || defined $args->{loader}->{db_class})
-	{
-		unless (defined $args->{loader}->{db_dsn})
-		{
+	unless (defined $args->{loader}->{db} || defined $args->{loader}->{db_class}) {
+		unless (defined $args->{loader}->{db_dsn}) {
 			my $host;
 		 	$host = 'host='. $config->{db}->{host} if $config->{db}->{host};
 			$host .= ';port='.$config->{db}->{port} if $config->{db}->{port};
@@ -172,280 +161,300 @@ sub load
 	my $loader = Rose::DB::Object::Loader->new(%{$args->{loader}});
 	$loader->convention_manager->tables_are_singular(1) if $config->{db}->{tables_are_singular};
 
-	my ($custom_definitions, $validated_unique_keys);
-	my @sorted_column_definition_keys = sort { length $b <=> length $a } keys %{$config->{columns}};
+	my $sorted_column_definition_keys = [sort { length $b <=> length $a } keys %{$config->{columns}}];
 	my @loaded = $loader->make_classes(%{$args->{make_classes}});
-	foreach my $class (@loaded)
-	{
-		my $package = qq(package $class;);
-
-		if (($class)->isa('Rose::DB::Object'))
-		{
-			my $foreign_keys = _get_foreign_keys($class);
-			my $unique_keys = _get_unique_keys($class);
-
-			$package .= 'use Rose::DBx::Object::Renderer qw(:object);';
-			$package .= 'sub init_db {' . $args->{loader}->{class_prefix} . '::DB::AutoBase1->new_or_cached }' if ! (defined $args->{loader}->{db_class} || defined $args->{loader}->{base_class} || defined $args->{loader}->{base_classes}) && $config->{db}->{new_or_cached};
-
-			foreach my $column (@{$class->meta->columns})
-			{
-				my $column_type;
-				unless ($column->{is_primary_key_member})
-				{
-					if (exists $config->{columns}->{$column} && ! exists $custom_definitions->{$column})
-					{
-						$column_type = $column;
-						if (exists $foreign_keys->{$column})
-						{
-							my $foreign_object_name = $foreign_keys->{$column}->{name};
-							$config->{columns}->{$column}->{label} = _label($foreign_object_name) unless exists $config->{columns}->{$column}->{label};
-							$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
-							$config->{columns}->{$column}->{validate} = 'INT' unless exists $config->{columns}->{$column}->{validate};
-							$config->{columns}->{$column}->{format}->{for_view} = sub {my ($self, $column) = @_;return unless $self->$column;return $self->$foreign_object_name->stringify_me;} unless exists $config->{columns}->{$column}->{format} && exists $config->{columns}->{$column}->{format}->{for_view};
-						}
-					}
-					elsif (exists $foreign_keys->{$column}) # special treatment
-					{
-						my $foreign_object_name = $foreign_keys->{$column}->{name};
-						$config->{columns}->{$column} = {label => _label(_title($foreign_object_name, $config->{db}->{table_prefix})), required => 1, validate => 'INT', sortopts => 'LABELNAME', format => {for_view => sub {my ($self, $column) = @_;return unless $self->$column;return $self->$foreign_object_name->stringify_me;}}};
-						$column_type = $column;
-					}
-					else
-					{
-						DEF: foreach my $column_key (@sorted_column_definition_keys)
-						{
-							if ($column =~ /$column_key/ && ! exists $custom_definitions->{$column_key}) # first match
-							{
-								$column_type = $column_key;
-								last DEF;
-							}
-						}
-
-						unless (defined $column_type)
-						{
-							my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
-							($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;
-
-							if (exists $config->{columns}->{$rdbo_column_type})
-							{
-								$column_type = $rdbo_column_type;
-							}
-							else
-							{
-								my $custom_definition;
-								$custom_definition->{required} = 1 if $class->meta->{columns}->{$column}->{not_null};
-								$custom_definition->{maxlength} = $class->meta->{columns}->{$column}->{length} if defined $class->meta->{columns}->{$column}->{length};
-
-								if (defined $class->meta->{columns}->{$column}->{check_in})
-								{
-									$custom_definition->{options} = $class->meta->{columns}->{$column}->{check_in};
-									$custom_definition->{multiple} = 1 if ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
-								}
-
-								$config->{columns}->{$column} = $custom_definition;
-								$column_type = $column;
-								$custom_definitions->{$column} = undef;
-							}
-						}
-					}
-
-					if (exists $unique_keys->{$column})
-					{
-						unless ($column eq $column_type)
-						{
-							foreach my $key (keys %{$config->{columns}->{$column_type}})
-							{
-								$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
-							}
-						}
-                        
-                        my ($column_config, $column_type_config); 
-                        
-                        if (exists $config->{columns}->{$column})
-                        {
-                            $column_config = $config->{columns}->{$column};
-                            Scalar::Util::weaken($column_config);
-                        }
-                        
-                        if (exists $config->{columns}->{$column_type})
-                        {
-                            $column_type_config = $config->{columns}->{$column_type};
-                            Scalar::Util::weaken($column_type_config);
-                        }
-                                                
-						if (exists $column_type_config->{validate})
-						{
-							if (ref $column_type_config->{validate} eq 'HASH')
-							{
-								$validated_unique_keys->{$column} = $column_type_config->{validate}->{javascript};
-							}
-							else
-							{
-								if (ref $validated_unique_keys->{$column} eq 'CODE')
-								{
-									$validated_unique_keys->{$column} = undef;
-								}
-								else
-								{								    
-									if (ref $validated_unique_keys->{$column} eq 'ARRAY')
-									{
-										$validated_unique_keys->{$column} = $column_type_config->{validate};
-                                        
-										$config->{columns}->{$column}->{validate} = {
-											javascript => $validated_unique_keys->{$column},
-											perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validated_unique_keys->{$column}}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($column_config, $class, $column, $value, $form);}
-										};
-									}
-									else
-									{
-										if (exists $CGI::FormBuilder::Field::VALIDATE{$column_type_config->{validate}})
-										{
-											$validated_unique_keys->{$column} =  $CGI::FormBuilder::Field::VALIDATE{$column_type_config->{validate}};
-										}
-										else
-										{
-											$validated_unique_keys->{$column} = $column_type_config->{validate};
-										}
-
-										if ($validated_unique_keys->{$column} =~ /^m(\S)(.*)\1$/ || $validated_unique_keys->{$column} =~ /^(\/)(.*)\1$/)
-										{
-											(my $regex = $2) =~ s#\\/#/#g;
-										    $regex =~ s#/#\\/#g;
-											$config->{columns}->{$column}->{validate} = {
-												javascript => $validated_unique_keys->{$column},
-												perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($column_config, $class, $column, $value, $form);}
-											};
-										}
-										else
-										{
-											$config->{columns}->{$column}->{validate} = {
-												javascript => $validated_unique_keys->{$column},
-												perl => sub {my ($value, $form) = @_;return if $value ne $validated_unique_keys->{$column};return _unique($column_config, $class, $column, $value, $form);}
-											};
-										}
-									}
-								}
-							}
-						}
-						else
-						{
-							$validated_unique_keys->{$column} = undef;
-							$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($column_config, $class, $column, $value, $form);};
-						}
-
-						$column_type = $column;
-
-						$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
-
-						unless (defined $config->{columns}->{$column}->{message})
-						{
-							my $column_label;
-							if (defined $config->{columns}->{$column}->{label})
-							{
-								$column_label = $config->{columns}->{$column}->{label};
-							}
-							else
-							{
-								$column_label = _label($column);
-							}
-							$config->{columns}->{$column}->{message} = qq($column_label already exists or is invalid, please choose another one.);
-
-							unless (defined $config->{columns}->{$column}->{jsmessage})
-							{
-								if (exists $foreign_keys->{$column})
-								{
-									$config->{columns}->{$column}->{jsmessage} = qq(- Choose one of the "$column_label" options);
-								}
-								else
-								{
-									$config->{columns}->{$column}->{jsmessage} = qq(- Invalid entry for the "$column_label" field);
-								}
-							}
-						}
-					}
-					elsif (exists $validated_unique_keys->{$column_type} && $column ne $column_type) # prevent inheriting validation subref from matching unique column type
-					{
-						foreach my $key (keys %{$config->{columns}->{$column_type}})
-						{
-							$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
-						}
-						$config->{columns}->{$column}->{validate} = $validated_unique_keys->{$column_type};
-						delete $config->{columns}->{$column}->{message};
-						delete $config->{columns}->{$column}->{jsmessage};
-						$column_type = $column;
-					}
-
-					$package .= _generate_methods($config, $column, $column_type);
-				}
+	no strict 'refs';
+	foreach my $class (@loaded) {
+		my $class_type;
+	
+		if (($class)->isa('Rose::DB::Object')) {
+			if (! (defined $args->{loader}->{db_class} || defined $args->{loader}->{base_class} || defined $args->{loader}->{base_classes}) && $config->{db}->{new_or_cached}) {
+				my $package_init_db = $class . '::init_db';
+				*$package_init_db = sub {
+					my $auto_base = $args->{loader}->{class_prefix} . '::DB::AutoBase1';
+					$auto_base->new_or_cached;
+				};
 			}
-			$package .= "sub renderer_config {return \$config;}\n";
+			
+			_process_columns($class, $config, $sorted_column_definition_keys);
+			my $package_renderer_config = $class . '::renderer_config';
+			*$package_renderer_config = sub {return $config};
+						
+			$class_type = 'object';	
 		}
-		else
-		{
-			$package .= 'use Rose::DBx::Object::Renderer qw(:manager);';
+		else {
+			$class_type = 'manager';
 		}
-
-		$package .= '1;';
-		eval $package;
-		die "Can't load $class: $@" if $@;
+		
+		foreach my $sub (@{$EXPORT_TAGS{$class_type}}) {
+			my $package_sub = $class . '::' . $sub;
+			*$package_sub = \&$sub;
+		}
 	}
-
+	
 	return wantarray ? @loaded : \@loaded;
 }
 
-sub _generate_methods
-{
-	my ($config, $column, $column_type) = @_;
-	my $method;
-	if (exists $config->{columns}->{$column_type}->{format})
-	{
-		foreach my $custom_method_key (keys %{$config->{columns}->{$column_type}->{format}})
-		{
-			$method .= "sub $column\_$custom_method_key {my (\$self, \$value) = \@_; return \$config->{columns}->{$column_type}->{format}->{$custom_method_key}->(\$self, '$column', \$value);}\n";
+sub _process_columns {
+	my ($class, $config, $sorted_column_definition_keys) = _class_config_column_keys(@_);
+	my ($custom_definitions, $validated_unique_keys);
+	my $foreign_keys = _get_foreign_keys($class);
+	my $unique_keys = _get_unique_keys($class);
+	my $package = '';
+	foreach my $column (@{$class->meta->columns}) {
+		my $column_type;
+		unless ($column->{is_primary_key_member}) {
+			if (exists $config->{columns}->{$column} && ! exists $custom_definitions->{$column}) {
+				$column_type = $column;
+				if (exists $foreign_keys->{$column}) {
+					my $foreign_object_name = $foreign_keys->{$column}->{name};
+					$config->{columns}->{$column}->{label} = _label($foreign_object_name) unless exists $config->{columns}->{$column}->{label};
+					$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
+					$config->{columns}->{$column}->{validate} = 'INT' unless exists $config->{columns}->{$column}->{validate};
+					$config->{columns}->{$column}->{format}->{for_view} = sub {
+						my ($self, $column) = @_;
+						return unless $self->$column;
+						return stringify_me($self->$foreign_object_name);
+					} unless exists $config->{columns}->{$column}->{format} && exists $config->{columns}->{$column}->{format}->{for_view};
+				}
+			}
+			elsif (exists $foreign_keys->{$column}) { # special treatment
+				my $foreign_object_name = $foreign_keys->{$column}->{name};
+				$config->{columns}->{$column} = {
+					label => _label(_title($foreign_object_name, $config->{db}->{table_prefix})), 
+					required => 1, 
+					validate => 'INT', 
+					sortopts => 'LABELNAME', format => {
+						for_view => sub {
+							my ($self, $column) = @_;
+							return unless $self->$column;							
+							return stringify_me($self->$foreign_object_name);
+						}
+					}
+				};
+				$column_type = $column;
+			}
+			else {
+				DEF: foreach my $column_key (@{$sorted_column_definition_keys}) {
+					if ($column =~ /$column_key/ && ! exists $custom_definitions->{$column_key}) { # first match
+						$column_type = $column_key;
+						last DEF;
+					}
+				}
+
+				unless (defined $column_type) {
+					my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
+					($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;
+
+					if (exists $config->{columns}->{$rdbo_column_type}) {
+						$column_type = $rdbo_column_type;
+					}
+					else {
+						my $custom_definition;
+						$custom_definition->{required} = 1 if $class->meta->{columns}->{$column}->{not_null};
+						$custom_definition->{maxlength} = $class->meta->{columns}->{$column}->{length} if defined $class->meta->{columns}->{$column}->{length};
+
+						if (defined $class->meta->{columns}->{$column}->{check_in}) {
+							$custom_definition->{options} = $class->meta->{columns}->{$column}->{check_in};
+							$custom_definition->{multiple} = 1 if ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
+						}
+
+						$config->{columns}->{$column} = $custom_definition;
+						$column_type = $column;
+						$custom_definitions->{$column} = undef;
+					}
+				}
+			}
+
+			if (exists $unique_keys->{$column}) {
+				unless ($column eq $column_type) {
+					foreach my $key (keys %{$config->{columns}->{$column_type}}) {
+						$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
+					}
+				}
+                
+                my ($column_config, $column_type_config); 
+                
+                if (exists $config->{columns}->{$column}) {
+                    $column_config = $config->{columns}->{$column};
+                    Scalar::Util::weaken($column_config);
+                }
+                
+                if (exists $config->{columns}->{$column_type}) {
+                    $column_type_config = $config->{columns}->{$column_type};
+                    Scalar::Util::weaken($column_type_config);
+                }
+                                        
+				if (exists $column_type_config->{validate}) {
+					if (ref $column_type_config->{validate} eq 'HASH') {
+						$validated_unique_keys->{$column} = $column_type_config->{validate}->{javascript};
+					}
+					else {
+						if (ref $validated_unique_keys->{$column} eq 'CODE') {
+							$validated_unique_keys->{$column} = undef;
+						}
+						else {								    
+							if (ref $validated_unique_keys->{$column} eq 'ARRAY') {
+								$validated_unique_keys->{$column} = $column_type_config->{validate};
+                                
+								$config->{columns}->{$column}->{validate} = {
+									javascript => $validated_unique_keys->{$column},
+									perl => sub {my ($value, $form) = @_;return unless length($value);my $found;foreach my $v (@{$validated_unique_keys->{$column}}){if($value eq $v){$found = 1;last;}};return if ! $found;return _unique($column_config, $class, $column, $value, $form);}
+								};
+							}
+							else {
+								if (exists $CGI::FormBuilder::Field::VALIDATE{$column_type_config->{validate}}) {
+									$validated_unique_keys->{$column} =  $CGI::FormBuilder::Field::VALIDATE{$column_type_config->{validate}};
+								}
+								else {
+									$validated_unique_keys->{$column} = $column_type_config->{validate};
+								}
+
+								if ($validated_unique_keys->{$column} =~ /^m(\S)(.*)\1$/ || $validated_unique_keys->{$column} =~ /^(\/)(.*)\1$/) {
+									(my $regex = $2) =~ s#\\/#/#g;
+								    $regex =~ s#/#\\/#g;
+									$config->{columns}->{$column}->{validate} = {
+										javascript => $validated_unique_keys->{$column},
+										perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($column_config, $class, $column, $value, $form);}
+									};
+								}
+								else {
+									$config->{columns}->{$column}->{validate} = {
+										javascript => $validated_unique_keys->{$column},
+										perl => sub {my ($value, $form) = @_;return if $value ne $validated_unique_keys->{$column};return _unique($column_config, $class, $column, $value, $form);}
+									};
+								}
+							}
+						}
+					}
+				}
+				else {
+					$validated_unique_keys->{$column} = undef;
+					$config->{columns}->{$column}->{validate} = sub {my ($value, $form) = @_;return unless length($value);return _unique($column_config, $class, $column, $value, $form);};
+				}
+
+				$column_type = $column;
+				$config->{columns}->{$column}->{required} = 1 unless exists $config->{columns}->{$column}->{required};
+
+				unless (defined $config->{columns}->{$column}->{message}) {
+					my $column_label;
+					if (defined $config->{columns}->{$column}->{label}) {
+						$column_label = $config->{columns}->{$column}->{label};
+					}
+					else {
+						$column_label = _label($column);
+					}
+					$config->{columns}->{$column}->{message} = qq($column_label already exists or is invalid, please choose another one.);
+
+					unless (defined $config->{columns}->{$column}->{jsmessage}) {
+						if (exists $foreign_keys->{$column}) {
+							$config->{columns}->{$column}->{jsmessage} = qq(- Choose one of the "$column_label" options);
+						}
+						else {
+							$config->{columns}->{$column}->{jsmessage} = qq(- Invalid entry for the "$column_label" field);
+						}
+					}
+				}
+			}
+			elsif (exists $validated_unique_keys->{$column_type} && $column ne $column_type) { # prevent inheriting validation subref from matching unique column type
+				foreach my $key (keys %{$config->{columns}->{$column_type}}) {
+					$config->{columns}->{$column}->{$key} = $config->{columns}->{$column_type}->{$key};
+				}
+				$config->{columns}->{$column}->{validate} = $validated_unique_keys->{$column_type};
+				delete $config->{columns}->{$column}->{message};
+				delete $config->{columns}->{$column}->{jsmessage};
+				$column_type = $column;
+			}
+
+			_generate_methods($class, $config, $column, $column_type);
 		}
 	}
-	$method .= "sub $column\_definition {return \$config->{columns}->{$column_type};}\n";
-	return $method;
+	return $package;
 }
 
-sub render_as_form
-{
+sub prepare_renderer {
+	my ($class, $config, $sorted_column_definition_keys) = _class_config_column_keys(shift);
+	_process_columns($class, $config, $sorted_column_definition_keys);
+	no strict 'refs';
+	my $package_renderer_config = $class . '::renderer_config';
+	*$package_renderer_config = sub {return $config};
+	return $config;
+}
+
+sub _class_config_column_keys {
+	my $class = shift;
+	my $config = shift || _config();
+	my $sorted_column_definition_keys = shift || [sort { length $b <=> length $a } keys %{$config->{columns}}];
+	return ($class, $config, $sorted_column_definition_keys);
+}
+
+sub _generate_methods {
+	my ($class, $config, $column, $column_type) = @_;
+	no strict 'refs';
+	if (exists $config->{columns}->{$column_type}->{format}) {
+		foreach my $custom_method_key (keys %{$config->{columns}->{$column_type}->{format}}) {
+			unless ($class->can($column . '_' . $custom_method_key)) {
+				my $package_custom_method = $class . '::' . $column . '_' . $custom_method_key;
+				my $format_sub = $config->{columns}->{$column_type}->{format}->{$custom_method_key};
+				*$package_custom_method = sub {
+					my ($self, $value) = @_;
+					return $format_sub->($self, $column, $value);
+				};
+			}
+		}
+	}
+	
+	unless ($class->can($column . '_' . 'definition')) {
+		my $package_column_definition = $class . '::' . $column . '_definition';
+		*$package_column_definition = sub {return $config->{columns}->{$column_type};};
+	}
+}
+
+sub _before {
+	my ($self, $weak_args) = @_;
+	my $before = delete $weak_args->{before};
+	Scalar::Util::weaken($weak_args);
+	return $before->($self, $weak_args);
+}
+
+sub render_as_form {
 	my ($self, %args) = (@_);
-	$args{before}->($self, \%args) if exists $args{before} && ref $args{before} eq 'CODE';
-	my ($class, $form_action, $field_order, $output, $relationship_object);
+	_before($self, \%args) if exists $args{before};	
+	my ($class, $form_action, $field_order, $output, $relationship_object, $renderer_config);
 	my $table = $self->meta->table;
 	my $form_title = $args{title};
 	$class = ref $self || $self;
-	my $renderer_config = _get_renderer_config($class);
-
+	
+	if ($args{prepared} || $class->can('renderer_config')) {
+		$renderer_config = _get_renderer_config($class);
+	}
+	else {
+		$renderer_config = prepare_renderer($class);
+	}
+	
 	my $ui_type = (caller(0))[3];
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
 	my $form_id = _identify($class, $args{prefix}, $ui_type);
 	my $field_prefix = '';
 	$field_prefix = $form_id . '_' if defined $args{prefix};
 	
-	if (ref $self)
-	{
-		if ($args{copy})
-		{
+	if (ref $self) {
+		if ($args{copy}) {
 			$form_action = 'copy';
 		}
-		else
-		{
+		else {
 			$form_action = 'update';
 			(my $action_object_prefix = $form_id) =~ s/_form$//;
 			
-			unless (exists $args{queries} && $args{queries}->{$action_object_prefix . '_action'})  # in table
-			{
+			unless (exists $args{queries} && $args{queries}->{$action_object_prefix . '_action'}) {
 				my $primary_key = $class->meta->primary_key_column_names->[0];
 				$args{queries}->{action} ||= 'edit';
 				$args{queries}->{object} ||= $self->$primary_key;
 			}
 		}
-		$form_title ||= _label($form_action . ' ' . $self->stringify_me);
+		$form_title ||= _label($form_action . ' ' . stringify_me($self, $args{prepared}));
 	}
-	else
-	{
+	else {
 		$form_action = 'create';
 		$form_title ||= _label($form_action . ' ' . _singularise_table(_title($table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
 	}
@@ -461,12 +470,10 @@ sub render_as_form
 	my $column_order = $args{order} || _get_column_order($class, $relationships);
 
 	my $form_template;
-	if ($args{template} eq 1)
-	{
+	if ($args{template} eq 1) {
 		$form_template = $ui_type . '.tt';
 	}
-	else
-	{
+	else {
 		$form_template = $args{template};
 	}
 
@@ -477,12 +484,10 @@ sub render_as_form
 	$form_def->{params} ||= $args{cgi} if exists $args{cgi};
 	$form_def->{stylesheet} = 1 unless exists $form_def->{stylesheet};
 
-	if($args{template})
-	{
+	if($args{template}) {
 		$form_def->{jserror} ||= 'notify_error';
 	}
-	else
-	{
+	else {
 		$form_def->{messages}->{form_required_text} = '';
 	}
 
@@ -490,186 +495,143 @@ sub render_as_form
 
 	my $form = CGI::FormBuilder->new($form_def);
 
-	foreach my $column (@{$column_order})
-	{
+	foreach my $column (@{$column_order}) {
 		my $field_def;
 		$field_def = $args{fields}->{$column} if exists $args{fields} && exists $args{fields}->{$column};
 
 		my $column_definition_method = $column . '_definition';
-		if ($class->can($column_definition_method))
-		{
+		if ($class->can($column_definition_method)) {
 			my $column_definition = $class->$column_definition_method;
-			foreach my $property (keys %{$column_definition})
-			{
+			foreach my $property (keys %{$column_definition}) {
 				$field_def->{$property} = $column_definition->{$property} unless defined $field_def->{$property} || $property eq 'format'  || $property eq 'stringify' || $property eq 'unsortable';
 			}
 		}
 
-		if (exists $relationships->{$column}) #one to many or many to many relationships
-		{
+		if (exists $relationships->{$column}) { # one to many or many to many relationships
 			$field_def->{validate} ||= 'INT';
 			$field_def->{sortopts} ||= 'LABELNAME';
 			$field_def->{multiple} ||= 1;
 
 			my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 
-			if (ref $self && ! exists $field_def->{value})
-			{
+			if (ref $self && ! exists $field_def->{value}) {
 				my $foreign_object_value;
 
-			 	foreach my $foreign_object ($self->$column)
-				{
-					$foreign_object_value->{$foreign_object->$foreign_class_primary_key} = $foreign_object->stringify_me;
+			 	foreach my $foreign_object ($self->$column) {
+					$foreign_object_value->{$foreign_object->$foreign_class_primary_key} = stringify_me($foreign_object, $args{prepared});
 					$relationship_object->{$column}->{$foreign_object->$foreign_class_primary_key} = undef; #keep it for update
 				}
 				$field_def->{value} = $foreign_object_value;
 			}
 
-			unless ($field_def->{static} || $field_def->{type} eq 'hidden' || exists $field_def->{options})
-			{
+			unless ($field_def->{static} || $field_def->{type} eq 'hidden' || exists $field_def->{options}) {
 				my $objects = Rose::DB::Object::Manager->get_objects(object_class => $relationships->{$column}->{class});
-				if (@{$objects})
-				{
-					foreach my $object (@{$objects})
-					{
-						$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
+				if (@{$objects}) {
+					foreach my $object (@{$objects}) {
+						$field_def->{options}->{$object->$foreign_class_primary_key} = stringify_me($object, $args{prepared});
 					}
 				}
-				else
-				{
+				else {
 					$field_def->{type} ||= 'select';
 					$field_def->{disabled} ||= 1;
 				}
 			}
 		}
-		elsif (exists $class->meta->{columns}->{$column}) #normal column
-		{
-			unless (exists $field_def->{options} || $field_def->{type} eq 'hidden')
-			{
-				if (exists $foreign_keys->{$column}) #create or edit
-				{
+		elsif (exists $class->meta->{columns}->{$column}) { #normal column
+			unless (exists $field_def->{options} || $field_def->{type} eq 'hidden') {
+				if (exists $foreign_keys->{$column}) { #create or edit
 					my $foreign_class = $foreign_keys->{$column}->{class};
 					my $foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
-					if ($field_def->{static})
-					{
-						if (ref $self)
-						{
-							if ($self->$column)
-							{
+					if ($field_def->{static}) {
+						if (ref $self) {
+							if ($self->$column) {
 								my $foreign_column = $foreign_keys->{$column}->{name};
-								$field_def->{options} = {$self->$column => $self->$foreign_column->stringify_me};
+								$field_def->{options} = {$self->$column => stringify_me($self->$foreign_column, $args{prepared})};
 							}
 						}
-						else
-						{
+						else {
 							my $foreign_object_id;
-							if (defined $field_def->{value})
-							{
+							if (defined $field_def->{value}) {
 								$foreign_object_id = $field_def->{value};
 							}
-							elsif(defined $self->meta->{columns}->{$column}->{default})
-							{
+							elsif(defined $self->meta->{columns}->{$column}->{default}) {
 								$foreign_object_id = $self->meta->{columns}->{$column}->{default};
 							}
 
-							if ($foreign_object_id)
-							{
+							if ($foreign_object_id) {
 								my $foreign_object = $foreign_class->new($foreign_class_primary_key => $foreign_object_id);
-								$field_def->{options} = {$foreign_object_id => $foreign_object->stringify_me} if $foreign_object->load(speculative => 1);
+								$field_def->{options} = {$foreign_object_id => stringify_me($foreign_object, $args{prepared})} if $foreign_object->load(speculative => 1);
 							}
 						}
 					}
-					else
-					{
+					else {
 						my $objects = Rose::DB::Object::Manager->get_objects(object_class => $foreign_keys->{$column}->{class});
-						if (@{$objects})
-						{
-							foreach my $object (@{$objects})
-							{
-								$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me;
+						if (@{$objects}) {
+							foreach my $object (@{$objects}) {
+								$field_def->{options}->{$object->$foreign_class_primary_key} = stringify_me($object, $args{prepared});
 							}
 						}
-						else
-						{
+						else {
 							$field_def->{type} ||= 'select';
 							$field_def->{disabled} ||= 1;
 						}
 					}
 				}
-				elsif (exists $class->meta->{columns}->{$column}->{check_in})
-				{
+				elsif (exists $class->meta->{columns}->{$column}->{check_in}) {
 					$field_def->{options} = $class->meta->{columns}->{$column}->{check_in};
 					$field_def->{multiple} = 1 if ! exists $field_def->{multiple} && ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set';
 				}
-				elsif (! exists $field_def->{type} && ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Text')
-				{
+				elsif (! exists $field_def->{type} && ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Text') {
 					$field_def->{type} = 'textarea';
 					$field_def->{cols} ||= '55';
 					$field_def->{rows} ||= '10';
 				}
 			}
 
-			if (ref $self) #edit
-			{
-				unless (exists $field_def->{value})
-				{
+			if (ref $self) { #edit
+				unless (exists $field_def->{value}) {
 					my $current_value;
-					if ($class->can($column . '_for_edit'))
-					{
+					if ($class->can($column . '_for_edit')) {
 						my $edit_method = $column . '_for_edit';
 						$current_value = $self->$edit_method;
 						$field_def->{value} = "$current_value";
 					}
-					else
-					{
-						if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
-						{
+					else {
+						if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set') {
 							$field_def->{value} = $self->$column;
 						}
-						elsif (exists $field_def->{multiple} && $field_def->{multiple} && $field_def->{options})
-						{
+						elsif (exists $field_def->{multiple} && $field_def->{multiple} && $field_def->{options}) {
 							my $delimiter = '\\' . $renderer_config->{form}->{delimiter};
 							$field_def->{value} = [split /$delimiter/, $self->$column];
 						}
-						else
-						{
+						else {
 							$current_value = $self->$column;
 							$field_def->{value} = "$current_value"; # double quote to make it literal to stringify object refs such as DateTime
 						}
 
-						if (exists $field_def->{other} && $field_def->{other} && $field_def->{options})
-						{
-							if (ref $field_def->{options} eq 'HASH')
-							{
-								if (ref $field_def->{value} eq 'ARRAY')
-								{
-									foreach my $value (@{$field_def->{value}})
-									{
+						if (exists $field_def->{other} && $field_def->{other} && $field_def->{options}) {
+							if (ref $field_def->{options} eq 'HASH') {
+								if (ref $field_def->{value} eq 'ARRAY') {
+									foreach my $value (@{$field_def->{value}}) {
 										$field_def->{options}->{$value} = $value unless exists $field_def->{options}->{$value};
 									}
 								}
-								else
-								{
+								else {
 									$field_def->{options}->{$field_def->{value}} = $field_def->{value} unless exists $field_def->{options}->{$field_def->{value}};
 								}
 							}
-							else # must be array
-							{
+							else { # must be array 
 								my $available_options;
-								foreach my $option (@{$field_def->{options}})
-								{
+								foreach my $option (@{$field_def->{options}}) {
 									$available_options->{$option} = undef;
 								}
 
-								if (ref $field_def->{value} eq 'ARRAY')
-								{
-									foreach my $value (@{$field_def->{value}})
-									{
+								if (ref $field_def->{value} eq 'ARRAY') {
+									foreach my $value (@{$field_def->{value}}) {
 										push @{$field_def->{options}}, $value unless exists $available_options->{$value};
 									}
 								}
-								else
-								{
+								else {
 									push @{$field_def->{options}}, $field_def->{value} unless exists $available_options->{$field_def->{value}};
 								}
 							}
@@ -677,29 +639,23 @@ sub render_as_form
 					}
 				}
 
-				if ($field_def->{type} eq 'file') #file: if value exist in db, or in cgi param when the same form reloads
-				{
+				if ($field_def->{type} eq 'file') { #file: if value exist in db, or in cgi param when the same form reloads
 					delete $field_def->{value};
-					unless (exists $field_def->{comment})
-					{
+					unless (exists $field_def->{comment}) {
 						my $value = $form->cgi_param($form_id.'_'.$column) || $form->cgi_param($column) || $self->$column;
 						my $file_location = _get_file_url($self, $column, $value);
 						$field_def->{comment} = '<a class="download_message" href="'.$file_location.'">'.$download_message.'</a>' if $file_location;
 					}
 				}
 			}
-			else
-			{
-				unless (exists $field_def->{value})
-				{
-					if ($class->can($column . '_for_create'))
-					{
+			else {
+				unless (exists $field_def->{value}) {
+					if ($class->can($column . '_for_create')) {
 						my $create_method = $column.'_for_create';
 						my $create_result = $self->$create_method($self->meta->{columns}->{$column}->{default});
 						$field_def->{value} = $create_result if defined $create_result;
 					}
-					else
-					{
+					else {
 						$field_def->{value} = $self->meta->{columns}->{$column}->{default} if defined $self->meta->{columns}->{$column}->{default};
 					}
 				}
@@ -710,25 +666,21 @@ sub render_as_form
 
 		$field_def->{label} ||= _label(_title($column, $renderer_config->{db}->{table_prefix}));
 
-		unless (exists $field_def->{name})
-		{
+		unless (exists $field_def->{name}) {
 			push @{$field_order}, $field_prefix . $column;
 			$field_def->{name} = $field_prefix . $column;
 		}
 		$form->field(%{$field_def});
 	}
 
-	foreach my $query_key (keys %{$args{queries}})
-	{
+	foreach my $query_key (keys %{$args{queries}}) {
 		$form->field(name => $query_key, value => $args{queries}->{$query_key}, type => 'hidden', force => 1);
 	}
 
 	$form->field(name => $form_id . '_submit_cancel', type => 'hidden', force => 1);
 
-	unless (defined $args{controller_order})
-	{
-		foreach my $controller (keys %{$args{controllers}})
-		{
+	unless (defined $args{controller_order}) {
+		foreach my $controller (keys %{$args{controllers}}) {
 			push @{$args{controller_order}}, $controller;
 		}
 
@@ -761,23 +713,16 @@ sub render_as_form
 						type => 'TT2'
 					}) if $args{template};
 
-	if ($form->submitted)
-	{
-		if ($form->submitted ne $cancel)
-		{
+	if ($form->submitted) {
+		if ($form->submitted ne $cancel) {
 			my $form_validate = $form->validate(%{$args{validate}});
-			if ($form_validate)
-			{
+			if ($form_validate) {
 				no strict 'refs';
 				my $form_action_callback = '_'.$form_action.'_object';
-				if (exists $args{controllers}->{$form->submitted}) #method buttons
-				{
-					if (ref $args{controllers}->{$form->submitted} eq 'HASH')
-					{
-						if ($args{controllers}->{$form->submitted}->{$form_action})
-						{
-							unless (ref $args{controllers}->{$form->submitted}->{$form_action} eq 'CODE' && ! $args{controllers}->{$form->submitted}->{$form_action}->($self))
-							{
+				if (exists $args{controllers}->{$form->submitted}) { #method buttons
+					if (ref $args{controllers}->{$form->submitted} eq 'HASH') {
+						if ($args{controllers}->{$form->submitted}->{$form_action}) {
+							unless (ref $args{controllers}->{$form->submitted}->{$form_action} eq 'CODE' && ! $args{controllers}->{$form->submitted}->{$form_action}->($self)) {
 								$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
 								$output->{self} = $self;
 							}
@@ -787,21 +732,18 @@ sub render_as_form
 
 						$args{hide_form} = 1 if exists $args{controllers}->{$form->submitted}->{hide_form};
 					}
-					else
-					{
+					else {
 						$output->{controller} = $args{controllers}->{$form->submitted}->($self) if ref $args{controllers}->{$form->submitted} eq 'CODE';
 					}
 				}
-				elsif($form->submitted eq ucfirst ($form_action))
-				{
+				elsif($form->submitted eq ucfirst ($form_action)) {
 					$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object);
 					$output->{self} = $self;
 				}
 				$output->{validate} = $form_validate;
 			}
 		}
-		else
-		{
+		else {
 			$output->{validate} = 1;
 		}
 	}
@@ -811,14 +753,11 @@ sub render_as_form
 	$hide_form .= 'hide_form';
 
 	$args{hide_form} = 1 if $form->cgi_param($hide_form);
-	unless ($args{hide_form})
-	{
-		if ($args{template})
-		{
+	unless ($args{hide_form}) {
+		if ($args{template}) {
 			$html_form .= $form->render;
 		}
-		else
-		{
+		else {
 			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
 			$html_form .= qq(<div><h1>$form_title</h1>$args{description}) . _touch_up($form->render(), $cancel, $form_id) . '</div>';
 			$html_form = qq($renderer_config->{misc}->{doctype}<html><head><title>$form_title</title>$html_head</head><body>$html_form</body></html>) unless $args{no_head};
@@ -831,32 +770,33 @@ sub render_as_form
 	return $output;
 }
 
-sub render_as_table
-{
+sub render_as_table {
 	my ($self, %args) = (@_);
-	$args{before}->($self, \%args) if exists $args{before} && ref $args{before} eq 'CODE';
-	my ($table, @controllers, $output, $query_hidden_fields, $q, $sort_by_column, $table_config);
+	_before($self, \%args) if exists $args{before};
+	my ($table, @controllers, $output, $query_hidden_fields, $q, $sort_by_column, $table_config, $renderer_config);
 	my $class = $self->object_class();
 	my $query = $args{cgi} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
-	my $renderer_config = _get_renderer_config($class);
-
-
-	foreach my $option (keys %{$renderer_config->{table}})
-	{
-		if (defined $args{$option})
-		{
+	
+	if ($args{prepared} || $class->can('renderer_config')) {
+		$renderer_config = _get_renderer_config($class);
+	}
+	else {
+		$renderer_config = prepare_renderer($class);
+	}
+	
+	foreach my $option (keys %{$renderer_config->{table}}) {
+		if (defined $args{$option}) {
 			$table_config->{$option} = $args{$option};
 		}
-		else
-		{
+		else {
 			$table_config->{$option} = $renderer_config->{table}->{$option};
 		}
 	}
 
 	my $table_title = $args{title} || _label(_pluralise_table(_title($class->meta->table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
 
-	my $like_operator = $args{like_operator} || $renderer_config->{db}->{like_operator};
+	my $like_operator = $args{like_operator} || ($class->meta->db->driver eq 'pg'?'ILIKE':'LIKE');
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
 	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$table_title/;
@@ -874,83 +814,65 @@ sub render_as_table
 
 	my $param_list = {'sort_by' => 'sort_by', 'per_page' => 'per_page', 'page' => 'page', 'q' => 'q', 'ajax' => 'ajax', 'action' => 'action', 'object' => 'object', 'hide_table'};
 
-	if ($args{prefix})
-	{
-		foreach my $param (keys %{$param_list})
-		{
+	if ($args{prefix}) {
+		foreach my $param (keys %{$param_list}) {
 			$param_list->{$param} = $table_id.'_'.$param;
 		}
 	}
 
-	if ($args{get_from_sql})
-	{
-		if (ref $args{get_from_sql} eq 'HASH')
-		{
+	if ($args{get_from_sql}) {
+		if (ref $args{get_from_sql} eq 'HASH') {
 			$objects = $self->get_objects_from_sql(%{$args{get_from_sql}});
 		}
-		else
-		{
+		else {
 			$objects = $self->get_objects_from_sql($args{get_from_sql});
 		}
 		$table_config->{no_pagination} = 1;
 	}
-	else
-	{
+	else {
 		my $sort_by = $query->param($param_list->{'sort_by'});
-		if ($sort_by)
-		{
+		if ($sort_by) {
 			my $sort_by_column = $sort_by;
 			$sort_by_column =~ s/\sdesc$//;
 			my $sort_by_column_definition_method = $sort_by_column . '_definition';
 			my $sort_by_column_definition;
 			$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
 
-			unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable})))
-			{
-				if ($sort_by_column eq $primary_key)
-				{
+			unless (! exists $class->meta->{columns}->{$sort_by_column} || (defined $sort_by_column_definition && $sort_by_column_definition->{unsortable}) || (exists $args{columns} && exists $args{columns}->{$sort_by_column} && (exists $args{columns}->{$sort_by_column}->{value} || $args{columns}->{$sort_by_column}->{unsortable}))) {
+				if ($sort_by_column eq $primary_key) {
 					$args{get}->{sort_by} = 't1.' . $sort_by;
 				}
-				else
-				{
+				else {
 					$args{get}->{sort_by} = 't1.' . $sort_by . ', '. $class->meta->table . '.' . $primary_key; # append an unique column to the sort by clause to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 				}
 			}
 		}
-		else
-		{
+		else {
 			$args{get}->{sort_by} ||= $primary_key; # always sort by primary key by default to prevent inconsistent results using LIMIT and OFFSET in PostgreSQL
 		}
 
-		if ($args{searchable})
-		{
+		if ($args{searchable}) {
 			$query_hidden_fields = _create_hidden_field($args{queries}); # this has to be done before appending 'q' to $args{queries}, which get serialised later as query stings
 
-			if (defined $args{q})
-			{
+			if (defined $args{q}) {
 				$q = $args{q};
 			}
-			elsif (length $query->param($param_list->{'q'}))
-			{
+			elsif (length $query->param($param_list->{'q'})) {
 				$q = $query->param($param_list->{'q'});
 			}
 
-			if (defined $q)
-			{
+			if (defined $q) {
 				my ($or, @raw_qs, @qs);
 				my $keyword_delimiter = $table_config->{keyword_delimiter};
-				if ($keyword_delimiter)
-				{
+				if ($keyword_delimiter) {
 					@raw_qs = split /$keyword_delimiter/, $q;
 				}
-				else
-				{
+				else {
 					@raw_qs = $q;
 				}
 
 				my $like_search_values;
-				foreach my $raw_q (@raw_qs)
-				{
+				foreach my $raw_q (@raw_qs) {
 					$raw_q =~ s/^\s+|\s+$//g;
 					push @qs, $raw_q;
 					push @{$like_search_values}, '%' . $raw_q . '%';
@@ -958,52 +880,42 @@ sub render_as_table
 
 				my $table_alias = {$class => 't1'};
 				my $table_to_class;
-				if ($class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && $args{get})
-				{
+				if ($class->meta->db->driver eq 'pg' && $args{get}) {
 					my $counter = 1;
 					($table_alias, $table_to_class) = _alias_table($args{get}->{with_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{with_objects};
 					($table_alias, $table_to_class) = _alias_table($args{get}->{require_objects}, $class, \$counter, $table_alias, $table_to_class) if $args{get}->{require_objects};
 				}
 
-				foreach my $searchable_column (@{$args{searchable}})
-				{
+				foreach my $searchable_column (@{$args{searchable}}) {
 					my ($search_values, $search_class, $search_column, $search_method);
-					if ($searchable_column =~ /\./)
-					{
+					if ($searchable_column =~ /\./) {
 						my $search_table;
 						($search_table, $search_column) = split /\./, $searchable_column;
 						$search_class = $table_to_class->{$search_table} || $class;
 					}
-					else
-					{
+					else {
 						$search_class = $class;
 						$search_column = $searchable_column;
 					}
 
-					if ($search_class->can($search_column . '_for_search'))
-					{
+					if ($search_class->can($search_column . '_for_search')) {
 						$search_method = $search_column.'_for_search';
-						foreach my $q (@qs)
-						{
+						foreach my $q (@qs) {
 							my $search_result = $search_class->$search_method($q);
 							push @{$search_values}, '%' . $search_result . '%' if $search_result;
 						}
 					}
-					else
-					{
+					else {
 						$search_values = $like_search_values;
 					}
 
-					if ($search_class && $search_class->meta->isa('Rose::DB::Object::Metadata::Auto::Pg') && exists $search_class->meta->{columns}->{$search_column} && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character'))
-					{
+					if ($search_class && $search_class->meta->db->driver eq 'pg' && exists $search_class->meta->{columns}->{$search_column} && ! $search_class->meta->{columns}->{$search_column}->isa('Rose::DB::Object::Metadata::Column::Character')) {
 						my $searchable_column_text = 'text(' . $table_alias->{$search_class} . '.' . $search_column . ') ' . $like_operator . ' ?';
-						foreach my $search_value (@{$search_values})
-						{
+						foreach my $search_value (@{$search_values}) {
 							push @{$or}, [\$searchable_column_text => $search_value];
 						}
 					}
-					else
-					{
+					else {
 						push @{$or}, $searchable_column => {$like_operator => $search_values};
 					}
 				}
@@ -1019,57 +931,45 @@ sub render_as_table
 
 		my $filtered_columns;
 		my $filterable = $args{filterable} || $column_order;
-		foreach my $column (@{$filterable})
-		{
-			unless (exists $relationships->{$column})
-			{
+		foreach my $column (@{$filterable}) {
+			unless (exists $relationships->{$column}) {
 				my $cgi_column;
 				$cgi_column = $table_id.'_' if $args{prefix};
 				$cgi_column .= $column;
 
-				if (length $query->param($cgi_column))
-				{
+				if (length $query->param($cgi_column)) {
 					my @cgi_column_values = $query->param($cgi_column);
 					my $formatted_values;
-					if ($class->can($column . '_for_filter'))
-					{
+					if ($class->can($column . '_for_filter')) {
 						my $filter_method = $column . '_for_filter';
-						foreach my $cgi_column_value (@cgi_column_values)
-						{
+						foreach my $cgi_column_value (@cgi_column_values) {
 							my $filter_result = $class->$filter_method($cgi_column_value);
 							push @{$formatted_values}, $filter_result if $filter_result;
 						}
 					}
-					elsif ($class->can($column))
-					{
+					elsif ($class->can($column)) {
 						$formatted_values = \@cgi_column_values;
 					}
 
-					if ($formatted_values)
-					{
+					if ($formatted_values) {
 						push @{$filtered_columns}, $column => $formatted_values;
 					}
 				}
 			}
 		}
 
-		if ($filtered_columns)
-		{
-			if($table_config->{or_filter})
-			{
+		if ($filtered_columns) {
+			if($table_config->{or_filter}) {
 				push @{$args{get}->{query}}, 'or' => $filtered_columns;
 			}
-			else
-			{
-				foreach my $filtered_column (@{$filtered_columns})
-				{
+			else {
+				foreach my $filtered_column (@{$filtered_columns}) {
 					push @{$args{get}->{query}}, $filtered_column; 
 				}
 			}
 		}
 
-		unless (exists $args{get} && (exists $args{get}->{limit} || exists $args{get}->{offset}))
-		{
+		unless (exists $args{get} && (exists $args{get}->{limit} || exists $args{get}->{offset})) {
 			$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
 			$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
 		}
@@ -1078,26 +978,24 @@ sub render_as_table
 
 		##Handle Submission
 		my $reload_object;
-		if ($query->param($param_list->{action}))
-		{
+		if ($query->param($param_list->{action})) {
 			my $valid_form_actions = {create => undef, edit => undef, copy => undef};
 			my $action = $query->param($param_list->{action});
 
-			if (exists $valid_form_actions->{$action} && $args{$action})
-			{
+			if (exists $valid_form_actions->{$action} && $args{$action}) {
 				$args{$action} = {} if $args{$action} eq 1;
 				$args{$action}->{output} = 1;
-				$args{$action}->{no_head} ||= 1 if $args{no_head};
+				
+				$args{$action}->{no_head} = $args{no_head} if exists $args{no_head} && ! exists $args{$action}->{no_head};
+				$args{$action}->{prepared} = $args{prepared} if exists $args{prepared} && ! exists $args{$action}->{prepared};
 
-				if (exists $table_config->{inherit_form_options})
-				{
-					foreach my $option (@{$table_config->{inherit_form_options}})
-					{
+				if (exists $table_config->{inherit_form_options}) {
+					foreach my $option (@{$table_config->{inherit_form_options}}) {
 						_inherit_form_option($option, $action, \%args);
 					}
 				}
 
-				$args{$action}->{order} ||= $args{order} if $args{order};				
+				$args{$action}->{order} ||= $args{order} if $args{order};			
 				$args{$action}->{template} ||= _template($args{template}, 'form', 1) if $args{template};
 				
 				@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};
@@ -1107,20 +1005,16 @@ sub render_as_table
 				$args{$action}->{prefix} ||= $table_id.'_form';
 
 				my $form;
-				if ($action eq 'create')
-				{
+				if ($action eq 'create') {
 					$form = $class->render_as_form(%{$args{$action}});
 				}
-				elsif ($query->param($param_list->{object}))
-				{
+				elsif ($query->param($param_list->{object})) {
 					$args{$action}->{queries}->{$param_list->{object}} = $query->param($param_list->{object});
 
 				    $args{$action}->{copy} = 1 if $action eq 'copy';
 
-					foreach my $object (@{$objects})
-					{
-						if ($object->$primary_key eq $query->param($param_list->{object}))
-						{
+					foreach my $object (@{$objects}) {
+						if ($object->$primary_key eq $query->param($param_list->{object})) {
 							$form = $object->render_as_form(%{$args{$action}});
 							$output->{form} = $form;
 							last;
@@ -1130,45 +1024,36 @@ sub render_as_table
 
 				$form->{validate}?$reload_object = 1:$output->{output} = $form->{output};
 			}
-			elsif ($query->param($param_list->{object}))
-			{
+			elsif ($query->param($param_list->{object})) {
 				$reload_object = 1;
 				my @object_ids = $query->param($param_list->{object});
 				my (%valid_object_ids, @action_objects);
 				@valid_object_ids{@object_ids} = ();
 
-				foreach my $object (@{$objects})
-				{
+				foreach my $object (@{$objects}) {
 					push @action_objects, $object if exists $valid_object_ids{$object->$primary_key};
 				}
 
-				if ($query->param($param_list->{action}) eq 'delete' && $args{delete})
-				{
-					foreach my $action_object (@action_objects)
-					{
+				if ($query->param($param_list->{action}) eq 'delete' && $args{delete}) {
+					foreach my $action_object (@action_objects) {
 						$action_object->delete_with_file;
 					}
 				}
-				elsif (exists $args{controllers} && exists $args{controllers}->{$query->param($param_list->{action})})
-				{
+				elsif (exists $args{controllers} && exists $args{controllers}->{$query->param($param_list->{action})}) {
 					no strict 'refs';
-					foreach my $action_object (@action_objects)
-					{
-						if (ref $args{controllers}->{$query->param($param_list->{action})} eq 'HASH')
-						{
+					foreach my $action_object (@action_objects) {
+						if (ref $args{controllers}->{$query->param($param_list->{action})} eq 'HASH') {
 							$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->{callback}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})}->{callback} eq 'CODE';
 							$args{hide_table} = 1 if exists $args{controllers}->{$query->param($param_list->{action})}->{hide_table};
 						}
-						else
-						{
+						else {
 							$output->{controller} = $args{controllers}->{$query->param($param_list->{action})}->($action_object) if ref $args{controllers}->{$query->param($param_list->{action})} eq 'CODE';
 						}
 					}
 				}
 			}
 
-			if(defined $output->{output})
-			{
+			if(defined $output->{output}) {
 				return $output if $args{output};
 				print $output->{output};
 				return;
@@ -1177,8 +1062,7 @@ sub render_as_table
 
 		($previous_page, $next_page, $last_page, $total) = _pagination($self, $class, $args{get}) unless $table_config->{no_pagination};
 
-		if($reload_object)
-		{
+		if($reload_object) {
 			$args{get}->{page} = $last_page if $args{get}->{page} > $last_page;
 			$objects = $self->get_objects(%{$args{get}});
 			$output->{objects} = $objects;
@@ -1189,15 +1073,12 @@ sub render_as_table
 	##Render Table
 
 	$args{hide_table} = 1 if $query->param($param_list->{'hide_table'});
-	unless ($args{hide_table})
-	{
+	unless ($args{hide_table}) {
 		my ($html_table, $query_string);
-		if ($args{controller_order})
-		{
+		if ($args{controller_order}) {
 		 	@controllers = @{$args{controller_order}};
 		}
-		else
-		{
+		else {
 		 	@controllers = keys %{$args{controllers}} if $args{controllers};
 			push @controllers, 'copy' if $args{copy};
 			push @controllers, 'edit' if $args{edit};
@@ -1206,31 +1087,27 @@ sub render_as_table
 
 		$args{queries}->{$param_list->{ajax}} = 1 if $args{ajax} && $args{template};
 
-		if(exists $args{queries})
-		{
+		if(exists $args{queries}) {
 			$query_string->{base} = _create_query_string($args{queries});
 			$query_string->{sort_by} = _create_query_string($args{queries});
 			$query_string->{page} = _create_query_string($args{queries});
 		}
 
-		if($query->param($param_list->{sort_by}))
-		{
+		if($query->param($param_list->{sort_by})) {
 			$query_string->{page} .= $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;' unless $query_string->{page} =~ /$param_list->{sort_by}=/;
 			$query_string->{exclusive} = $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;';
 		}
 
 		$query_string->{complete} = $query_string->{page};
 
-		if ($query->param($param_list->{page}))
-		{
+		if ($query->param($param_list->{page})) {
 			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;' unless $query_string->{complete} =~ /$param_list->{page}=/;
 			$query_string->{exclusive} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;';
 		}
 
 		##Define Table
 
-		if ($args{create})
-		{
+		if ($args{create}) {
 			my $create_value = 'Create';
 			$create_value = $args{create}->{title} if ref $args{create} eq 'HASH' && exists $args{create}->{title};
 			$table->{create} = {value => $create_value, link => qq($url?$query_string->{complete}$param_list->{action}=create)} if $args{create};
@@ -1238,8 +1115,7 @@ sub render_as_table
 
 		$table->{total_columns} = scalar @{$column_order} + scalar @controllers;
 
-		foreach my $column (@{$column_order})
-		{
+		foreach my $column (@{$column_order}) {
 			my $head;
 			$head->{name} = $column;
 
@@ -1247,23 +1123,18 @@ sub render_as_table
 			my $column_definition;
 			$column_definition = $class->$column_definition_method if $class->can($column_definition_method);
 
-			if (exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{label})
-			{
+			if (exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{label}) {
 				$head->{value} = $args{columns}->{$column}->{label};
 			}
-			else
-			{
+			else {
 				$head->{value} = $column_definition->{label} || _label(_title($column, $renderer_config->{db}->{table_prefix}));
 			}
 
-			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || $args{columns}->{$column}->{unsortable})))
-			{
-				if ($query->param($param_list->{'sort_by'}) eq $column)
-				{
+			unless (exists $relationships->{$column} || $column_definition->{unsortable} || (exists $args{columns} && exists $args{columns}->{$column} && (exists $args{columns}->{$column}->{value} || $args{columns}->{$column}->{unsortable}))) {
+				if ($query->param($param_list->{'sort_by'}) eq $column) {
 					$head->{link} = qq($url?$query_string->{sort_by}$param_list->{sort_by}=$column desc);
 				}
-				else
-				{
+				else {
 					$head->{link} = qq($url?$query_string->{sort_by}$param_list->{sort_by}=$column);
 				}
 			}
@@ -1271,61 +1142,47 @@ sub render_as_table
 			push @{$table->{head}}, $head;
 		}
 
-		foreach my $controller (@controllers)
-		{
+		foreach my $controller (@controllers) {
 			my $label;
-			if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{label}) 
-			{
+			if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{label}) {
 				$label = $args{controllers}->{$controller}->{label};
 			}
-			else
-			{
+			else {
 				$label = _label($controller);
 			}
 			push @{$table->{head}}, {name => $controller, value => $label, controller => 1};
 		}
 
-		foreach my $object (@{$objects})
-		{
+		foreach my $object (@{$objects}) {
 			my $row;
 			$row->{object} = $object;
 			my $object_id = $object->$primary_key;
-			foreach my $column (@{$column_order})
-			{
+			foreach my $column (@{$column_order}) {
 				my $value;
-				if(exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{value}) #custom column value
-				{
+				if(exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{value}) { #custom column value
 					$value = $args{columns}->{$column}->{value}->{$object_id} if exists $args{columns}->{$column}->{value}->{$object_id};
 				}
-				elsif(exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{accessor}) #custom column accessor
-				{
+				elsif(exists $args{columns} && exists $args{columns}->{$column} && exists $args{columns}->{$column}->{accessor}) { #custom column accessor
 					my $accessor = $args{columns}->{$column}->{accessor};
 					$value = $object->$accessor($column) if $object->can($accessor);
 				}
-				elsif (exists $relationships->{$column})
-				{
-					$value = join $table_config->{delimiter}, map {$_->stringify_me} $object->$column;
+				elsif (exists $relationships->{$column}) {
+					$value = join $table_config->{delimiter}, map {stringify_me($_, $args{prepared})} $object->$column;
 				}
-				else
-				{
+				else {
 					my $view_method;
-					if ($class->can($column . '_for_view'))
-					{
+					if ($class->can($column . '_for_view')) {
 						$view_method = $column . '_for_view';
 					}
-					elsif ($class->can($column))
-					{
+					elsif ($class->can($column)) {
 						$view_method = $column;
 					}
 
-					if ($view_method)
-					{
-						if (ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set')
-						{
+					if ($view_method) {
+						if (ref $class->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set') {
 							$value = join $table_config->{delimiter}, $object->$view_method;
 						}
-						else
-						{
+						else {
 							$value = $object->$view_method;
 						}
 					}
@@ -1335,25 +1192,20 @@ sub render_as_table
 				push @{$row->{columns}}, {name => $column, value => $value};
 			}
 
-			foreach my $controller (@controllers)
-			{
+			foreach my $controller (@controllers) {
 				my $label;
-				if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{label}) 
-				{
+				if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{label}) {
 					$label = $args{controllers}->{$controller}->{label};
 				}
-				else
-				{
+				else {
 					$label = _label($controller);
 				}
 				my $controller_query_string;
-				if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{queries})
-				{
+				if (ref $args{controllers}->{$controller} eq 'HASH' && exists $args{controllers}->{$controller}->{queries}) {
 					$controller_query_string = $query_string->{exclusive};
 					$controller_query_string .= _create_query_string($args{controllers}->{$controller}->{queries});
 				}
-				else
-				{
+				else {
 					$controller_query_string = $query_string->{complete};
 				}
 				push @{$row->{columns}}, {name => $controller, value => $label, link => qq($url?$controller_query_string$param_list->{action}=$controller&amp;$param_list->{object}=$object_id), controller => 1};
@@ -1361,8 +1213,7 @@ sub render_as_table
 			push @{$table->{rows}}, $row;
 		}
 
-		unless ($table_config->{no_pagination})
-		{
+		unless ($table_config->{no_pagination}) {
 			$table->{pager}->{first_page} = {value => 1, link => qq($url?$query_string->{page}$param_list->{page}=1)};
 			$table->{pager}->{previous_page} = {value => $previous_page, link => qq($url?$query_string->{page}$param_list->{page}=$previous_page)};
 			$table->{pager}->{next_page} = {value => $next_page, link => qq($url?$query_string->{page}$param_list->{page}=$next_page)};
@@ -1370,44 +1221,35 @@ sub render_as_table
 			$table->{pager}->{current_page} = {value => $args{get}->{page}, link => qq($url?$query_string->{page}$param_list->{page}=$args{get}->{page})};
 			$table->{pager}->{total} = $total;
 
-			if ($table_config->{pages} % 2)
-			{
+			if ($table_config->{pages} % 2) {
 				$table->{pager}->{start_page} = $table->{pager}->{current_page}->{value} - ($table_config->{pages} - 1)/2;
 			}
-			else
-			{
+			else {
 				$table->{pager}->{start_page} = $table->{pager}->{current_page}->{value} - $table_config->{pages}/2;
 			}
 
-			if ($table->{pager}->{start_page} < 1)
-			{
+			if ($table->{pager}->{start_page} < 1) {
 				$table->{pager}->{start_page} = 1;
 			}
-			elsif ($table->{pager}->{last_page}->{value} >= $table_config->{pages} && $table->{pager}->{start_page} > $table->{pager}->{last_page}->{value} - $table_config->{pages})
-			{
+			elsif ($table->{pager}->{last_page}->{value} >= $table_config->{pages} && $table->{pager}->{start_page} > $table->{pager}->{last_page}->{value} - $table_config->{pages}) {
 				$table->{pager}->{start_page} = $table->{pager}->{last_page}->{value} - $table_config->{pages} + 1;
 			}
 
-			if ($table->{pager}->{last_page}->{value} < $table->{pager}->{start_page} + $table_config->{pages})
-			{
+			if ($table->{pager}->{last_page}->{value} < $table->{pager}->{start_page} + $table_config->{pages}) {
 				$table->{pager}->{end_page} = $table->{pager}->{last_page}->{value} + 1;
 			}
-			else
-			{
+			else {
 				$table->{pager}->{end_page} = $table->{pager}->{start_page} + $table_config->{pages};
 			}
 		}
 
-		if ($args{template})
-		{
+		if ($args{template}) {
 			my ($template, $ajax);
-			if($args{ajax})
-			{
+			if($args{ajax}) {
 				$template = $args{ajax_template} || $ui_type . '_ajax.tt';
 				$ajax = 1 if $query->param($param_list->{ajax});
 			}
-			else
-			{
+			else {
 				$template = _template($args{template}, $ui_type);
 			}
 
@@ -1437,8 +1279,7 @@ sub render_as_table
 				%{$args{template_data}}
 			});
 		}
-		else
-		{
+		else {
 			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
 			$html_table .= '<div>';
 			$html_table .= qq(<div class="block"><form action="$url" method="get" id="$table_id\_search_form"><label for="$table_id\_search">Search </label><input type="text" name="$param_list->{q}" id="$table_id\_search" value="$q"/>$query_hidden_fields</form></div>) if $args{searchable};
@@ -1447,42 +1288,32 @@ sub render_as_table
 			$html_table .= qq(<table id="$table_id">);
 
 			$html_table .= '<tr>';
-			foreach my $head (@{$table->{head}})
-			{
-				if (exists $head->{link})
-				{
+			foreach my $head (@{$table->{head}}) {
+				if (exists $head->{link}) {
 					$html_table .= qq(<th><a href="$head->{link}">$head->{value}</a></th>);
 				}
-				elsif (exists $head->{controller})
-				{
+				elsif (exists $head->{controller}) {
 					$html_table .= qq(<th></th>);
 				}
-				else
-				{
+				else {
 					$html_table .= qq(<th>$head->{value}</th>);
 				}
 			}
 			$html_table .= '</tr>';
 
-			if($table->{rows})
-			{
-				foreach my $row (@{$table->{rows}})
-				{
+			if($table->{rows}) {
+				foreach my $row (@{$table->{rows}}) {
 					$html_table .= '<tr>';
-					foreach my $column (@{$row->{columns}})
-					{
-						if (exists $column->{link})
-						{
+					foreach my $column (@{$row->{columns}}) {
+						if (exists $column->{link}) {
 							my $css_class;
-							if (exists $column->{controller})
-							{
+							if (exists $column->{controller}) {
 								(my $css_delete_class) = ' delete' if $column->{name} eq 'delete';
 								$css_class = ' class="button' . $css_delete_class . '"';
 							}
 							$html_table .= qq(<td><a href="$column->{link}"$css_class>$column->{value}</a></td>);
 						}
-						else
-						{
+						else {
 							$html_table .= qq(<td>$column->{value}</td>);
 						}
 
@@ -1490,45 +1321,36 @@ sub render_as_table
 					$html_table .= '</tr>';
 				}
 			}
-			else
-			{
+			else {
 				$html_table .= qq(<tr><td colspan="$table->{total_columns}">$table_config->{empty_message}</td></tr>);
 			}
 
 			$html_table .= '</table>';
 
-			unless ($table_config->{no_pagination})
-			{
+			unless ($table_config->{no_pagination}) {
 				$html_table .= '<div>';
-				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value})
-				{
+				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{first_page}->{value}) {
 					$html_table .= qq(<span class="pager">&laquo;</span><span class="pager">&lsaquo;</span>);
 				}
-				else
-				{
+				else {
 					$html_table .= qq(<a href="$table->{pager}->{first_page}->{link}" class="pager">&laquo;</a>);
 					$html_table .= qq(<a href="$table->{pager}->{previous_page}->{link}" class="pager">&lsaquo;</a>);
 				}
 
-				while ($table->{pager}->{start_page} < $table->{pager}->{end_page})
-				{
-					if ($table->{pager}->{start_page} == $table->{pager}->{current_page}->{value})
-					{
+				while ($table->{pager}->{start_page} < $table->{pager}->{end_page}) {
+					if ($table->{pager}->{start_page} == $table->{pager}->{current_page}->{value}) {
 						$html_table .= qq(<span class="pager">$table->{pager}->{start_page}</span>);
 					}
-					else
-					{
+					else {
 						$html_table .= qq(<a href="$url?$query_string->{page}$param_list->{page}=$table->{pager}->{start_page}" class="pager">$table->{pager}->{start_page}</a>);
 					}
 					$table->{pager}->{start_page}++;
 				}
 
-				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value})
-				{
+				if ($table->{pager}->{current_page}->{value} eq $table->{pager}->{last_page}->{value}) {
 					$html_table .= qq(<span class="pager">&rsaquo;</span><span class="pager">&raquo;</span>);
 				}
-				else
-				{
+				else {
 					$html_table .= qq(<a href="$table->{pager}->{next_page}->{link}" class="pager">&rsaquo;</a>);
 					$html_table .= qq(<a href="$table->{pager}->{last_page}->{link}" class="pager">&raquo;</a>);
 				}
@@ -1548,10 +1370,10 @@ sub render_as_table
 	return $output;
 }
 
-sub render_as_menu
-{
+sub render_as_menu {
 	my ($self, %args) = (@_);
-	$args{before}->($self, \%args) if exists $args{before} && ref $args{before} eq 'CODE';
+	_before($self, \%args) if exists $args{before};
+	
 	my($menu, $hide_menu_param, $current_param, $output, $content, $item_order, $items, $current, $template);
 	my $class = $self->object_class();
 
@@ -1566,13 +1388,11 @@ sub render_as_menu
 	($ui_type) = $ui_type =~ /^.*_(\w+)$/;
 	my $menu_id = _identify($class, $args{prefix}, $ui_type);
 
-	if ($args{prefix})
-	{
+	if ($args{prefix}) {
 		$hide_menu_param = $menu_id.'_hide_menu';
 		$current_param = $menu_id.'_current';
 	}
-	else
-	{
+	else {
 		$hide_menu_param='hide_menu';
 		$current_param = 'current';
 	}
@@ -1586,14 +1406,11 @@ sub render_as_menu
 	
 	
 	$current = $query->param($current_param);
-	unless ($current) 
-	{
-		if ($args{current})
-		{
+	unless ($current) {
+		if ($args{current}) {
 			$current = $args{current}->meta->table;
 		}
-		else
-		{
+		else {
 			$current = $class->meta->table;
 		}
 	}
@@ -1601,23 +1418,19 @@ sub render_as_menu
 	$item_order = $args{order} || [$class];
 	$args{template_data} ||= {};
 
-	foreach my $item (@{$item_order})
-	{
+	foreach my $item (@{$item_order}) {
 		my $table = $item->meta->table;
 		$items->{$item}->{table} = $table;
 
-		if (defined $args{items} && defined $args{items}->{$item} && defined $args{items}->{$item}->{title})
-		{
+		if (defined $args{items} && defined $args{items}->{$item} && defined $args{items}->{$item}->{title}) {
 			$items->{$item}->{label} = $args{items}->{$item}->{title};
 		}
-		else
-		{
+		else {
 			$items->{$item}->{label} = _label(_pluralise_table(_title($table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
 		}
 
 		$items->{$item}->{link} = qq($url?$query_string$current_param=$table);
-		if ($table eq $current)
-		{
+		if ($table eq $current) {
 			my $options;
 			$options = $args{items}->{$item} if exists $args{items} && exists $args{items}->{$item};
 			$options->{output} = 1;
@@ -1629,28 +1442,23 @@ sub render_as_menu
 
 			$options->{template_data} = $args{template_data} unless exists $options->{template_data};
 
-			if ($args{ajax})
-			{
+			if ($args{ajax}) {
 				my $valid_form_actions = {create => undef, edit => undef, copy => undef};
 				$args{hide_menu} = 1 if $query->param($options->{prefix}.'_ajax') && ! exists $valid_form_actions->{$query->param($options->{prefix}.'_action')};
 			}
 
-			if ($args{template} && ! exists $options->{template})
-			{
-				if (ref $args{template} eq 'HASH')
-				{
+			if ($args{template} && ! exists $options->{template}) {
+				if (ref $args{template} eq 'HASH') {
 					$options->{template} = $args{template};
 				}
-				else
-				{
+				else {
 					$options->{template} = 1;
 				}
 			}
 
-			my $shortcuts = ['create', 'edit', 'copy', 'delete', 'ajax'];
+			my $shortcuts = ['create', 'edit', 'copy', 'delete', 'ajax', 'prepared'];
 			
-			foreach my $shortcut (@{$shortcuts})
-			{
+			foreach my $shortcut (@{$shortcuts}) {
 				$options->{$shortcut} = 1 if $args{$shortcut} && ! exists $options->{$shortcut};
 			}
 
@@ -1664,8 +1472,7 @@ sub render_as_menu
 
 	my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head};
 
-	if ($args{template})
-	{
+	if ($args{template}) {
 	 	$menu = _render_template(
 			options => $args{template_options},
 			template_path => $template_path,
@@ -1689,14 +1496,11 @@ sub render_as_menu
 			}
 		);
 	}
-	else
-	{
-		unless ($args{hide_menu})
-		{ 
+	else {
+		unless ($args{hide_menu}) { 
 			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
 			$menu = '<div><div class="menu"><ul>';
-			foreach my $item (@{$item_order})
-			{
+			foreach my $item (@{$item_order}) {
 				$menu .= '<li><a ';
 				$menu .= 'class="current" ' if $items->{$item}->{table} eq $current;
 				$menu .= 'href="'.$items->{$item}->{link}.'">'.$items->{$item}->{label}.'</a></li>';
@@ -1711,12 +1515,19 @@ sub render_as_menu
 	return $output;
 }
 
-sub render_as_chart
-{
+sub render_as_chart {
 	my ($self, %args) = (@_);
-	$args{before}->($self, \%args) if exists $args{before} && ref $args{before} eq 'CODE';
+	_before($self, \%args) if exists $args{before};
 	my $class = $self->object_class();
-	my $renderer_config = _get_renderer_config($class);
+	my $renderer_config;
+	
+	if ($args{prepared} || $class->can('renderer_config')) {
+		$renderer_config = _get_renderer_config($class);
+	}
+	else {
+		$renderer_config = prepare_renderer($class);
+	}
+	
 	my $title = $args{title} || _label(_pluralise_table(_title($class->meta->table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
@@ -1727,12 +1538,10 @@ sub render_as_chart
 	my $chart_id = _identify($class, $args{prefix}, $ui_type);
 
 	my $hide_chart_param;
-	if ($args{prefix})
-	{
+	if ($args{prefix}) {
 		$hide_chart_param = $chart_id . '_hide_chart';
 	}
-	else
-	{
+	else {
 		$hide_chart_param = 'hide_chart';
 	}
 
@@ -1742,69 +1551,55 @@ sub render_as_chart
 	return $args{output}?{}:undef if $args{hide_chart};
 
 	my ($chart, $output, $template);
-	if (ref $args{engine} eq 'CODE')
-	{
+	if (ref $args{engine} eq 'CODE') {
 		no strict 'refs';
 		$chart = $args{engine}->($self, %args);
 	}
-	else
-	{
+	else {
 		$args{options}->{chs} ||= $args{size} || '600x300';
 		$args{options}->{chco} ||= 'ff6600';
 
-		if (exists $args{type})
-		{
+		if (exists $args{type}) {
 			my $type = {
 				pie => 'p',
 				bar => 'bvg',
 				line => 'ls'
 			};
 
-			if (exists $type->{$args{type}})
-			{
+			if (exists $type->{$args{type}}) {
 				$args{options}->{cht} ||= $type->{$args{type}};
 
-				unless (exists $args{options}->{chd})
-				{
+				unless (exists $args{options}->{chd}) {
 					my (@values, @labels);
-					if ($args{type} eq 'pie' && $args{column})
-					{
+					if ($args{type} eq 'pie' && $args{column}) {
 						my $column = $args{column};
 						my $filtered_values;
-						if ($args{values})
-						{
-							foreach my $value (@{$args{values}})
-							{
+						if ($args{values}) {
+							foreach my $value (@{$args{values}}) {
 								$filtered_values->{$value} = undef;
 							}
 						}
 
 						my $foreign_keys = _get_foreign_keys($class);
 						my ($foreign_class, $foreign_class_primary_key);
-						if (exists $foreign_keys->{$args{column}})
-						{
+						if (exists $foreign_keys->{$args{column}}) {
 							$foreign_class = $foreign_keys->{$args{column}}->{class};
 							$foreign_class_primary_key = $foreign_class->meta->primary_key_column_names->[0];
 						}
 
 						my $primary_key = $class->meta->primary_key_column_names->[0]; # borrow the primary key column
-						foreach my $object (@{$self->get_objects_from_sql(sql => 'SELECT ' . $column . ', COUNT('. $column .') AS ' . $primary_key . ' FROM ' . $class->meta->table . ' GROUP BY ' . $column . ' ORDER BY '. $column)})
-						{
-							if (! $filtered_values || exists $filtered_values->{$object->$column})
-							{
+						foreach my $object (@{$self->get_objects_from_sql(sql => 'SELECT ' . $column . ', COUNT('. $column .') AS ' . $primary_key . ' FROM ' . $class->meta->table . ' GROUP BY ' . $column . ' ORDER BY '. $column)}) {
+							if (! $filtered_values || exists $filtered_values->{$object->$column}) {
 								push @values, $object->$primary_key;
 
-								if (exists $foreign_keys->{$args{column}})
-								{
+								if (exists $foreign_keys->{$args{column}}) {
 									my $foreign_object = $foreign_class->new($foreign_class_primary_key => $object->$column);
 
-									if($foreign_object->load(speculative => 1))
-									{
-										push @labels, $foreign_object->stringify_me;
+									if($foreign_object->load(speculative => 1)) {
+										push @labels, stringify_me($foreign_object, $args{prepared});
 									}
 								}
-								else
-								{
+								else {
 									push @labels, $object->$column;
 								}
 							}
@@ -1812,8 +1607,7 @@ sub render_as_chart
 
 						$args{options}->{chd} = 't:' . join (',', @values);
 					}
-					elsif ($args{objects} && $args{columns})
-					{
+					elsif ($args{objects} && $args{columns}) {
 						my $min = 0;
 						my $max = 0;
 
@@ -1821,28 +1615,22 @@ sub render_as_chart
 						$args{options}->{chdl} ||= join ('|', @{$args{columns}});
 
 						my $objects = $self->get_objects(query => [id => $args{objects}]);
-						@labels = map {$_->stringify_me} @{$objects};
+						@labels = map {stringify_me($_, $args{prepared})} @{$objects};
 
-						foreach my $column (@{$args{columns}})
-						{
+						foreach my $column (@{$args{columns}}) {
 							my @object_values;
-							foreach my $object (@{$objects})
-							{
-								if ($object->$column)
-								{
+							foreach my $object (@{$objects}) {
+								if ($object->$column) {
 									push (@object_values, $object->$column);
 
-									if ($object->$column > $max)
-									{
+									if ($object->$column > $max) {
 										$max = $object->$column;
 									}
-									elsif($object->$column < $min)
-									{
+									elsif($object->$column < $min) {
 										$min = $object->$column;
 									}
 								}
-								else
-								{
+								else {
 									push (@object_values, 0);
 								}
 							}
@@ -1852,8 +1640,7 @@ sub render_as_chart
 						$args{options}->{chd} = 't:' . join ('|', @values);
 
 						$args{options}->{chds} ||= $min . ',' . $max;
-						unless (exists $args{options}->{chxl} || ($max <= 100 && $min >= 0))
-						{
+						unless (exists $args{options}->{chxl} || ($max <= 100 && $min >= 0)) {
 							my $avg = ($max - abs($min)) / 2;
 							my $max_avg = ($max - abs($avg)) / 2 + $avg;
 							my $min_avg = ($avg - abs($min)) / 2;
@@ -1869,14 +1656,11 @@ sub render_as_chart
 
 		my $chart_url = 'http://chart.apis.google.com/chart?' . _create_query_string($args{options});
 
-		if ($args{template})
-		{
-			if($args{template} eq 1)
-			{
+		if ($args{template}) {
+			if($args{template} eq 1) {
 				$template = $ui_type . '.tt';
 			}
-			else
-			{
+			else {
 				$template = $args{template};
 			}
 
@@ -1901,8 +1685,7 @@ sub render_as_chart
 				}
 			);
 		}
-		else
-		{
+		else {
 			$args{description} = qq(<p>$args{description}</p>) if defined $args{description};
 			$chart = qq(<div><h1>$title</h1>$args{'description'}<img src="$chart_url" alt="$title"/></div>);
 			$chart = qq($renderer_config->{misc}->{doctype}<html><head><title>$title</title>$html_head</head><body>$chart</body></html>) unless $args{no_head};
@@ -1913,22 +1696,18 @@ sub render_as_chart
 	return $output;
 }
 
-sub _render_template
-{
+sub _render_template {
 	my %args = (@_);
-	if ($args{file} && $args{data} && $args{template_path})
-	{
+	if ($args{file} && $args{data} && $args{template_path}) {
 		my $options = $args{options};
 		$options->{INCLUDE_PATH} ||= $args{template_path};
 		my $template = Template->new(%{$options});
-		if($args{output})
-		{
+		if($args{output}) {
 			my $output = '';
 			$template->process($args{file},$args{data}, \$output) || die $template->error(), "\n";
 			return $output;
 		}
-		else
-		{
+		else {
 			$template->process($args{file},$args{data});
 		}
 	}
@@ -1936,59 +1715,48 @@ sub _render_template
 
 #rdbo util
 
-sub _get_renderer_config
-{
+sub _get_renderer_config {
 	my $self = shift;
 	return $self->renderer_config if $self->can('renderer_config');
-	return config();
+	return _config();
 }
 
-sub _pagination
-{
+sub _pagination {
 	my ($self, $class, $get) = @_;
 	my $total = $self->get_objects_count(%{$get});
 	return (1, 1, 1, $total) unless $get->{per_page} && $get->{page};
 	my ($last_page, $next_page, $previous_page);
-	if ($total < $get->{per_page})
-	{
+	if ($total < $get->{per_page}) {
 		$last_page = 1;
 	}
-	else
-	{
+	else {
 		my $pages = $total / $get->{per_page};
-		if ($pages == int $pages)
-		{
+		if ($pages == int $pages) {
 			$last_page = $pages;
 		}
-		else
-		{
+		else {
 			$last_page = 1 + int($pages);
 		}
 	}
 
-	if ($get->{page} eq $last_page)
-	{
+	if ($get->{page} eq $last_page) {
 		$next_page = $last_page;
 	}
-	else
-	{
+	else {
 		$next_page = $get->{page} + 1;
 	}
 
-	if ($get->{page} eq 1)
-	{
+	if ($get->{page} eq 1) {
 		$previous_page = 1;
 	}
-	else
-	{
+	else {
 		$previous_page = $get->{page} - 1;
 	}
 
 	return ($previous_page, $next_page, $last_page, $total);
 }
 
-sub _copy_object
-{
+sub _copy_object {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
 	my $clone = Rose::DB::Object::Helpers::clone_and_reset($self);
 	$clone->save(); # need the auto generated primary key for files;
@@ -2001,38 +1769,31 @@ sub _copy_object
 	return _update_object($clone, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object);
 }
 
-sub _update_object
-{
+sub _update_object {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
 	my $primary_key = $self->meta->primary_key_column_names->[0];
 
-	foreach my $field (@{$field_order})
-	{
+	foreach my $field (@{$field_order}) {
 		my $column = $field;
 		$column =~ s/$form_id\_// if $prefix;
 		my $field_value;
 		my @values = $form->field($field);
 		my $values_size = scalar @values;
 
-		if($values_size > 1)
-		{
+		if($values_size > 1) {
 			$field_value = join _get_renderer_config($self)->{form}->{delimiter}, @values;
 		}
-		else
-		{
+		else {
 			$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
 		}
 
-		if (exists $relationships->{$column}) #one to many or many to many
-		{
+		if (exists $relationships->{$column}) { #one to many or many to many
 			my $foreign_class = $relationships->{$column}->{class};
 			my $foreign_class_foreign_keys = _get_foreign_keys($foreign_class);
 			my $foreign_key;
 
-			foreach my $fk (keys %{$foreign_class_foreign_keys})
-			{
-				if ($foreign_class_foreign_keys->{$fk}->{class} eq $class)
-				{
+			foreach my $fk (keys %{$foreign_class_foreign_keys}) {
+				if ($foreign_class_foreign_keys->{$fk}->{class} eq $class) {
 					$foreign_key = $fk;
 					last;
 				}
@@ -2040,65 +1801,51 @@ sub _update_object
 
 			my $default = undef;
 			$default = $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default} if defined $relationships->{$column}->{class}->meta->{columns}->{$table.'_id'}->{default};
-			if(length($form->cgi_param($field))) # $form->field($field) won't work
-			{ 
+			if(length($form->cgi_param($field))) { # $form->field($field) won't work 
 				my ($new_foreign_object_id, $old_foreign_object_id, $value_hash, $new_foreign_object_id_hash);
 				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 
-				foreach my $id (@values)
-				{
+				foreach my $id (@values) {
 					push @{$new_foreign_object_id}, $foreign_class_primary_key => $id;
 					$value_hash->{$id} = undef;
 					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
 				}
 
-				foreach my $id (keys %{$relationship_object->{$column}})
-				{
+				foreach my $id (keys %{$relationship_object->{$column}}) {
 					push @{$old_foreign_object_id}, $foreign_class_primary_key => $id unless exists $value_hash->{$id};
 				}
 
-				if ($relationships->{$column}->{type} eq 'one to many')
-				{
+				if ($relationships->{$column}->{type} eq 'one to many') {
 					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [or => $old_foreign_object_id]) if $old_foreign_object_id;
 					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $self->$primary_key}, where => [or => $new_foreign_object_id]) if $new_foreign_object_id;
 				}
-				else #many to many
-				{
+				else { #many to many
 					$self->$column(@{$new_foreign_object_id_hash});
 				}
 			}
-			else
-			{
-				if ($relationships->{$column}->{type} eq 'one to many')
-				{
+			else {
+				if ($relationships->{$column}->{type} eq 'one to many') {
 					Rose::DB::Object::Manager->update_objects(object_class => $foreign_class, set => {$foreign_key => $default}, where => [$foreign_key => $self->$primary_key]);
 				}
-				else #many to many
-				{
+				else { #many to many
 					$self->$column([]); # cascade deletes foreign objects
 				}
 			}
 		}
-		else
-		{
+		else {
 			my $update_method;
-			if ($class->can($column . '_for_update'))
-			{
+			if ($class->can($column . '_for_update')) {
 				$update_method = $column . '_for_update';
 			}
-			elsif ($class->can($column))
-			{
+			elsif ($class->can($column)) {
 				$update_method = $column;
 			}
 
-			if ($update_method)
-			{
-				if (length($form->cgi_param($field)))
-				{
+			if ($update_method) {
+				if (length($form->cgi_param($field))) {
 					$self->$update_method($field_value);
 				}
-				else
-				{
+				else {
 					$self->$update_method(undef);
 				}
 			}
@@ -2108,53 +1855,43 @@ sub _update_object
 	return $self;
 }
 
-sub _create_object
-{
+sub _create_object {
 	my ($self, $class, $table, $field_order, $form, $form_id, $prefix, $relationships, $relationship_object) = @_;
 	my $custom_field_value;
 
 	$self = $self->new();
 
-	foreach my $field (@{$field_order})
-	{
-		if(defined $form->cgi_param($field) && length($form->cgi_param($field)))
-		{
+	foreach my $field (@{$field_order}) {
+		if(defined $form->cgi_param($field) && length($form->cgi_param($field))) {
 			my $column = $field;
 			$column =~ s/$form_id\_// if $prefix;
 			my @values = $form->field($field);
 
-			if (exists $relationships->{$column}) #one to many or many to many
-			{
+			if (exists $relationships->{$column}) { #one to many or many to many
 				my $new_foreign_object_id_hash;
 				my $foreign_class_primary_key = $relationships->{$column}->{class}->meta->primary_key_column_names->[0];
 
-				foreach my $id (@values)
-				{
+				foreach my $id (@values) {
 					push @{$new_foreign_object_id_hash}, {$foreign_class_primary_key => $id};
 				}
 
 				$self->$column(@{$new_foreign_object_id_hash});
 			}
-			else
-			{
+			else {
 				my $field_value;
 				my $values_size = scalar @values;
-				if($values_size > 1)
-				{
+				if($values_size > 1) {
 					$field_value = join _get_renderer_config($self)->{form}->{delimiter}, @values;
 				}
-				else
-				{
+				else {
 					$field_value = $form->field($field); #if this line is removed, $form->field function will still think it should return an array, which will fail for file upload
 				}
 
-				if ($class->can($column . '_for_update'))
-				{
+				if ($class->can($column . '_for_update')) {
 					$custom_field_value->{$column . '_for_update'} = $field_value; #save it for later
 					$self->$column('0') if $self->meta->{columns}->{$column}->{not_null}; # zero fill not null columns
 				}
-				elsif ($class->can($column))
-				{
+				elsif ($class->can($column)) {
 					$self->$column($field_value);
 				}
 			}
@@ -2164,10 +1901,8 @@ sub _create_object
 	$self->save;
 
 	#after save, run formatting methods, which may require an id, such as file upload
-	if ($custom_field_value)
-	{
-		foreach my $update_method (keys %{$custom_field_value})
-		{
+	if ($custom_field_value) {
+		foreach my $update_method (keys %{$custom_field_value}) {
 			$self->$update_method($custom_field_value->{$update_method});
 		}
 		$self->save;
@@ -2176,59 +1911,48 @@ sub _create_object
 	return $self;
 }
 
-sub _get_column_order
-{
+sub _get_column_order {
 	my ($class, $relationships) = @_;
 	my $order;
-	foreach my $column (sort {$a->ordinal_position <=> $b->ordinal_position} @{$class->meta->columns})
-	{
+	foreach my $column (sort {$a->ordinal_position <=> $b->ordinal_position} @{$class->meta->columns}) {
 		push @{$order}, "$column" unless exists $column->{is_primary_key_member};
 	}
 
-	foreach my $relationship (keys %{$relationships})
-	{
+	foreach my $relationship (keys %{$relationships}) {
 		push @{$order}, $relationship;
 	}
 	return $order;
 }
 
-sub _get_foreign_keys
-{
+sub _get_foreign_keys {
 	my $class = shift;
 	my $foreign_keys;
-	foreach my $foreign_key (@{$class->meta->foreign_keys})
-	{
+	foreach my $foreign_key (@{$class->meta->foreign_keys}) {
 		(my $key, my $value) = $foreign_key->_key_columns;
 		$foreign_keys->{$key} = {name => $foreign_key->name, table => $foreign_key->class->meta->table, column => $value, is_required => $foreign_key->is_required, class => $foreign_key->class};
 	}
 	return $foreign_keys;
 }
 
-sub _get_unique_keys
-{
+sub _get_unique_keys {
 	my $class = shift;
 	my $unique_keys;
-	foreach my $unique_key (@{$class->meta->{unique_keys}})
-	{
+	foreach my $unique_key (@{$class->meta->{unique_keys}}) {
 		$unique_keys->{$unique_key->columns->[0]} = undef;
 	}
 	return $unique_keys;
 }
 
-sub _get_relationships
-{
+sub _get_relationships {
 	my $class = shift;
 	my $relationships;
 
-	foreach my $relationship (@{$class->meta->relationships})
-	{
-		if ($relationship->type eq 'one to many')
-		{
+	foreach my $relationship (@{$class->meta->relationships}) {
+		if ($relationship->type eq 'one to many') {
 			$relationships->{$relationship->name}->{type} = $relationship->type;
 			$relationships->{$relationship->name}->{class} = $relationship->class;
 		}
-		elsif($relationship->type eq 'many to many')
-		{
+		elsif($relationship->type eq 'many to many') {
 			$relationships->{$relationship->name}->{type} = $relationship->type;
 			$relationships->{$relationship->name}->{class} = $relationship->foreign_class;
 		}
@@ -2236,8 +1960,7 @@ sub _get_relationships
 	return $relationships;
 }
 
-sub delete_with_file
-{
+sub delete_with_file {
 	my $self = shift;
 	return unless ref $self;
 	my $primary_key = $self->meta->primary_key_column_names->[0];
@@ -2246,22 +1969,18 @@ sub delete_with_file
 	return $self->delete();
 }
 
-sub stringify_me
-{
-	my $self = shift;
+sub stringify_me {
+	my ($self, %args) = (@_);
+	prepare_renderer(ref $self) unless $self->can('renderer_config') || $args{prepared};
 	my @values;
-	foreach my $column (sort {$a->ordinal_position <=> $b->ordinal_position} @{$self->meta->columns})
-	{
+	foreach my $column (sort {$a->ordinal_position <=> $b->ordinal_position} @{$self->meta->columns}) {
 		my $column_definition_method = $column . '_definition';
-		if ($self->can($column_definition_method) && $self->$column_definition_method->{stringify}) # filter primary keys and custom coded columns
-		{
+		if ($self->can($column_definition_method) && $self->$column_definition_method->{stringify}) { # filter primary keys and custom coded columns
 			my $for_view_method = $column . '_for_view';
-			if ($self->can($for_view_method))
-			{
+			if ($self->can($for_view_method)) {
 				push @values, $self->$for_view_method;
 			}
-			else
-			{
+			else {
 				push @values, $self->$column;
 			}
 		}
@@ -2272,8 +1991,7 @@ sub stringify_me
 	return $self->$primary_key;
 }
 
-sub stringify_class
-{
+sub stringify_class {
 	my $self = shift;
 	my $package_name = lc ref $self || lc $self;
 	$package_name =~ s/::/_/g;
@@ -2282,8 +2000,7 @@ sub stringify_class
 
 # file util
 
-sub _get_file_path
-{
+sub _get_file_path {
 	my ($self, $column) = @_;
 	my $value = $self->$column;
 	return unless $value;
@@ -2291,8 +2008,7 @@ sub _get_file_path
 	return File::Spec->catfile(_get_renderer_config($self)->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column, $value);
 }
 
-sub _get_file_url
-{
+sub _get_file_url {
 	my ($self, $column) = @_;
 	my $value = $self->$column;
 	return unless $value;
@@ -2302,36 +2018,31 @@ sub _get_file_url
 
 # formatting methods
 
-sub _create_timestamp
-{
+sub _create_timestamp {
 	my ($self, $column) = @_;
 	my $dt = DateTime->now->set_time_zone(_get_renderer_config($self)->{misc}->{time_zone});
 	return $dt->dmy('/').' '.$dt->hms;
 }
 
-sub _edit_datetime
-{
+sub _edit_datetime {
 	my ($self, $column) = @_;
 	return unless $self->$column && ref $self->$column eq 'DateTime';
 	return $self->$column->strftime('%d/%m/%Y %H:%M');
 }
 
-sub _edit_date
-{
+sub _edit_date {
 	my ($self, $column) = @_;
 	return $self->$column unless ref $self->$column eq 'DateTime';
 	return $self->$column->dmy('/') if $self->$column;
 }
 
-sub _edit_time
-{
+sub _edit_time {
 	my ($self, $column) = @_;
 	return $self->$column unless ref $self->$column eq 'Time::Clock';
 	return $self->$column->format('%H:%M');
 }
 
-sub _update_date
-{
+sub _update_date {
 	my ($self, $column, $value) = @_;
 	return unless $value;
 	my ($d, $m, $y) = split '/', $value;
@@ -2341,8 +2052,7 @@ sub _update_date
 	return $self->$column($dt->ymd);
 }
 
-sub _udpate_time
-{
+sub _udpate_time {
 	my ($self, $column, $value) = @_;
 	return unless $value;
 	my ($h, $m) = split ':', $value;
@@ -2352,8 +2062,7 @@ sub _udpate_time
 	return $self->$column($t);
 }
 
-sub _update_file
-{
+sub _update_file {
 	my ($self, $column, $value) = @_;
 	return unless $value && $value ne '';
 	my $renderer_config = _get_renderer_config($self);
@@ -2373,12 +2082,10 @@ sub _update_file
 	$old_file = File::Spec->catfile($upload_path, $current_file) if $current_file;
 	my $new_file = File::Spec->catfile($upload_path, $file_name);
 
-	if ($old_file eq $new_file && -e $old_file) # same file name
-	{
+	if ($old_file eq $new_file && -e $old_file) { # same file name
 		my $counter = 1;
 		my $backup_file = File::Spec->catfile($upload_path, $actual_name.'-'.$counter.'.'.$extension);
-		while (-e $backup_file)
-		{
+		while (-e $backup_file) {
 			$counter++;
 			$backup_file = File::Spec->catfile($upload_path, $actual_name.'-'.$counter.'.'.$extension);
 		}
@@ -2386,26 +2093,22 @@ sub _update_file
 		$old_file = $backup_file;
 	}
 
-	if (copy($value, File::Spec->catfile($upload_path, $file_name)))
-	{
+	if (copy($value, File::Spec->catfile($upload_path, $file_name))) {
 		unlink($old_file) if $old_file && !$renderer_config->{upload}->{keep_old_files};
 		return $self->$column($file_name);
 	}
-	else
-	{
+	else {
 		move($old_file, File::Spec->catfile($upload_path, $current_file)) if $old_file;
 		return;
 	}
 }
 
-sub _update_timestamp
-{
+sub _update_timestamp {
 	my ($self, $column) = @_;
 	return $self->$column(DateTime->now->set_time_zone(_get_renderer_config($self)->{misc}->{time_zone}));
 }
 
-sub _update_datetime
-{
+sub _update_datetime {
 	my ($self, $column, $value) = @_;
 	return $self->$column(undef) if $value eq '';
 	my ($date, $time) = split /\s+/, $value;
@@ -2419,8 +2122,7 @@ sub _update_datetime
 	return $self->$column($dt);
 }
 
-sub _view_file
-{
+sub _view_file {
 	my ($self, $column) = @_;
 	my $value = $self->$column;
 	return unless $value;
@@ -2428,25 +2130,22 @@ sub _view_file
 	return qq(<a href="$file_url">$value</a>);
 }
 
-sub _view_image
-{
+sub _view_image {
 	my ($self, $column) = @_;
 	my $url = _get_file_url($self, $column);
 	return unless $url;
-	my $label = $self->stringify_me . '\'s ' . _label($column);
+	my $label = _label($column);
 	return qq(<img src="$url" alt="$label"/>);
 }
 
-sub _view_media
-{
+sub _view_media {
 	my ($self, $column) = @_;
 	return _view_image(@_) if $self->$column =~ /\.(gif|jpe?g|png|tiff?)$/;
 	return _view_video(@_) if $self->$column =~ /\.(ogv|ogg|mp4|m4v|mov)$/;
 	return _view_audio(@_);
 }
 
-sub _view_video
-{
+sub _view_video {
 	my ($self, $column) = @_;
 	my $url = _get_file_url($self, $column);
 	return unless $url;
@@ -2454,8 +2153,7 @@ sub _view_video
 	return qq(<video src="$url" controls="controls"><a href="$url">$label</a></video>);
 }
 
-sub _view_audio
-{
+sub _view_audio {
 	my ($self, $column) = @_;
 	my $url = _get_file_url($self, $column);
 	return unless $url;
@@ -2463,8 +2161,7 @@ sub _view_audio
 	return qq(<audio src="$url" controls="controls"><a href="$url">$label</a></audio>);
 }
 
-sub _view_address 
-{
+sub _view_address  {
 	my ($self, $column) = @_;
 	my $value = $self->$column;
 	return unless $value;
@@ -2472,85 +2169,70 @@ sub _view_address
 	return unless $value;return qq(<address><a href="http://maps.google.com/maps/api/staticmap?center=$encoded_value&zoom=14&size=400x225&sensor=false&markers=|$encoded_value">$value</a></address>);
 }
 
-sub _view_timestamp
-{
+sub _view_timestamp {
 	my ($self, $column) = @_;
 	return unless $self->$column && ref $self->$column eq 'DateTime';
 	return '<time datetime="'. $self->$column->ymd . '">' . $self->$column->strftime('%d/%m/%Y %H:%M:%S') . '</time>';
 }
 
-sub _view_datetime
-{
+sub _view_datetime {
 	my ($self, $column) = @_;
 	return unless $self->$column && ref $self->$column eq 'DateTime';
 	return '<time datetime="'. $self->$column->ymd . '">' . $self->$column->strftime('%d/%m/%Y %H:%M') . '</time>';
 }
 
-sub _view_date
-{
+sub _view_date {
 	my ($self, $column) = @_;
 	return unless $self->$column && ref $self->$column eq 'DateTime';
 	return '<time datetime="'. $self->$column->ymd . '">' . $self->$column->day_name . ', '. $self->$column->day . ' ' . $self->$column->month_name . ' ' . $self->$column->year . '</time>';
 }
 
-sub _view_time
-{
+sub _view_time {
 	my ($self, $column) = @_;
 	return $self->$column unless ref $self->$column eq 'Time::Clock';
 	my $time = $self->$column->format('%H:%M');
 	return '<time datetime="'. $time . '">' . $time . '</time>';
 }
 
-sub _search_boolean
-{
+sub _search_boolean {
 	my ($self, $column, $value) = @_;
 	my $mapping;
-	if ($self->meta->isa('Rose::DB::Object::Metadata::Auto::Pg'))
-	{
+	if ($self->meta->db->driver eq 'pg') {
 		$mapping = {'Yes' => 'true', 'No' => 'false', 'yes' => 'true', 'no' => 'false'};
 	}
-	else
-	{
+	else {
 		$mapping = {'Yes' => 1, 'No' => 0, 'yes' => 1, 'no' => 0};
 	}
 	return $mapping->{$value};
 }
 
-sub _search_date
-{
+sub _search_date {
 	my ($self, $column, $value) = @_;
 	$value =~ s/\//-/g;
 	my ($d, $m, $y) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])\-([0-9]{4})/);
-	if ($d && $m && $y)
-	{
+	if ($d && $m && $y) {
 		$value =~ s/$d\-$m\-$y/$y\-$m\-$d/;
 	}
-	else
-	{
+	else {
 		($d, $m) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])/);
-		if ($d && $m)
-		{
+		if ($d && $m) {
 			$value =~ s/$d\-$m/$m\-$d/;
 		}
 	}
 	return $value;
 }
 
-sub _search_percentage
-{
+sub _search_percentage {
 	my ($self, $column, $value) = @_;
 	return $value/100;
 }
 
 #misc util
 
-sub _inherit_form_option
-{
+sub _inherit_form_option {
 	my ($option, $action, $args) = @_;
-	unless (exists $args->{$action}->{$option})
-	{
-		foreach my $other_form_action ('create', 'edit', 'copy')
-		{
+	unless (exists $args->{$action}->{$option}) {
+		foreach my $other_form_action ('create', 'edit', 'copy') {
 			next if $other_form_action eq $action || ! exists $args->{$other_form_action} || ref $args->{$other_form_action} ne 'HASH' || ! exists $args->{$other_form_action}->{$option};
 			$args->{$action}->{$option} = $args->{$other_form_action}->{$option};
 			last;
@@ -2558,17 +2240,14 @@ sub _inherit_form_option
 	}
 }
 
-sub _unique
-{
+sub _unique {
 	my ($column_config, $class, $column, $value, $form) = @_;
 
 	my $existing;
-	if ($column_config && exists $column_config->{format} && exists $column_config->{format}->{for_filter})
-	{
+	if ($column_config && exists $column_config->{format} && exists $column_config->{format}->{for_filter}) {
 		$existing = $class->new($column => $column_config->{format}->{for_filter}->($class, $column, $value))->load(speculative => 1);
 	}
-	else
-	{
+	else {
 		$existing = $class->new($column => $value)->load(speculative => 1);
 	}
 	return 1 unless $existing;
@@ -2580,30 +2259,26 @@ sub _unique
 	return;
 }
 
-sub _identify
-{
+sub _identify {
 	my ($class, $prefix, $ui_type) = @_;
 	return $prefix if defined $prefix;
 	($prefix = lc $class) =~ s/::/_/g;
 	$prefix .= '_'. $ui_type;
 }
 
-sub _singularise_table
-{
+sub _singularise_table {
 	my ($table, $tables_are_singular) = @_;
 	return $table if $tables_are_singular;
 	return _singularise($table);
 }
 
-sub _pluralise_table
-{
+sub _pluralise_table {
 	my ($table, $tables_are_singular) = @_;
 	return Lingua::EN::Inflect::PL($table) if $tables_are_singular;
 	return $table;
 }
 
-sub _singularise # based on Rose::DB::Object::ConventionManager
-{
+sub _singularise {
 	my $word = shift;
 	$word =~ s/ies$/y/i;
 	return $word if ($word =~ s/ses$/s/);
@@ -2612,88 +2287,71 @@ sub _singularise # based on Rose::DB::Object::ConventionManager
 	return $word;
 }
 
-sub _title
-{
+sub _title {
 	my ($table_name, $prefix) = @_;
 	return $table_name unless $prefix;
 	$table_name =~ s/^$prefix//;
 	return $table_name;
 }
 
-sub _label
-{
+sub _label {
 	my $string = shift;
 	$string =~ s/_/ /g;
 	$string =~ s/\b(\w)/\u$1/g;
 	return $string;
 }
 
-sub _create_hidden_field
-{
+sub _create_hidden_field {
 	my $queries = shift;
 	my $hidden_field;
-	foreach my $query_key (keys %{$queries})
-	{
-		if (ref $queries->{$query_key} eq 'ARRAY')
-		{
-			foreach my $value (@{$queries->{$query_key}})
-			{
+	foreach my $query_key (keys %{$queries}) {
+		if (ref $queries->{$query_key} eq 'ARRAY') {
+			foreach my $value (@{$queries->{$query_key}}) {
 				$hidden_field .= '<input name="'.$query_key.'" type="hidden" value="'.CGI::escapeHTML($value).'"/>';
 			}
 		}
-		else
-		{
+		else {
 			$hidden_field .= '<input name="'.$query_key.'" type="hidden" value="'.CGI::escapeHTML($queries->{$query_key}).'"/>';
 		}
 	}
 	return $hidden_field;
 }
 
-sub _create_query_string
-{
+sub _create_query_string {
 	my $queries = shift;
 	my $query_string;
-	foreach my $query_key (keys %{$queries})
-	{
-		if (ref $queries->{$query_key} eq 'ARRAY')
-		{
-			foreach my $value (@{$queries->{$query_key}})
-			{
+	foreach my $query_key (keys %{$queries}) {
+		if (ref $queries->{$query_key} eq 'ARRAY') {
+			foreach my $value (@{$queries->{$query_key}}) {
 				$query_string .= $query_key.'='.CGI::escape($value).'&amp;';
 			}
 		}
-		else
-		{
+		else {
 			$query_string .= $query_key.'='.CGI::escape($queries->{$query_key}).'&amp;';
 		}
 	}
 	return $query_string;
 }
 
-sub _touch_up
-{
+sub _touch_up {
 	my ($rendering, $cancel, $form_id) = @_;
 	$rendering =~ s/onclick="this\.form\._submit\.value = this\.value;" type="submit" value="$cancel"/onclick="this.form.$form_id\_submit_cancel.value = 1;" type="submit" value="$cancel"/;
 	return $rendering;
 }
 
-sub _alias_table
-{
+sub _alias_table {
 	my ($with_require_objects, $class, $counter, $table_alias, $table_to_class) = @_;
-
-	foreach my $with_require_object (@{$with_require_objects})
-	{
-		if (exists $class->meta->{relationships}->{$with_require_object})
-		{
-			if ($class->meta->{relationships}->{$with_require_object}->type eq 'many to many')
-			{
+	$with_require_objects = [$with_require_objects] unless ref $with_require_objects eq 'ARRAY';
+	
+	foreach my $with_require_object (@{$with_require_objects}) {
+		if (exists $class->meta->{relationships}->{$with_require_object}) {
+			if ($class->meta->{relationships}->{$with_require_object}->type eq 'many to many') {
 				$table_alias->{$class->meta->{relationships}->{$with_require_object}->{map_class}} = 't' . ++$$counter;
 				$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{map_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{map_class};
 				$table_alias->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}} = 't' . ++$$counter;
 				$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{foreign_class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{foreign_class};
 			}
-			else
-			{
+			else {
 				$table_alias->{$class->meta->{relationships}->{$with_require_object}->{class}} = 't' . ++$$counter;
 				$table_to_class->{$class->meta->{relationships}->{$with_require_object}->{class}->meta->table} = $class->meta->{relationships}->{$with_require_object}->{class};
 			}
@@ -2703,11 +2361,9 @@ sub _alias_table
 	return ($table_alias, $table_to_class);
 }
 
-sub _template
-{
+sub _template {
 	my ($template, $ui_type, $default) = @_;
- 	if (ref $template eq 'HASH')
-	{
+ 	if (ref $template eq 'HASH') {
 		return $template->{$ui_type} if exists $template->{$ui_type} && $template->{$ui_type} ne 1;
 		return $ui_type . '.tt';
 	}
@@ -3081,7 +2737,7 @@ C<load> generates L<CGI::FormBuilder> validation subrefs to validate unique keys
 
 =head1 RENDERING METHODS
 
-Rendering methods are exported for L<Rose::DB::Object> subclasses to generate web UIs. L<Rose::DB::Object> subclasses generated by calling C<load> will import the rendering methods automatically. However, we can also import the rendering methods into custom L<Rose::DB::Object> subclasses:
+Rendering methods are exported for L<Rose::DB::Object> subclasses to generate web UIs. L<Rose::DB::Object> subclasses generated by calling C<load> will import the rendering methods automatically. However, we can also import the rendering methods directly into custom L<Rose::DB::Object> subclasses:
 
   # For object classes
   package Company::Employee
@@ -3092,8 +2748,6 @@ Rendering methods are exported for L<Rose::DB::Object> subclasses to generate we
   package Company::Employee::Manager
   use Rose::DBx::Object::Renderer qw(:manager);
   ...
-
-Obviously, the rendering methods in the custom subclasses do not take advantages of the built-in column definitions and formatting methods. However, you can still replicate those behaviours by using the C<fields> option in C<render_as_form>, or the C<columns> option in C<render_as_table>, as well as hand crafting the formatting methods.
 
 The following is a list of common parameters for the rendering methods:
 
@@ -3192,6 +2846,10 @@ A coderef to be executed prior to any rendering. This is useful for augmenting a
     }
   );
 
+=item C<prepared>
+
+When set to 1, rendering methods will not call C<prepare_renderer>. This is useful for physical Rose::DB::Object subclasses, when the formatting methods are either handcrafted or loaded previously.
+
 =back
 
 =head2 C<render_as_form>
@@ -3257,12 +2915,10 @@ Controllers are essentially callbacks. We can add multiple custom controllers to
         },
         callback => sub {
           my $self = shift;
-          if (ref $self)
-          {
+          if (ref $self) {
             return 'Welcome ' . $self->first_name;
           }
-          else
-          {
+          else {
             return 'Employees cannot be added on Sundays';
           }
         }
@@ -3271,12 +2927,10 @@ Controllers are essentially callbacks. We can add multiple custom controllers to
     }
   );
 
-  if (exists $form->{controller})
-  {
+  if (exists $form->{controller}) {
     print $form->{controller};
   }
-  else
-  {
+  else {
     print $form->{output};
   }
 
@@ -3378,9 +3032,9 @@ C<order> accepts an arrayref to define the order of the columns to be shown. The
 
 C<render_as_table> allows columns to be filtered via URL. For example:
 
-  http://www.yoursite.com/yourscript.pl?first_name=Danny&last_name=Liang
+  http://www.yoursite.com/yourscript.cgi?first_name=Danny&last_name=Liang
 
-returns the records where 'first_name' is 'Danny' and 'Last_name' is 'liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
+returns the records where 'first_name' is 'Danny' and 'last_name' is 'Liang'. By default, column queries are joined by "AND", unless C<or_filter> is set to 1.
 
 =item C<filterable>
 
@@ -3651,15 +3305,30 @@ Stringifies the object instance, e.g.:
   $object->first_name('John');
   $object->last_name('Smith');
 
-  print $object->stringify_me;
+  print $object->stringify_me();
   # prints 'John Smith';
+
+It also accept the C<prepared> parameter.
 
 =head2 C<stringify_class>
 
 Stringifies the class name: 
 
-  print Company::Employee->stringify_class;
+  print Company::Employee->stringify_class();
   # prints 'company_employee'
+
+=head2 C<prepare_renderer>
+
+This is called by Renderer's C<load> method internally. It generates the column formatting methods, column definition methods, as well as a C<renderer_config> method for the L<Rose::DB::Object> subclass. These generated methods are called by the rendering methods, e.g. C<render_as_form>. Thus, it would be useful for physical Rose::DB::Object subclasses to call C<prepare_renderer> explicitly, prior to running the rendering methods, unless those relevant methods are handcrafted. C<prepare_renderer> returns the renderer config hashref generated for the calling L<Rose::DB::Object> subclass.
+
+  my $config = Company::Employee->prepare_renderer();
+  $config->{upload}->{path} = '/path/for/file/uploads'; # set the path for file upload
+  
+  print Company::Employee->email_for_view(); # call the 'for view' method of the email column
+
+  my $employee_config = Company::Employee->renderer_config(); # retrieve the complete config hashref
+  my $email_definition = Company::Employee->email_definition(); # retrieve just the column definition hashref for the email column
+
 
 =head1 SAMPLE TEMPLATES
 

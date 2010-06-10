@@ -1,5 +1,11 @@
 Revision history for Rose-DBx-Object-Renderer
 
+0.71    10/06/2010
+        Improved UI rendering for physical Rose::DB::Object subclasses. Added the 'prepare_renderer' method.
+        Added the 'prepared' parameter to rendering methods.
+        Deprecated the 'like_operator' option in the default config() hash in favour of auto detection for PostgreSQL database.
+        Code refactoring.
+        Updated POD.
 0.70    17/05/2010
         Added the 'current' parameter to render_as_menu().
         Fixed a unique key handling issue when rendering an object directly using render_as_form().
