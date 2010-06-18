@@ -1,5 +1,7 @@
 Revision history for Rose-DBx-Object-Renderer
 
+0.72    18/06/2010
+        Fixed a keyword search bug in render_as_table() introduced in 0.71 due to the use of the 'ilike' operator in Pg with older versions of Rose::DB::Object (Reported by Stephen Muss).
 0.71    10/06/2010
         Improved UI rendering for physical Rose::DB::Object subclasses. Added the 'prepare_renderer' method.
         Added the 'prepared' parameter to rendering methods.

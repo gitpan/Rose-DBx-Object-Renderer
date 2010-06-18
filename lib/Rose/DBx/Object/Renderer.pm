@@ -21,8 +21,8 @@ use File::Spec;
 use Digest::MD5 ();
 use Scalar::Util ();
 
-our $VERSION = 0.71;
-# 205.57
+our $VERSION = 0.72;
+# 206.57
 
 sub _config {
 	my $config = {
@@ -796,7 +796,7 @@ sub render_as_table {
 
 	my $table_title = $args{title} || _label(_pluralise_table(_title($class->meta->table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
 
-	my $like_operator = $args{like_operator} || ($class->meta->db->driver eq 'pg'?'ILIKE':'LIKE');
+	my $like_operator = $args{like_operator} || ($class->meta->db->driver eq 'pg'?'ilike':'like');
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
 	(my $html_head = $args{html_head} || $renderer_config->{misc}->{html_head}) =~ s/\[%\s*title\s*%\]/$table_title/;
