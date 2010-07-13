@@ -1,5 +1,8 @@
 Revision history for Rose-DBx-Object-Renderer
 
+0.73    13/07/2010
+        Fixed a bug introduced in 0.71 where rendering methods failed to use custom stringify_me() methods (Reported by Gary Ashton-Jones).
+        Minor code refactoring.
 0.72    18/06/2010
         Fixed a keyword search bug in render_as_table() introduced in 0.71 due to the use of the 'ilike' operator in Pg with older versions of Rose::DB::Object (Reported by Stephen Muss).
 0.71    10/06/2010

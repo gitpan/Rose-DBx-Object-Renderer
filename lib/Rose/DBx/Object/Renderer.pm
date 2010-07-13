@@ -21,8 +21,8 @@ use File::Spec;
 use Digest::MD5 ();
 use Scalar::Util ();
 
-our $VERSION = 0.72;
-# 206.57
+our $VERSION = 0.73;
+# 210.57
 
 sub _config {
 	my $config = {
@@ -214,7 +214,7 @@ sub _process_columns {
 					$config->{columns}->{$column}->{format}->{for_view} = sub {
 						my ($self, $column) = @_;
 						return unless $self->$column;
-						return stringify_me($self->$foreign_object_name);
+						return $self->$foreign_object_name->stringify_me;
 					} unless exists $config->{columns}->{$column}->{format} && exists $config->{columns}->{$column}->{format}->{for_view};
 				}
 			}
@@ -228,7 +228,7 @@ sub _process_columns {
 						for_view => sub {
 							my ($self, $column) = @_;
 							return unless $self->$column;							
-							return stringify_me($self->$foreign_object_name);
+							return $self->$foreign_object_name->stringify_me;
 						}
 					}
 				};
@@ -429,7 +429,7 @@ sub render_as_form {
 		$renderer_config = _get_renderer_config($class);
 	}
 	else {
-		$renderer_config = prepare_renderer($class);
+		$renderer_config = $class->prepare_renderer();
 	}
 	
 	my $ui_type = (caller(0))[3];
@@ -452,7 +452,7 @@ sub render_as_form {
 				$args{queries}->{object} ||= $self->$primary_key;
 			}
 		}
-		$form_title ||= _label($form_action . ' ' . stringify_me($self, $args{prepared}));
+		$form_title ||= _label($form_action . ' ' . $self->stringify_me(prepared => $args{prepared}));
 	}
 	else {
 		$form_action = 'create';
@@ -518,7 +518,7 @@ sub render_as_form {
 				my $foreign_object_value;
 
 			 	foreach my $foreign_object ($self->$column) {
-					$foreign_object_value->{$foreign_object->$foreign_class_primary_key} = stringify_me($foreign_object, $args{prepared});
+					$foreign_object_value->{$foreign_object->$foreign_class_primary_key} = $foreign_object->stringify_me(prepared => $args{prepared});
 					$relationship_object->{$column}->{$foreign_object->$foreign_class_primary_key} = undef; #keep it for update
 				}
 				$field_def->{value} = $foreign_object_value;
@@ -528,7 +528,7 @@ sub render_as_form {
 				my $objects = Rose::DB::Object::Manager->get_objects(object_class => $relationships->{$column}->{class});
 				if (@{$objects}) {
 					foreach my $object (@{$objects}) {
-						$field_def->{options}->{$object->$foreign_class_primary_key} = stringify_me($object, $args{prepared});
+						$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me(prepared => $args{prepared});
 					}
 				}
 				else {
@@ -546,7 +546,7 @@ sub render_as_form {
 						if (ref $self) {
 							if ($self->$column) {
 								my $foreign_column = $foreign_keys->{$column}->{name};
-								$field_def->{options} = {$self->$column => stringify_me($self->$foreign_column, $args{prepared})};
+								$field_def->{options} = {$self->$column => $self->$foreign_column->stringify_me(prepared => $args{prepared})};
 							}
 						}
 						else {
@@ -560,7 +560,7 @@ sub render_as_form {
 
 							if ($foreign_object_id) {
 								my $foreign_object = $foreign_class->new($foreign_class_primary_key => $foreign_object_id);
-								$field_def->{options} = {$foreign_object_id => stringify_me($foreign_object, $args{prepared})} if $foreign_object->load(speculative => 1);
+								$field_def->{options} = {$foreign_object_id => $foreign_object->stringify_me(prepared => $args{prepared})} if $foreign_object->load(speculative => 1);
 							}
 						}
 					}
@@ -568,7 +568,7 @@ sub render_as_form {
 						my $objects = Rose::DB::Object::Manager->get_objects(object_class => $foreign_keys->{$column}->{class});
 						if (@{$objects}) {
 							foreach my $object (@{$objects}) {
-								$field_def->{options}->{$object->$foreign_class_primary_key} = stringify_me($object, $args{prepared});
+								$field_def->{options}->{$object->$foreign_class_primary_key} = $object->stringify_me(prepared => $args{prepared});
 							}
 						}
 						else {
@@ -782,7 +782,7 @@ sub render_as_table {
 		$renderer_config = _get_renderer_config($class);
 	}
 	else {
-		$renderer_config = prepare_renderer($class);
+		$renderer_config = $class->prepare_renderer();
 	}
 	
 	foreach my $option (keys %{$renderer_config->{table}}) {
@@ -1088,9 +1088,10 @@ sub render_as_table {
 		$args{queries}->{$param_list->{ajax}} = 1 if $args{ajax} && $args{template};
 
 		if(exists $args{queries}) {
-			$query_string->{base} = _create_query_string($args{queries});
-			$query_string->{sort_by} = _create_query_string($args{queries});
-			$query_string->{page} = _create_query_string($args{queries});
+			my $default_query_string = _create_query_string($args{queries});
+			$query_string->{base} = $default_query_string;
+			$query_string->{sort_by} = $default_query_string;
+			$query_string->{page} = $default_query_string;
 		}
 
 		if($query->param($param_list->{sort_by})) {
@@ -1167,7 +1168,7 @@ sub render_as_table {
 					$value = $object->$accessor($column) if $object->can($accessor);
 				}
 				elsif (exists $relationships->{$column}) {
-					$value = join $table_config->{delimiter}, map {stringify_me($_, $args{prepared})} $object->$column;
+					$value = join $table_config->{delimiter}, map {$_->stringify_me(prepared => $args{prepared})} $object->$column;
 				}
 				else {
 					my $view_method;
@@ -1525,7 +1526,7 @@ sub render_as_chart {
 		$renderer_config = _get_renderer_config($class);
 	}
 	else {
-		$renderer_config = prepare_renderer($class);
+		$renderer_config = $class->prepare_renderer();
 	}
 	
 	my $title = $args{title} || _label(_pluralise_table(_title($class->meta->table, $renderer_config->{db}->{table_prefix}), $renderer_config->{db}->{tables_are_singular}));
@@ -1596,7 +1597,7 @@ sub render_as_chart {
 									my $foreign_object = $foreign_class->new($foreign_class_primary_key => $object->$column);
 
 									if($foreign_object->load(speculative => 1)) {
-										push @labels, stringify_me($foreign_object, $args{prepared});
+										push @labels, $foreign_object->stringify_me(prepared => $args{prepared});
 									}
 								}
 								else {
@@ -1615,7 +1616,7 @@ sub render_as_chart {
 						$args{options}->{chdl} ||= join ('|', @{$args{columns}});
 
 						my $objects = $self->get_objects(query => [id => $args{objects}]);
-						@labels = map {stringify_me($_, $args{prepared})} @{$objects};
+						@labels = map {$_->stringify_me(prepared => $args{prepared})} @{$objects};
 
 						foreach my $column (@{$args{columns}}) {
 							my @object_values;
@@ -1717,7 +1718,7 @@ sub _render_template {
 
 sub _get_renderer_config {
 	my $self = shift;
-	return $self->renderer_config if $self->can('renderer_config');
+	return $self->renderer_config() if $self->can('renderer_config');
 	return _config();
 }
 
@@ -1971,7 +1972,8 @@ sub delete_with_file {
 
 sub stringify_me {
 	my ($self, %args) = (@_);
-	prepare_renderer(ref $self) unless $self->can('renderer_config') || $args{prepared};
+	my $class = ref $self;
+	$class->prepare_renderer() unless $args{prepared} || $self->can('renderer_config');
 	my @values;
 	foreach my $column (sort {$a->ordinal_position <=> $b->ordinal_position} @{$self->meta->columns}) {
 		my $column_definition_method = $column . '_definition';
