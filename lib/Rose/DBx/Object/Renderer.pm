@@ -1,5 +1,7 @@
 package Rose::DBx::Object::Renderer;
 use strict;
+use warnings;
+no warnings 'uninitialized';
 use Exporter 'import';
 
 use base qw(Rose::Object);
@@ -21,8 +23,8 @@ use File::Spec;
 use Digest::MD5 ();
 use Scalar::Util ();
 
-our $VERSION = 0.74;
-# 242.62
+our $VERSION = 0.75;
+# 245.63
 
 sub _config {
 	my $config = {
@@ -841,7 +843,11 @@ sub render_as_table {
 		}
 	}
 
-	if ($args{get_from_sql}) {
+	if ($args{objects}) {
+		$objects = $args{objects};
+		$table_config->{no_pagination} = 1;
+	}
+	elsif ($args{get_from_sql}) {
 		if (ref $args{get_from_sql} eq 'HASH') {
 			$objects = $self->get_objects_from_sql(%{$args{get_from_sql}});
 		}
@@ -878,11 +884,11 @@ sub render_as_table {
 			if (defined $args{q}) {
 				$q = $args{q};
 			}
-			elsif (length $query->param($param_list->{'q'})) {
+			else {
 				$q = $query->param($param_list->{'q'});
 			}
 
-			if (defined $q) {
+			if (length $q) {
 				my ($or, @raw_qs, @qs);
 				my $keyword_delimiter = $table_config->{keyword_delimiter};
 				if ($keyword_delimiter) {
@@ -984,6 +990,7 @@ sub render_as_table {
 
 					if ($formatted_values) {
 						push @{$filtered_columns}, $column => $formatted_values;
+						$args{queries}->{$cgi_column} = \@cgi_column_values unless exists $args{queries}->{$cgi_column};
 					}
 				}
 			}
@@ -1001,7 +1008,9 @@ sub render_as_table {
 		}
 
 		unless (exists $args{get} && (exists $args{get}->{limit} || exists $args{get}->{offset})) {
-			$args{get}->{per_page} ||= $query->param($param_list->{'per_page'}) || $table_config->{per_page};
+			my $query_param_per_page = $query->param($param_list->{'per_page'});
+			$args{get}->{per_page} ||= $query_param_per_page || $table_config->{per_page};
+			$args{queries}->{$param_list->{per_page}} ||= $query_param_per_page if $query_param_per_page;
 			$args{get}->{page} ||= $query->param($param_list->{'page'}) || 1;
 		}
 		$objects = $self->get_objects(%{$args{get}});
@@ -1313,7 +1322,6 @@ sub render_as_table {
 			});
 		}
 		else {
-
 			$html_table .= '<div>';
 			$html_table .= qq(<div class="block"><form action="$url" method="get" id="$table_id\_search_form"><input type="text" name="$param_list->{q}" id="$table_id\_search" value="$q" placeholder="Search"/>$query_hidden_fields</form></div>) if $args{searchable};
 			$html_table .= qq(<h1>$table_title</h1>);
@@ -3215,7 +3223,7 @@ C<get> accepts a hashref to construct database queries. C<get> is directly passe
 
 =item C<get_from_sql>
 
-C<get_from_sql> accepts arguments, such as an SQL statement, for the C<get_objects_from_sql> method from L<Rose::DB::Object::Manager>.
+C<get_from_sql> accepts arguments, such as an SQL statement, supported by the C<get_objects_from_sql> method from L<Rose::DB::Object::Manager>.
 
   Company::Employee::Manager->render_as_table(
     order => ['id', 'first_name', 'email'],
@@ -3223,6 +3231,16 @@ C<get_from_sql> accepts arguments, such as an SQL statement, for the C<get_objec
   );
 
 C<get_from_sql> takes precedence over C<get>. The default table pagination will be also disabled.
+
+=item C<objects>
+
+C<objects> accepts an array of L<Rose::DB::Object> objects.
+
+  Company::Employee::Manager->render_as_table(
+    objects => Company::Employee::Manager->get_objects(query => [hobby => 'Coding']),
+  );
+
+C<objects> takes precedence over C<get_from_sql>. The default table pagination will be also disabled.
 
 =item C<controllers> and C<controller_order>
 
