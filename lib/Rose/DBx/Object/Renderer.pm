@@ -22,19 +22,20 @@ use File::Copy::Recursive ();
 use File::Spec;
 use Digest::MD5 ();
 use Scalar::Util ();
+use Clone qw(clone);
 
-our $VERSION = 0.76;
-# 248.64
+our $VERSION = 0.77;
+# 264.65
 
 sub _config {
 	my $config = {
 		db => {name => undef, type => 'mysql', host => '127.0.0.1', port => undef, username => 'root', password => 'root', tables_are_singular => undef, table_prefix => undef, new_or_cached => 1, check_class => undef},
 		template => {path => 'templates', url => 'templates', options => undef},
 		upload => {path => 'uploads', url => 'uploads', keep_old_files => undef},
-		form => {download_message => 'View', remove_message => 'Remove', remove_files => undef, cancel => 'Cancel', delimiter => ','},
-		table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, delimiter => ', ', keyword_delimiter => ',', , like_operator => undef, cascade => ['template_url', 'template_path', 'template_options', 'query', 'renderer_config', 'prepared'], form_options => ['before', 'order', 'fields', 'template']},
+		form => {download_message => 'View', remove_message => 'Remove', remove_files => undef, cancel => 'Cancel', delimiter => ',', action => undef},
+		table => {search_result_title => 'Search Results for "[% q %]"', empty_message => 'No Record Found.', no_pagination => undef, per_page => 15, pages => 9, or_filter => undef, like_filter => undef,  delimiter => ', ', keyword_delimiter => ',', , like_operator => undef, cascade => ['template_url', 'template_path', 'template_options', 'query', 'renderer_config', 'prepared'], form_options => ['before', 'order', 'fields', 'template']},
 		menu => {cascade => ['create', 'edit', 'copy', 'delete', 'ajax', 'prepared', 'searchable', 'template_url', 'template_path', 'template_options', 'query', 'renderer_config']},
-		misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{white-space:nowrap;background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],select,textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,select:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}input[type="radio"],input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>', js => '<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1/themes/smoothness/jquery-ui.css" type="text/css"/><script type="text/javascript" charset="utf-8" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script><script type="text/javascript" charset="utf-8" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js"></script><script type="text/javascript" charset="utf-8">$(function(){$(".date").datepicker({ dateFormat: "dd/mm/yy" });});</script>', load_js => undef},
+		misc => {time_zone => 'Australia/Sydney', stringify_delimiter => ' ', doctype => '<!DOCTYPE HTML>', html_head => '<style type="text/css">body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}table{border-collapse:collapse;border-spacing:0;}fieldset,img{border:0;}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}ol,ul{list-style:none;}caption,th{text-align:left;}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}q:before,q:after{content:\'\';}abbr,acronym{border:0;}body{font-size:93%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#222;}a,a:hover{color:#1B80BB;text-decoration:none;}a:hover{color:#0D3247;}a.button{white-space:nowrap;background-color:rgba(0,0,0,0.05);padding:5px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}a.button:hover{background-color:rgba(0,0,0,0.25);color:rgba(255,255,255,1);-webkit-box-shadow:0px 0px 3px rgba(0,0,0,0.1);-moz-box-shadow:0px 0px 3px rgba(0,0,0,0.1);box-shadow:0px 0px 3px rgba(0,0,0,0.1);}a.button:active{background-color:rgba(0,0,0,0.4);}a.delete{color:#BA1A1A;}p{padding:10px 20px;}form td{border:0px;text-align:left;}form tr:hover{background-color:rgba(255,255,255,0.1);}.fb_required{font-weight:bold;}.fb_error,.fb_invalid,.warning{color:#BA1A1A;}label{color:#333;}input,textarea,select{font-size:100%;font-family:"Lucida Grande",Helvetica,Arial,Verdana,sans-serif;color:#333;background-color:rgba(255,255,255,0.3);border:1px solid #DDD;margin:0px 5px;padding:4px 8px;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;}input[type="text"],input[type="password"],select,textarea {-webkit-transition:border 0.2s linear,-webkit-box-shadow 0.2s linear;-moz-transition:border 0.2s linear,-moz-box-shadow 0.2s linear;-o-transition:border 0.2s linear,box-shadow 0.2s linear;}input[type="text"]:focus,input[type="password"]:focus,select:focus,textarea:focus {outline:none;border:1px solid #BBB;-webkit-box-shadow:0 0 6px rgba(0,0,0,0.4);-moz-box-shadow:0 0 6px rgba(0,0,0,0.4);box-shadow:0 0 6px rgba(0,0,0,0.4);}.fb_checkbox,.fb_radio{border:none;}input[type="radio"],input[type="submit"]{font-size:108%;padding:4px 8px;-moz-border-radius:5px;-webkit-border-radius:5px;border-radius:5px;cursor:pointer;background-color:#EEE;background:-moz-linear-gradient(top,#FFF 0%,#DFDFDF 40%,#C3C3C3 100%);background:-webkit-gradient(linear, left top, left bottom, from(#FFF), to(#C3C3C3), color-stop(0.4, #DFDFDF));-moz-transition:-moz-box-shadow 0.3s linear;-webkit-transition:-webkit-box-shadow 0.3s linear;text-shadow:0px 1px 1px rgba(255,255,255,0.9);-webkit-box-shadow:0 2px 3px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 3px rgba(0,0,0,0.4);box-shadow:0 2px 3px rgba(0,0,0,0.4);}input:hover[type="submit"]{background:#D0D0D0;color:#0D3247;background:-moz-linear-gradient(top,#FFF,#B0B0B0);background:-webkit-gradient(linear,left top,left bottom,from(#FFF), to(#B0B0B0));-webkit-box-shadow:0 2px 9px rgba(0,0,0,0.4);-moz-box-shadow:0 2px 9px rgba(0,0,0,0.4);box-shadow:0 2px 9px rgba(0,0,0,0.4);}input:active[type="submit"]{background:-webkit-gradient(linear,left top,left bottom,from(#B0B0B0), to(#EEE));background:-moz-linear-gradient(top,#B0B0B0,#EEE);-webkit-box-shadow:0 1px 5px rgba(0,0,0,0.8);-moz-box-shadow:0 1px 5px rgba(0,0,0,0.8);box-shadow:0 1px 5px rgba(0,0,0,0.8);}h1,h2{font-size:350%;padding:15px;text-shadow:0px 1px 2px rgba(0,0,0,0.4);}p{padding:10px 20px;}div{padding:10px 10px 10px 10px;}table{padding:5px 10px;width:100%;}th,td{padding:14px 6px;border-bottom:1px solid #F3F3F3;border-bottom:1px solid rgba(0,0,0,0.025);font-size:85%;}th{color:#666;font-size:108%;font-weight:normal;border:0;background-color:#E0E0E0;background:-moz-linear-gradient(top,rgba(243,243,243,0.5) 0%,rgba(208,208,208,0.9) 80%,rgba(207,207,207,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(243,243,243,0.5)),to(rgba(207,207,207,0.9)),color-stop(0.8, rgba(208,208,208,0.9)));text-shadow:0px 1px 1px rgba(255,255,255,0.9);}tr{background-color:rgba(255,255,255,0.1);}tr:hover{background-color:rgba(0,0,0,0.025);}div.block{padding:5px;text-align:right;font-size:108%;}.menu{background-color:#E3E3E3;background:-moz-linear-gradient(top,rgba(240,240,240,0.5) 0%,rgba(224,224,224,0.9) 60%,rgba(221,221,221,0.9) 100%);background:-webkit-gradient(linear,left top,left bottom,from(rgba(240,240,240,0.5)),to(rgba(221,221,221,0.9)),color-stop(0.6,rgba(224,224,224,0.9)));padding:0px;width:100%;height:37px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;}.menu ul{padding:10px 6px 0px 6px;}.menu ul li{display:inline;}.menu ul li a{text-shadow:0px 1px 1px rgba(255,255,255,0.9);float:left;display:block;color:#555;background-color:#D0D0D0;text-decoration:none;margin:0px 4px;padding:6px 18px;height:15px;-moz-border-radius-topleft:5px;-moz-border-radius-topright:5px;-webkit-border-top-left-radius:5px;-webkit-border-top-right-radius:5px;border-top-left-radius:5px;border-top-right-radius:5px;-moz-transition:background-color 0.2s linear;-webkit-transition:background-color 0.2s linear;-o-transition:background-color 0.2s linear;}.menu ul li a:hover,.menu ul li a.current{-webkit-box-shadow:0px -2px 3px rgba(0,0,0,0.07);-moz-box-shadow:0px -2px 3px rgba(0,0,0,0.07);box-shadow:0px -2px 3px rgba(0,0,0,0.07);}.menu ul li a:hover{background-color:#F0F0F0;color:#0D3247;}.menu ul li a:active{background-color:#FFF;color:#1B80BB;}.menu ul li a.current,.menu ul li a.current:hover{cursor:pointer;background-color:#FFF;}.pager{display:block;float:left;padding:2px 6px;border:1px solid #D0D0D0;margin-right:1px;background-color:rgba(255,255,255,0.1);-moz-border-radius:3px;-webkit-border-radius:3px;border-radius:3px;-moz-transition:border 0.2s linear;-webkit-transition:border 0.2s linear;-o-transition:border 0.2s linear;}a.pager:hover{border:1px solid #1B80BB;}</style>', js => '<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1/themes/smoothness/jquery-ui.css" type="text/css"/><script type="text/javascript" charset="utf-8" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script><script type="text/javascript" charset="utf-8" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js"></script><script type="text/javascript" charset="utf-8">$(function(){$(".date").datepicker({ dateFormat: "dd/mm/yy" });});</script>', load_js => undef},
 		columns => {
 			'integer' => {validate => 'INT', sortopts => 'NUM'},
 			'numeric' => {validate => 'NUM', sortopts => 'NUM'},
@@ -44,7 +45,7 @@ sub _config {
 			'address' => {format => {for_view => sub {_view_address(@_);}}},
 			'date' => {class => 'date', validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}|([0-9]{4}\-0?[1-9]|1[0-2])\-(0?[1-9]|[1-2][0-9]|3[0-1])$/', format => {for_edit => sub {_edit_date(@_);}, for_update => sub {_update_date(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}, for_view => sub{_view_date(@_);}}},
 			'datetime' => {validate => '/^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/[0-9]{4}|([0-9]{4}\-0?[1-9]|1[0-2])\-(0?[1-9]|[1-2][0-9]|3[0-1])\s+[0-9]{1,2}:[0-9]{2}$/', format => {for_edit => sub{_edit_datetime(@_);}, for_view => sub{_view_datetime(@_);}, for_update => sub{_update_datetime(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
-			'timestamp' => {readonly => "readonly", disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_create_timestamp(@_);}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_date(@_);}, for_filter => sub {_search_date(@_);}}},
+			'timestamp' => {readonly => "readonly", disabled => 1, format => {for_view => sub {_view_timestamp(@_);}, for_create => sub {_create_timestamp(@_);}, for_edit => sub {_create_timestamp(@_);}, for_update => sub {_update_timestamp(@_);}, for_search => sub {_search_timestamp(@_);}, for_filter => sub {_search_timestamp(@_);}}},
 			'description' => {sortopts => 'LABELNAME', type => 'textarea', cols => '55', rows => '10'},
 			'time' => {validate => '/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/', maxlength => 5, format => {for_update => sub {_update_time(@_)}, for_edit => sub{_edit_time(@_);}, for_view => sub{_view_time(@_);}}},
 			'length' => {validate => 'NUM', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;my $value = $self->$column;return unless $value;return $value.' cm';}}},
@@ -64,12 +65,12 @@ sub _config {
 			'money' => {validate => '/^\-?\d{1,11}(\.\d{2})?$/', sortopts => 'NUM', format => {for_view => sub {my ($self, $column) = @_;return unless defined $self->$column;return sprintf ('$%.02f', $self->$column);}, for_edit => sub {my ($self, $column) = @_;return unless defined $self->$column;return sprintf ('%.02f', $self->$column);}}},
 			'percentage' => {validate => 'NUM', sortopts => 'NUM', comment => 'e.g.: 99.8', format => {for_view => sub {my ($self, $column, $value) = @_;$value = $self->$column;return unless $value;my $p = $value*100;return "$p%";}, for_edit => sub {my ($self, $column) = @_;my $value = $self->$column;return unless defined $value;return $value*100;}, for_update => sub {my ($self, $column, $value) = @_;return $self->$column($value/100) if $value;},  for_search => sub {_search_percentage(@_);}, for_filter => sub {_search_percentage(@_);}}},
 			'document' => {validate => '/^[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]+$/', format => {remove => sub {_remove_file(@_);}, path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_update => sub {_update_file(@_);}, for_view => sub {_view_file(@_)}}, type => 'file'},
-			'image' => {validate => '/^[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]+$/', format => {remove => sub {_remove_file(@_);}, path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
+			'image' => {validate => '/^[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]+\.(gif|jpg|jpeg|png|GIF|JPG|JPEG|PNG)$/', format => {remove => sub {_remove_file(@_);}, path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_image(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 			'media' => {validate => '/^[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]+$/', format => {remove => sub {_remove_file(@_);}, path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_media(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 			'video' => {validate => '/^[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]+$/', format => {remove => sub {_remove_file(@_);}, path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_video(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 			'audio' => {validate => '/^[\w\s.!?@#$\(\)\'\_\-:%&*\/\\\\\[\]]+$/', format => {remove => sub {_remove_file(@_);}, path => sub {_get_file_path(@_);}, url => sub {_get_file_url(@_);}, for_view => sub {_view_audio(@_);}, for_update => sub {_update_file(@_);}}, type => 'file'},
 			'ipv4' => {validate => 'IPV4'},
-			'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
+			'boolean' => {validate => '/^[0-1]$/', sortopts => 'LABELNAME', options => {1 => 'Yes', 0 => 'No'}, format => {for_create => sub {my ($self, $column) = @_;my $default = $self->meta->{columns}->{$column}->{default};return unless length($default);return {'true' => 1, 'false' => 0}->{$default};return $default;}, for_view => sub {my ($self, $column) = @_;my $options = {1 => 'Yes', 0 => 'No'};return $options->{$self->$column};}, for_search => sub {_search_boolean(@_)}, for_filter => sub {_search_boolean(@_)}}},
 		}
 	};
 
@@ -102,13 +103,12 @@ sub _config {
 }
 
 sub config {
-	my $self = shift;
+	my ($self, $config) = @_;
 	unless ($self && defined $self->{CONFIG}) {
 		$self->{CONFIG} = _config();
 	}
 
-	if (@_) {
-		my $config = shift;
+	if ($config) {
 		foreach my $hash (keys %{$config}) {
 			if ($hash eq 'columns') {
 				foreach my $column (keys %{$config->{columns}}) {
@@ -145,22 +145,21 @@ sub load {
 		}
 		elsif (defined $config->{db}->{name}) {
 			if ($config->{db}->{type} eq 'SQLite') {
-				my ($file, $ext) = ($config->{db}->{name} =~ /.*[\\\/](.*?)(\.[^\.]+)?$/);
+				my ($file, $ext) = ($config->{db}->{name} =~ /.*[\\\/](.*?)(\.[^\.]+)?$/x);
 				$args->{loader}->{class_prefix} = ucfirst $file if $file;
 			}
 			else {
 				$args->{loader}->{class_prefix} = $config->{db}->{name};
-				$args->{loader}->{class_prefix} =~ s/_(.)/\U$1/g;
-				$args->{loader}->{class_prefix} =~ s/[^\w:]/_/g;
-				$args->{loader}->{class_prefix} =~ s/\b(\w)/\u$1/g;
+				$args->{loader}->{class_prefix} =~ s/_(.)/\U$1/gx;
+				$args->{loader}->{class_prefix} =~ s/[^\w:]/_/gx;
+				$args->{loader}->{class_prefix} =~ s/\b(\w)/\u$1/gx;
 			}
 		}
 	}
 	
-	my $base_class_counter = 1;
-	$base_class_counter++ unless defined $args->{loader}->{db} || defined $args->{loader}->{db_class};
+	my $auto_base = $args->{loader}->{class_prefix} . '::DB::AutoBase1';
 	
-	return if (defined $config->{db}->{check_class} && "$config->{db}->{check_class}"->isa('Rose::DB::Object')) || (defined $args->{loader}->{class_prefix} && "$args->{loader}->{class_prefix}::DB::Object::AutoBase$base_class_counter"->isa('Rose::DB::Object')) || "Rose::DB::Object::LoaderGenerated::AutoBase$base_class_counter"->isa('Rose::DB::Object');
+	return if (defined $config->{db}->{check_class} && "$config->{db}->{check_class}"->isa('Rose::DB::Object')) || $auto_base->isa('Rose::DB');
 
 	unless (defined $args->{loader}->{db} || defined $args->{loader}->{db_class}) {
 		unless (defined $args->{loader}->{db_dsn}) {
@@ -185,11 +184,10 @@ sub load {
 	foreach my $class (@loaded) {
 		my $class_type;
 	
-		if (($class)->isa('Rose::DB::Object')) {
-			if (! (defined $args->{loader}->{db_class} || defined $args->{loader}->{base_class} || defined $args->{loader}->{base_classes}) && $config->{db}->{new_or_cached}) {
+		if (($class)->isa('Rose::DB::Object')) {			
+			if ($auto_base->isa('Rose::DB') && ! (defined $args->{loader}->{db_class} || defined $args->{loader}->{base_class} || defined $args->{loader}->{base_classes}) && $config->{db}->{new_or_cached}) {
 				my $package_init_db = $class . '::init_db';
 				*$package_init_db = sub {
-					my $auto_base = $args->{loader}->{class_prefix} . '::DB::AutoBase1';
 					$auto_base->new_or_cached;
 				};
 			}
@@ -197,8 +195,8 @@ sub load {
 			_process_columns($class, $config, $sorted_column_definition_keys);
 			my $package_renderer_config = $class . '::renderer_config';
 			*$package_renderer_config = sub {return $config};
-						
-			$class_type = 'object';	
+
+			$class_type = 'object';
 		}
 		else {
 			$class_type = 'manager';
@@ -214,7 +212,8 @@ sub load {
 }
 
 sub _process_columns {
-	my ($class, $config, $sorted_column_definition_keys) = _class_config_column_keys(@_);
+    my @args = @_;
+	my ($class, $config, $sorted_column_definition_keys) = _class_config_column_keys(@args);
 	my ($custom_definitions, $validated_unique_keys);
 	my $foreign_keys = _get_foreign_keys($class);
 	my $unique_keys = _get_unique_keys($class);
@@ -245,8 +244,9 @@ sub _process_columns {
 					sortopts => 'LABELNAME', format => {
 						for_view => sub {
 							my ($self, $column) = @_;
-							return unless $self->$column;							
-							return $self->$foreign_object_name->stringify_me;
+							return unless $self->$column;
+							return $self->$foreign_object_name->stringify_me if $self->can($foreign_object_name); # handle foreign key like columns
+							return $self->$column;
 						}
 					}
 				};
@@ -254,7 +254,7 @@ sub _process_columns {
 			}
 			else {
 				DEF: foreach my $column_key (@{$sorted_column_definition_keys}) {
-					if ($column =~ /$column_key/ && ! exists $custom_definitions->{$column_key}) {
+					if ($column =~ /$column_key/x && ! exists $custom_definitions->{$column_key}) {
 						$column_type = $column_key;
 						last DEF;
 					}
@@ -262,7 +262,7 @@ sub _process_columns {
 
 				unless (defined $column_type) {
 					my $rdbo_column_type = lc ref $class->meta->{columns}->{$column};
-					($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/;
+					($rdbo_column_type) = $rdbo_column_type =~ /^.*::([\w_]+)$/x;
 
 					if (exists $config->{columns}->{$rdbo_column_type}) {
 						$column_type = $rdbo_column_type;
@@ -311,7 +311,7 @@ sub _process_columns {
 						if (ref $validated_unique_keys->{$column} eq 'CODE') {
 							$validated_unique_keys->{$column} = undef;
 						}
-						else {								    
+						else {
 							if (ref $validated_unique_keys->{$column} eq 'ARRAY') {
 								$validated_unique_keys->{$column} = $column_type_config->{validate};
                                 
@@ -329,8 +329,8 @@ sub _process_columns {
 								}
 
 								if ($validated_unique_keys->{$column} =~ /^m(\S)(.*)\1$/ || $validated_unique_keys->{$column} =~ /^(\/)(.*)\1$/) {
-									(my $regex = $2) =~ s#\\/#/#g;
-								    $regex =~ s#/#\\/#g;
+									(my $regex = $2) =~ s#\\/#/#gx;
+								    $regex =~ s#/#\\/#gx;
 									$config->{columns}->{$column}->{validate} = {
 										javascript => $validated_unique_keys->{$column},
 										perl => sub {my ($value, $form) = @_;return if ! length($value) || ! ($value =~ /$regex/);return _unique($column_config, $class, $column, $value, $form);}
@@ -392,7 +392,8 @@ sub _process_columns {
 }
 
 sub prepare_renderer {
-	my ($class, $config, $sorted_column_definition_keys) = _class_config_column_keys(@_);
+    my @args = @_;
+	my ($class, $config, $sorted_column_definition_keys) = _class_config_column_keys(@args);
 	_process_columns($class, $config, $sorted_column_definition_keys);
 	no strict 'refs';
 	my $package_renderer_config = $class . '::renderer_config';
@@ -427,6 +428,7 @@ sub _generate_methods {
 		my $package_column_definition = $class . '::' . $column . '_definition';
 		*$package_column_definition = sub {return $config->{columns}->{$column_type};};
 	}
+	return;
 }
 
 sub _before {
@@ -437,14 +439,14 @@ sub _before {
 }
 
 sub render_as_form {
-	my ($self, %args) = (@_);
-	_before($self, \%args) if exists $args{before};	
+	my ($self, %args) = @_;
+	_before($self, \%args) if exists $args{before};
 	my ($class, $form_action, $field_order, $output, $relationship_object);
 	my $table = $self->meta->table;
 	my $form_title = $args{title};
 	$class = ref $self || $self;
 	my $renderer_config = _prepare($class, $args{renderer_config}, $args{prepared});
-	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/;
+	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/x;
 	my $form_config = _ui_config($ui_type, $renderer_config, \%args);
 	
 	my $form_id = _identify($class, $args{prefix}, $ui_type);
@@ -457,7 +459,7 @@ sub render_as_form {
 		}
 		else {
 			$form_action = 'update';
-			(my $action_object_prefix = $form_id) =~ s/_form$//;
+			(my $action_object_prefix = $form_id) =~ s/_form$//x;
 			
 			unless (exists $args{queries} && $args{queries}->{$action_object_prefix . '_action'}) {
 				my $primary_key = $class->meta->primary_key_column_names->[0];
@@ -495,6 +497,7 @@ sub render_as_form {
 	$form_def->{method} ||= 'post';
 	$form_def->{params} ||= $args{query};
 	$form_def->{stylesheet} = 1 unless exists $form_def->{stylesheet};
+	$form_def->{action} ||= $form_config->{action} if $form_config->{action};
 
 	if($args{template}) {
 		$form_def->{jserror} ||= 'notify_error';
@@ -547,6 +550,7 @@ sub render_as_form {
 				else {
 					$field_def->{type} ||= 'select';
 					$field_def->{disabled} ||= 1;
+					$field_def->{options} = ['']; # bypass CGI::FormBuilder warning
 				}
 			}
 		}
@@ -591,6 +595,7 @@ sub render_as_form {
 						else {
 							$field_def->{type} ||= 'select';
 							$field_def->{disabled} ||= 1;
+							$field_def->{options} = ['']; # bypass CGI::FormBuilder warning
 						}
 					}
 				}
@@ -612,7 +617,12 @@ sub render_as_form {
 					if ($class->can($column . '_for_edit')) {
 						my $edit_method = $column . '_for_edit';
 						$current_value = $self->$edit_method;
-						$field_def->{value} = "$current_value";
+						if (ref $current_value eq 'ARRAY' || ref $current_value eq 'HASH') {
+							$field_def->{value} = $current_value;
+						}
+						else {
+							$field_def->{value} = "$current_value"; # make object stringifies
+						}
 					}
 					else {
 						if (ref $self->meta->{columns}->{$column} eq 'Rose::DB::Object::Metadata::Column::Set') {
@@ -689,7 +699,7 @@ sub render_as_form {
 			}
 		}
 
-		delete $field_def->{value} if $field_def->{multiple} && $form->submitted && not $form->cgi_param($column) && not $form->cgi_param($form_id.'_'.$column);
+		delete $field_def->{value} if $field_def->{multiple} && $form->submitted && ! $form->cgi_param($column) && ! $form->cgi_param($form_id.'_'.$column);
 
 		$field_def->{label} ||= _label(_title($column, $renderer_config->{db}->{table_prefix}));
 
@@ -749,7 +759,6 @@ sub render_as_form {
 		if ($form->submitted ne $cancel) {
 			my $form_validate = $form->validate(%{$args{validate}});
 			if ($form_validate) {
-				no strict 'refs';
 				my $form_action_callback = '_'.$form_action.'_object';
 				my @files_to_remove;
 				@files_to_remove = $form->cgi_param($field_prefix . 'remove_files') if $form_config->{remove_files};
@@ -759,6 +768,7 @@ sub render_as_form {
 					if (ref $args{controllers}->{$form->submitted} eq 'HASH') {
 						if ($args{controllers}->{$form->submitted}->{$form_action}) {
 							unless (ref $args{controllers}->{$form->submitted}->{$form_action} eq 'CODE' && ! $args{controllers}->{$form->submitted}->{$form_action}->($self)) {
+							    no strict 'refs';
 								$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object, \@files_to_remove);
 								$output->{self} = $self;
 							}
@@ -773,6 +783,7 @@ sub render_as_form {
 					}
 				}
 				elsif($form->submitted eq ucfirst ($form_action)) {
+				    no strict 'refs';
 					$self = $form_action_callback->($self, $class, $table, $field_order, $form, $form_id, $args{prefix}, $relationships, $relationship_object, \@files_to_remove);
 					$output->{self} = $self;
 				}
@@ -808,14 +819,14 @@ sub render_as_form {
 }
 
 sub render_as_table {
-	my ($self, %args) = (@_);
+	my ($self, %args) = @_;
 	_before($self, \%args) if exists $args{before};
 	my ($table, @controllers, $output, $query_hidden_fields, $q, $sort_by_column);
 	my $class = $self->object_class();
 	my $query = $args{query} || CGI->new;
 	my $url = $args{url} || $query->url(-absolute => 1);
 	my $renderer_config = _prepare($class, $args{renderer_config}, $args{prepared});
-	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/;
+	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/x;
 	my $table_config = _ui_config($ui_type, $renderer_config, \%args);
 
 	my $table_id = _identify($class, $args{prefix}, $ui_type);
@@ -857,8 +868,8 @@ sub render_as_table {
 	else {
 		my $sort_by = $query->param($param_list->{'sort_by'});
 		if ($sort_by) {
-			my $sort_by_column = $sort_by;
-			$sort_by_column =~ s/\sdesc$//;
+			$sort_by_column = $sort_by;
+			$sort_by_column =~ s/\sdesc$//x;
 			my $sort_by_column_definition_method = $sort_by_column . '_definition';
 			my $sort_by_column_definition;
 			$sort_by_column_definition = $class->$sort_by_column_definition_method if $class->can($sort_by_column_definition_method);
@@ -898,7 +909,7 @@ sub render_as_table {
 
 				my $like_search_values;
 				foreach my $raw_q (@raw_qs) {
-					$raw_q =~ s/^\s+|\s+$//g;
+					$raw_q =~ s/^\s+|\s+$//gx;
 					push @qs, $raw_q;
 					push @{$like_search_values}, '%' . $raw_q . '%';
 				}
@@ -916,9 +927,9 @@ sub render_as_table {
 				
 				foreach my $searchable_column (@{$searchable_columns}) {
 					my ($search_values, $search_class, $search_column, $search_method);
-					if ($searchable_column =~ /\./) {
+					if ($searchable_column =~ /\./x) {
 						my $search_table;
-						($search_table, $search_column) = split /\./, $searchable_column;
+						($search_table, $search_column) = split /\./x, $searchable_column;
 						$search_class = $table_to_class->{$search_table} || $class;
 					}
 					else {
@@ -959,7 +970,7 @@ sub render_as_table {
 				$args{queries}->{$param_list->{q}} = $q;
 
 				$table_title = $args{search_result_title} || $table_config->{search_result_title};
-				$table_title =~ s/\[%\s*q\s*%\]/$q/;
+				$table_title =~ s/\[%\s*q\s*%\]/$q/x;
 			}
 		}
 
@@ -987,7 +998,28 @@ sub render_as_table {
 					}
 
 					if ($formatted_values) {
-						push @{$filtered_columns}, $column => $formatted_values;
+
+						if ($table_config->{like_filter}) {
+
+							my $formatted_values_like = [map {'%' . $_ . '%'} @{$formatted_values}];
+							
+							if ($class && $class->meta->db->driver eq 'pg' && exists $class->meta->{columns}->{$column} && ! $class->meta->{columns}->{$column}->isa('Rose::DB::Object::Metadata::Column::Character')) {
+								my $filter_column_text = 'text(t1.' . $column . ') ' . $like_operator . ' ?';
+								push @{$filtered_columns}, \$filter_column_text => $formatted_values_like;
+							}
+							elsif ($class && $class->meta->db->driver eq 'sqlite' && exists $class->meta->{columns}->{$column} && ! $class->meta->{columns}->{$column}->isa('Rose::DB::Object::Metadata::Column::Character')) {
+								my $filter_column_text = 'cast(t1.' . $column . ' AS TEXT) ' . $like_operator . ' ?';
+								push @{$filtered_columns}, \$filter_column_text => $formatted_values_like;
+							}
+							else {
+								push @{$filtered_columns}, $column => {$like_operator => $formatted_values_like};
+							}
+
+						}
+						else {
+							push @{$filtered_columns}, $column => $formatted_values;	
+						}
+
 						$args{queries}->{$cgi_column} = \@cgi_column_values unless exists $args{queries}->{$cgi_column};
 					}
 				}
@@ -1021,7 +1053,7 @@ sub render_as_table {
 			my $action = $query->param($param_list->{action});
 
 			if (exists $valid_form_actions->{$action} && $args{$action}) {
-				$args{$action} = {} if $args{$action} eq 1;
+				$args{$action} = {} if $args{$action} == 1;
 				$args{$action}->{output} = 1;
 				
 				$args{$action}->{no_head} = $args{no_head} if exists $args{no_head} && ! exists $args{$action}->{no_head};
@@ -1033,7 +1065,7 @@ sub render_as_table {
 					_inherit_form_option($option, $action, \%args);
 				}
 								
-				$args{$action}->{order} ||= $args{order} if $args{order};			
+				$args{$action}->{order} ||= Clone::clone($args{order}) if $args{order};
 				$args{$action}->{template} ||= _template($args{template}, 'form', 1) if $args{template};
 				
 				@{$args{$action}->{queries}}{keys %{$args{queries}}} = values %{$args{queries}};
@@ -1118,37 +1150,44 @@ sub render_as_table {
 		}
 		else {
 		 	@controllers = keys %{$args{controllers}} if $args{controllers};
-			push @controllers, 'copy' if $args{copy};
-			push @controllers, 'edit' if $args{edit};
-			push @controllers, 'delete' if $args{delete};
+			foreach my $form_action ('copy', 'edit', 'delete') {
+				push @controllers, $form_action if $args{$form_action} && ! exists $args{controllers}->{$form_action};
+			}
 		}
 
 		$args{queries}->{$param_list->{ajax}} = 1 if $args{ajax} && $args{template};
 		
 		my $default_query_string = '';
-		$default_query_string = _create_query_string($args{queries}) if exists $args{queries};		
+		$default_query_string = _create_query_string($args{queries}) if exists $args{queries};
 		$query_string->{base} = $default_query_string;
 		$query_string->{sort_by} = $default_query_string;
 		$query_string->{page} = $default_query_string;
 
 		if($query->param($param_list->{sort_by})) {
-			$query_string->{page} .= $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;' unless $query_string->{page} =~ /$param_list->{sort_by}=/;
+			$query_string->{page} .= $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;' unless $query_string->{page} =~ /$param_list->{sort_by}=/x;
 			$query_string->{exclusive} = $param_list->{sort_by}.'='.$query->param($param_list->{sort_by}).'&amp;';
 		}
 
 		$query_string->{complete} = $query_string->{page};
 
 		if ($query->param($param_list->{page})) {
-			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;' unless $query_string->{complete} =~ /$param_list->{page}=/;
+			$query_string->{complete} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;' unless $query_string->{complete} =~ /$param_list->{page}=/x;
 			$query_string->{exclusive} .= $param_list->{page}.'='.$args{get}->{page}.'&amp;';
 		}
 
 		## Define Table
 
 		if ($args{create}) {
-			my $create_value = 'Create';
-			$create_value = $args{create}->{title} if ref $args{create} eq 'HASH' && exists $args{create}->{title};
-			$table->{create} = {value => $create_value, link => qq($url?$query_string->{complete}$param_list->{action}=create)} if $args{create};
+			if ($args{controllers} && $args{controllers}->{create} && ref $args{controllers}->{create} eq 'HASH' && exists $args{controllers}->{create}->{label}) {
+				$table->{create}->{value} = $args{controllers}->{create}->{label};
+			}
+			elsif (ref $args{create} eq 'HASH' && exists $args{create}->{title}) {
+				$table->{create}->{value} = $args{create}->{title};
+			}
+			else {
+				$table->{create}->{value} = 'Create';
+			}
+			$table->{create}->{link} = qq($url?$query_string->{complete}$param_list->{action}=create);
 		}
 
 		$table->{total_columns} = scalar @{$column_order} + scalar @controllers;
@@ -1412,13 +1451,13 @@ sub render_as_table {
 }
 
 sub render_as_menu {
-	my ($self, %args) = (@_);
+	my ($self, %args) = @_;
 	_before($self, \%args) if exists $args{before};
 	
-	my($menu, $hide_menu_param, $current_param, $output, $content, $item_order, $items, $current, $template);
+	my($menu, $hide_menu_param, $current_param, $output, $item_order, $items, $current, $template);
 	my $class = $self->object_class();
 	my $renderer_config = _prepare($class, $args{renderer_config}, $args{prepared});
-	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/;
+	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/x;
 	my $menu_config = _ui_config($ui_type, $renderer_config, \%args);
 	
 	my $menu_id = _identify($class, $args{prefix}, $ui_type);
@@ -1441,8 +1480,7 @@ sub render_as_menu {
 	$query_string .= '&amp;' if $query_string;
 
 	$template = _template($args{template}, $ui_type) if $args{template};
-	
-	
+
 	$current = $query->param($current_param);
 	unless ($current) {
 		if ($args{current}) {
@@ -1556,7 +1594,7 @@ sub render_as_menu {
 }
 
 sub render_as_chart {
-	my ($self, %args) = (@_);
+	my ($self, %args) = @_;
 	_before($self, \%args) if exists $args{before};
 	my $class = $self->object_class();
 	my $renderer_config = _prepare($class, $args{renderer_config}, $args{prepared});
@@ -1565,7 +1603,7 @@ sub render_as_chart {
 	my $template_url = $args{template_url} || $renderer_config->{template}->{url};
 	my $template_path = $args{template_path} || $renderer_config->{template}->{path};
 	my $html_head = _html_head(\%args, $renderer_config);
-	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/;
+	my ($ui_type) = (caller(0))[3] =~ /^.*_(\w+)$/x;
 	my $chart_id = _identify($class, $args{prefix}, $ui_type);
 
 	my $hide_chart_param;
@@ -1688,7 +1726,7 @@ sub render_as_chart {
 		my $chart_url = 'http://chart.apis.google.com/chart?' . _create_query_string($args{options});
 
 		if ($args{template}) {
-			if($args{template} eq 1) {
+			if($args{template} == 1) {
 				$template = $ui_type . '.tt';
 			}
 			else {
@@ -1731,7 +1769,7 @@ sub render_as_chart {
 }
 
 sub _render_template {
-	my %args = (@_);
+	my %args = @_;
 	if ($args{file} && $args{data} && $args{template_path}) {
 		my $options = $args{options};
 		$options->{INCLUDE_PATH} ||= $args{template_path};
@@ -1742,7 +1780,7 @@ sub _render_template {
 			return $output;
 		}
 		else {
-			$template->process($args{file},$args{data});
+			return $template->process($args{file},$args{data});
 		}
 	}
 }
@@ -1754,6 +1792,7 @@ sub _cascade {
 	foreach my $option (@{$cascade}) {
 		$options->{$option} = $args->{$option} if defined $args->{$option} && ! defined $options->{$option};
 	}
+	return;
 }
 
 sub _ui_config {
@@ -1800,14 +1839,14 @@ sub _pagination {
 		}
 	}
 
-	if ($get->{page} eq $last_page) {
+	if ($get->{page} == $last_page) {
 		$next_page = $last_page;
 	}
 	else {
 		$next_page = $get->{page} + 1;
 	}
 
-	if ($get->{page} eq 1) {
+	if ($get->{page} == 1) {
 		$previous_page = 1;
 	}
 	else {
@@ -1836,7 +1875,7 @@ sub _update_object {
 
 	foreach my $field (@{$field_order}) {
 		my $column = $field;
-		$column =~ s/$form_id\_// if $prefix;
+		$column =~ s/$form_id\_//x if $prefix;
 		my $field_value;
 		my @values = $form->field($field);
 		my $values_size = scalar @values;
@@ -1930,7 +1969,7 @@ sub _create_object {
 	foreach my $field (@{$field_order}) {
 		if(defined $form->cgi_param($field) && length($form->cgi_param($field))) {
 			my $column = $field;
-			$column =~ s/$form_id\_// if $prefix;
+			$column =~ s/$form_id\_//x if $prefix;
 			my @values = $form->field($field);
 			 # one to many or many to many
 			if (exists $relationships->{$column}) {
@@ -2027,11 +2066,12 @@ sub _get_relationships {
 }
 
 sub _remove_column_files {
-	my ($self, $columns) = @_;	
+	my ($self, $columns) = @_;
 	foreach my $column (@{$columns}) {
 		my $remove_file_method = $column . '_remove';
 		$self->$remove_file_method if $self->can($remove_file_method);
 	}
+	return;
 }
 
 sub delete_with_file {
@@ -2039,12 +2079,12 @@ sub delete_with_file {
 	return unless ref $self;
 	my $primary_key = $self->meta->primary_key_column_names->[0];
 	my $directory = File::Spec->catdir(_get_renderer_config($self)->{upload}->{path}, $self->stringify_class, $self->$primary_key);
-	rmtree($directory) || die ("Could not remove $directory") if -d $directory;
+	rmtree($directory) if -d $directory;
 	return $self->delete();
 }
 
 sub stringify_me {
-	my ($self, %args) = (@_);
+	my ($self, %args) = @_;
 	my $class = ref $self;
 	$class->prepare_renderer() unless $args{prepared} || $self->can('renderer_config');
 	my @values;
@@ -2070,7 +2110,7 @@ sub stringify_me {
 sub stringify_class {
 	my $self = shift;
 	my $package_name = lc ref $self || lc $self;
-	$package_name =~ s/::/_/g;
+	$package_name =~ s/::/_/gx;
 	return $package_name;
 }
 
@@ -2110,6 +2150,7 @@ sub _edit_date {
 	my ($self, $column) = @_;
 	return $self->$column unless ref $self->$column eq 'DateTime';
 	return $self->$column->dmy('/') if $self->$column;
+	return;
 }
 
 sub _edit_time {
@@ -2121,8 +2162,8 @@ sub _edit_time {
 sub _update_date {
 	my ($self, $column, $value) = @_;
 	return $self->$column(undef) unless $value;
-	my ($d, $m, $y) = split /\/|\-/, $value;
-	if ($d =~ /^\d{4}$/) { 
+	my ($d, $m, $y) = split /\/|\-/x, $value;
+	if ($d =~ /^\d{4}$/x) { 
 		my $temp_d = $d;
 		$d = $y;
 		$y = $temp_d;
@@ -2145,7 +2186,7 @@ sub _update_time {
 
 sub _update_file {
 	my ($self, $column, $value) = @_;
-	return unless $value && $value ne '';
+	return unless $value;
 	my $renderer_config = _get_renderer_config($self);
 	my $primary_key = $self->meta->primary_key_column_names->[0]; 
 	my $upload_path = File::Spec->catdir($renderer_config->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column);
@@ -2192,10 +2233,10 @@ sub _update_timestamp {
 sub _update_datetime {
 	my ($self, $column, $value) = @_;
 	return $self->$column(undef) if $value eq '';
-	my ($date, $time) = split /\s+/, $value;
+	my ($date, $time) = split /\s+/x, $value;
 
-	my ($d, $m, $y) = split /\/|\-/, $date;
-	if ($d =~ /^\d{4}$/) { 
+	my ($d, $m, $y) = split /\/|\-/x, $date;
+	if ($d =~ /^\d{4}$/x) { 
 		my $temp_d = $d;
 		$d = $y;
 		$y = $temp_d;
@@ -2227,9 +2268,9 @@ sub _view_image {
 
 sub _view_media {
 	my ($self, $column) = @_;
-	return _view_image(@_) if $self->$column =~ /\.(gif|jpe?g|png|tiff?)$/;
-	return _view_video(@_) if $self->$column =~ /\.(ogv|ogg|mp4|m4v|mov)$/;
-	return _view_audio(@_);
+	return _view_image($self, $column) if $self->$column =~ /\.(gif|jpe?g|png|tiff?)$/x;
+	return _view_video($self, $column) if $self->$column =~ /\.(ogv|ogg|mp4|m4v|mov)$/x;
+	return _view_audio($self, $column);
 }
 
 sub _view_video {
@@ -2295,11 +2336,11 @@ sub _search_boolean {
 
 sub _search_date {
 	my ($self, $column, $value) = @_;
-	my ($date, $month_name, $year) = ($value =~ /(\d{1,2})?\s?([a-zA-Z]+)\s?(\d{4})?/);
+	my ($date, $month_name, $year) = ($value =~ /(\d{1,2})?\s?([a-zA-Z]+)\s?(\d{4})?/x);
 	if ($month_name) {
 		my $month = 1;
 		foreach my $abbr ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec') {
-			last if $month_name =~ /^$abbr/i;
+			last if $month_name =~ /^$abbr/ix;
 			$month++;
 		}
 		
@@ -2309,14 +2350,26 @@ sub _search_date {
 		return sprintf('-%02d-', $month) if $month;
 	}
 	else {
-		$value =~ s/\//-/g;
-		my ($d, $m, $y) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])\-([0-9]{4})$/);
+		$value =~ s/\//-/gx;
+		my ($d, $m, $y) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])\-([0-9]{4})$/x);
 		return sprintf('%4d-%02d-%02d', $y, $m, $d) if $d && $m && $y;
-		($m, $y) = ($value =~ /^(0?[1-9]|1[0-2])\-([0-9]{4})$/);
+		($m, $y) = ($value =~ /^(0?[1-9]|1[0-2])\-([0-9]{4})$/x);
 		return sprintf('%4d-%02d', $y, $m) if $m && $y;
-		($d, $m) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])$/);
+		($d, $m) = ($value =~ /^(0?[1-9]|[1-2][0-9]|3[0-1])\-(0?[1-9]|1[0-2])$/x);
 		return sprintf('%02d-%02d', $m, $d) if $m && $d;
 		return $value;
+	}
+	return;
+}
+
+sub _search_timestamp {
+	my ($self, $column, $value) = @_;
+	my ($date_or_time, $time) = ($value =~ /^([\d\/\-]+)\s?([\d\:]+)?$/);
+	if ($time) {
+		return _search_date($self, $column, $date_or_time) . ' ' . $time;
+	}
+	else {
+		return _search_date($self, $column, $date_or_time);
 	}
 }
 
@@ -2330,7 +2383,7 @@ sub _remove_file {
 	return unless ref $self && $self->$column;
 	my $primary_key = $self->meta->primary_key_column_names->[0];
 	my $directory = File::Spec->catdir(_get_renderer_config($self)->{upload}->{path}, $self->stringify_class, $self->$primary_key, $column);
-	rmtree($directory) || die ("Could not remove $directory") if -d $directory;
+	rmtree($directory) if -d $directory;
 	return $self->$column(undef);
 }
 
@@ -2352,6 +2405,7 @@ sub _inherit_form_option {
 			last;
 		}
 	}
+	return;
 }
 
 sub _unique {
@@ -2366,18 +2420,30 @@ sub _unique {
 	}
 	return 1 unless $existing;
 
-	(my $prefix = $form->name) =~ s/_form$//;
-	return unless $form->field('action') eq 'edit' || $form->field($prefix.'_action') eq 'edit';
+	my ($action, $object);
+
+	if (ref $form eq 'HASH') {
+		$action = $form->{button_action};
+		$object = $form->{object} if $form->{object};
+	}
+	else {
+		(my $prefix = $form->name) =~ s/_form$//x;
+		$action = $form->field('action') || $form->field($prefix . '_action');
+		$object = $form->field('object') || $form->field($prefix . '_object');
+	}
+
+	return unless $action eq 'edit' || $action eq 'update';
 	my $primary_key = $class->meta->primary_key_column_names->[0];
-	return 1 if $existing->$primary_key == $form->field('object') || $existing->$primary_key == $form->field($prefix.'_object');
+	return 1 if $existing->$primary_key == $object;
 	return;
 }
 
 sub _identify {
 	my ($class, $prefix, $ui_type) = @_;
 	return $prefix if defined $prefix;
-	($prefix = lc $class) =~ s/::/_/g;
-	$prefix .= '_'. $ui_type;
+	($prefix = lc $class) =~ s/::/_/gx;
+	$prefix .= '_' . $ui_type;
+	return $prefix;
 }
 
 sub _singularise_table {
@@ -2394,24 +2460,24 @@ sub _pluralise_table {
 
 sub _singularise {
 	my $word = shift;
-	$word =~ s/ies$/y/i;
-	return $word if ($word =~ s/ses$/s/);
-	return $word if($word =~ /[aeiouy]ss$/i);
-	$word =~ s/s$//i;
+	$word =~ s/ies$/y/ix;
+	return $word if ($word =~ s/ses$/s/x);
+	return $word if($word =~ /[aeiouy]ss$/ix);
+	$word =~ s/s$//ix;
 	return $word;
 }
 
 sub _title {
 	my ($table_name, $prefix) = @_;
 	return $table_name unless $prefix;
-	$table_name =~ s/^$prefix//;
+	$table_name =~ s/^$prefix//x;
 	return $table_name;
 }
 
 sub _label {
 	my $string = shift;
 	$string =~ s/_/ /g;
-	$string =~ s/\b(\w)/\u$1/g;
+	$string =~ s/\b(\w)/\u$1/gx;
 	return $string;
 }
 
@@ -2658,6 +2724,7 @@ The C<form> option defines the global default behaviours of C<render_as_form>:
       remove_message => 'Remove File',  # the label of the checkbox for removing files, defaulted to 'Remove'
       cancel => 'Back',  # the name of the built-in 'Cancel' controller, defaulted to 'Cancel'
       delimiter => ' '  # the delimiter for handling column with muliple values, defaulted to ','
+      action => '/app'  # set form action, defaulted to undef
     },
   });
 
